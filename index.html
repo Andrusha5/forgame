@@ -2,662 +2,637 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>BestLife - 2D Life Simulator</title>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 </head>
 <body>
 
-    <!-- ЗВУКОВЫЕ ЭФФЕКТЫ И МУЗЫКА -->
-    <audio id="bg-music" src="music.mp3" loop preload="auto"></audio>
+    <!-- ВСПЛЫВАЮЩИЕ УВЕДОМЛЕНИЯ (TOAST) -->
+    <div id="toast-message" class="toast-message hidden">Уведомление</div>
+
+    <!-- АУДИО ЭЛЕМЕНТЫ -->
+    <audio id="bg-music" loop preload="auto"></audio>
     <audio id="click-sound" src="click.mp3" preload="auto"></audio>
 
     <!-- ИНТРО ЭКРАН -->
-    <div id="intro-screen">
-        <div class="intro-center">
-            <h1 class="intro-title">BestLife</h1>
-        </div>
-        <div class="intro-footer">
-            <p class="intro-subtitle">by Best</p>
+    <div id="intro-screen" class="screen full-screen intro-background">
+        <div class="intro-content">
+            <h1 class="game-logo">BestLife</h1>
+            <p class="game-sublogo">2D Life Simulator</p>
+            <div class="loader-bar"><div class="loader-progress"></div></div>
         </div>
     </div>
 
     <!-- ГЛАВНОЕ МЕНЮ -->
-    <div id="main-menu" class="hidden">
-        <div class="menu-card">
-            <h1 class="game-logo">BestLife</h1>
-            <p class="game-sublogo">Симулятор жизни</p>
-            <div class="menu-buttons">
-                <button id="btn-play" class="btn btn-primary">▶ Играть</button>
-                <button id="btn-settings" class="btn btn-secondary">⚙ Настройки</button>
-            </div>
+    <div id="main-menu" class="screen full-screen menu-background hidden">
+        <div class="menu-content">
+            <h1 class="menu-title">BestLife</h1>
+            <button id="btn-play" class="btn btn-primary btn-pulse">Играть</button>
+            <button id="btn-settings" class="btn btn-secondary">Настройки</button>
         </div>
     </div>
 
-    <!-- ВЫБОР ПЕРСОНАЖА -->
-    <div id="gender-modal" class="modal hidden">
+    <!-- ВЫБОР ПОЛА -->
+    <div id="gender-modal" class="modal-overlay hidden">
         <div class="modal-card">
-            <h2 class="gender-title">Выберите персонажа</h2>
+            <h2>Выберите пол персонажа</h2>
             <div class="gender-options">
-                <div class="gender-card" id="gender-boy">
-                    <div class="avatar-placeholder">👦</div>
-                    <span class="gender-label">Мальчик</span>
-                </div>
-                <div class="gender-card" id="gender-girl">
-                    <div class="avatar-placeholder">👧</div>
-                    <span class="gender-label">Девочка</span>
-                </div>
+                <button id="gender-boy" class="btn-gender"><span class="gender-icon">👦</span><span>Парень</span></button>
+                <button id="gender-girl" class="btn-gender"><span class="gender-icon">👧</span><span>Девушка</span></button>
             </div>
         </div>
     </div>
 
-    <!-- ОКНО НАСТРОЕК -->
-    <div id="settings-modal" class="modal hidden">
-        <div class="modal-card settings-card">
-            <div class="settings-modal-header">
-                <h2>⚙ Настройки</h2>
-                <button id="btn-open-music-modal" class="btn-change-music-top">🎵 Музыка</button>
-            </div>
-            <p class="settings-subtitle">Громкость звуков и музыки</p>
-
-            <div class="settings-sliders-group">
-                <div class="slider-box">
-                    <div class="slider-label-row">
-                        <span>🔊 Звуки</span>
-                        <span id="sound-vol-text">33%</span>
-                    </div>
-                    <input type="range" id="sound-volume-slider" min="0" max="100" value="33" class="custom-slider">
-                </div>
-
-                <div class="slider-box">
-                    <div class="slider-label-row">
-                        <span>🎵 Музыка</span>
-                        <span id="music-vol-text">33%</span>
-                    </div>
-                    <input type="range" id="music-volume-slider" min="0" max="100" value="33" class="custom-slider">
+    <!-- НАСТРОЙКИ -->
+    <div id="settings-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h2>⚙ Настройки</h2>
+            <div class="setting-item">
+                <label>Звуковые эффекты</label>
+                <div class="volume-control-box">
+                    <input type="range" id="sound-volume-slider" min="0" max="100" value="33">
+                    <span id="sound-vol-text">33%</span>
                 </div>
             </div>
-
-            <button id="btn-close-settings" class="btn btn-primary">Закрыть</button>
+            <div class="setting-item">
+                <label>Фоновая музыка</label>
+                <div class="volume-control-box">
+                    <input type="range" id="music-volume-slider" min="0" max="100" value="33">
+                    <span id="music-vol-text">33%</span>
+                </div>
+            </div>
+            <button id="btn-open-music-modal" class="btn btn-secondary" style="width:100%;margin-top:10px;">🎵 Выбор музыки</button>
+            <button id="btn-close-settings" class="btn btn-primary" style="margin-top:15px;width:100%;">Закрыть</button>
         </div>
     </div>
 
-    <!-- МОДАЛЬНОЕ ОКНО ВЫБОРА МУЗЫКИ -->
-    <div id="music-modal" class="modal hidden">
+    <!-- ОКНО ВЫБОРА МУЗЫКИ -->
+    <div id="music-modal" class="modal-overlay hidden">
         <div class="modal-card music-modal-card">
             <div class="music-modal-header">
-                <h2>🎵 Выбор музыки</h2>
-                <button id="btn-close-music-modal" class="music-close-x">✕</button>
+                <h2>🎵 Музыкальный плеер</h2>
+                <button id="btn-close-music-modal" class="modal-close-icon">✕</button>
             </div>
-            <p class="music-subtitle">Выбирайте и разблокируйте треки</p>
-            <div id="music-tracks-list" class="music-tracks-list"></div>
+            <div class="music-tracks-scroll" id="music-tracks-list"></div>
         </div>
     </div>
 
-    <!-- ОСНОВНОЙ ЭКРАН ИГРЫ (КАРТА ГОРОДА) -->
-    <div id="game-screen" class="hidden">
+    <!-- ИГРОВОЙ ЭКРАН (КАРТА) -->
+    <div id="game-screen" class="screen full-screen hidden">
         <canvas id="gameCanvas"></canvas>
-    </div>
 
-    <!-- ИНТЕРФЕЙС ИГРОКА (HUD) -->
-    <div id="hud-top-bar" class="hidden">
-        <div id="time-pill">
-            <span id="hud-clock-text">06:00</span>
-            <span class="pill-divider">•</span>
-            <span id="hud-date-text">1 май</span>
-        </div>
-        <div id="money-pill">
-            <span id="hud-money-text">1 000 ₽</span>
-        </div>
-    </div>
-
-    <button id="btn-open-settings-game" class="hud-circle-btn hud-settings-btn hidden" title="Настройки">⚙</button>
-
-    <div id="phone-btn-wrapper" class="hud-phone-wrapper hidden">
-        <button id="btn-open-phone" class="hud-circle-btn hud-phone-btn" title="Телефон">📱</button>
-        <div id="phone-badge" class="phone-badge hidden">0</div>
-    </div>
-
-    <!-- ПОКАЗАТЕЛИ ПОТРЕБНОСТЕЙ -->
-    <div id="player-stats-hud" class="hidden">
-        <div class="stat-circle-item" id="stat-item-hunger" title="Голод">
-            <svg class="stat-svg" viewBox="0 0 44 44">
-                <circle class="stat-bg-circle" cx="22" cy="22" r="18"></circle>
-                <circle id="hunger-ring" class="stat-progress-circle hunger-color" cx="22" cy="22" r="18"></circle>
-            </svg>
-            <div class="stat-inner">
-                <span class="stat-icon">🍗</span>
-                <span id="hunger-val-text" class="stat-pct">100%</span>
+        <!-- ВЕРХНИЙ ИНФОРМАЦИОННЫЙ HUD -->
+        <div id="hud-top-bar" class="hud-top-bar">
+            <div class="hud-pill clock-pill">
+                <span id="hud-clock-text">06:00</span>
+                <span class="hud-dot">•</span>
+                <span id="hud-date-text">1 мая</span>
             </div>
-            <div id="tooltip-hunger" class="stat-tooltip hidden">Голод</div>
-        </div>
-
-        <div class="stat-circle-item" id="stat-item-energy" title="Энергия">
-            <svg class="stat-svg" viewBox="0 0 44 44">
-                <circle class="stat-bg-circle" cx="22" cy="22" r="18"></circle>
-                <circle id="energy-ring" class="stat-progress-circle energy-color" cx="22" cy="22" r="18"></circle>
-            </svg>
-            <div class="stat-inner">
-                <span class="stat-icon">⚡</span>
-                <span id="energy-val-text" class="stat-pct">100%</span>
+            <div class="hud-pill money-pill">
+                <span id="hud-money-text">1 000 ₽</span>
             </div>
-            <div id="tooltip-energy" class="stat-tooltip hidden">Энергия</div>
         </div>
 
-        <div class="stat-circle-item" id="stat-item-sleep" title="Сон">
-            <svg class="stat-svg" viewBox="0 0 44 44">
-                <circle class="stat-bg-circle" cx="22" cy="22" r="18"></circle>
-                <circle id="sleep-ring" class="stat-progress-circle sleep-color" cx="22" cy="22" r="18"></circle>
-            </svg>
-            <div class="stat-inner">
-                <span class="stat-icon">🌙</span>
-                <span id="sleep-val-text" class="stat-pct">100%</span>
+        <button id="btn-open-settings-game" class="btn-icon-hud settings-hud-btn">⚙</button>
+
+        <!-- ИКОНКА ТЕЛЕФОНА НА ЭКРАНЕ -->
+        <div id="phone-btn-wrapper" class="phone-btn-wrapper">
+            <button id="btn-open-phone" class="btn-phone-hud">
+                <img src="phone.png" alt="Phone" class="phone-icon-img" onerror="this.src='phone.png'">
+                <span id="phone-badge" class="phone-badge hidden">0</span>
+            </button>
+        </div>
+
+        <!-- КРУГОВЫЕ ИНДИКАТОРЫ ПОТРЕБНОСТЕЙ -->
+        <div id="player-stats-hud" class="player-stats-hud">
+            <div class="stat-circle-item" data-stat="hunger">
+                <svg class="circle-svg" viewBox="0 0 40 40">
+                    <circle class="circle-bg" cx="20" cy="20" r="18"/>
+                    <circle id="hunger-ring" class="circle-progress hunger-color" cx="20" cy="20" r="18"/>
+                </svg>
+                <div class="circle-content"><span class="stat-emoji">🍗</span></div>
+                <div class="stat-tooltip hidden"><span id="hunger-val-text">100%</span> Голод</div>
             </div>
-            <div id="tooltip-sleep" class="stat-tooltip hidden">Сон</div>
-        </div>
-    </div>
-
-    <!-- ОКНО ВЫБОРА СПОСОБА ПЕРЕДВИЖЕНИЯ -->
-    <div id="travel-choice-modal" class="fullscreen-screen travel-choice-mode hidden">
-        <button id="btn-travel-back" class="road-back-btn">← Назад</button>
-        <div class="road-center-box">
-            <h2 class="road-title" id="travel-choice-title">Выбор способа поездки</h2>
-            <p class="road-subtitle">Как вы хотите добраться до пункта назначения?</p>
-            
-            <div class="travel-buttons-grid">
-                <button type="button" id="btn-travel-walk" class="travel-choice-card">
-                    <span class="travel-card-icon">🚶</span>
-                    <span class="travel-card-title">Пешком</span>
-                    <span class="travel-card-desc">Пройдите пешком</span>
-                </button>
-                <button type="button" id="btn-travel-car" class="travel-choice-card">
-                    <span class="travel-card-icon">🚗</span>
-                    <span class="travel-card-title">На машине</span>
-                    <span class="travel-card-desc" id="travel-car-desc">Требуется личное авто</span>
-                </button>
+            <div class="stat-circle-item" data-stat="energy">
+                <svg class="circle-svg" viewBox="0 0 40 40">
+                    <circle class="circle-bg" cx="20" cy="20" r="18"/>
+                    <circle id="energy-ring" class="circle-progress energy-color" cx="20" cy="20" r="18"/>
+                </svg>
+                <div class="circle-content"><span class="stat-emoji">⚡</span></div>
+                <div class="stat-tooltip hidden"><span id="energy-val-text">100%</span> Энергия</div>
+            </div>
+            <div class="stat-circle-item" data-stat="sleep">
+                <svg class="circle-svg" viewBox="0 0 40 40">
+                    <circle class="circle-bg" cx="20" cy="20" r="18"/>
+                    <circle id="sleep-ring" class="circle-progress sleep-color" cx="20" cy="20" r="18"/>
+                </svg>
+                <div class="circle-content"><span class="stat-emoji">🌙</span></div>
+                <div class="stat-tooltip hidden"><span id="sleep-val-text">100%</span> Сон</div>
             </div>
         </div>
     </div>
 
-    <!-- ПОЛНОЭКРАННЫЙ ЭКРАН ХОДЬБЫ ПЕШКОМ -->
-    <div id="walk-fullscreen" class="fullscreen-screen walk-fullscreen-mode hidden">
-        <button id="btn-walk-back" class="road-back-btn">← Назад</button>
-        <div class="taxi-top-hud">
-            <div id="time-pill">
-                <span id="walk-clock-text">06:00</span>
-                <span class="pill-divider">•</span>
-                <span id="walk-date-text">1 май</span>
-            </div>
-            <div id="money-pill">
-                <span id="walk-money-text">1 000 ₽</span>
-            </div>
-        </div>
-
-        <div class="road-center-box" id="walk-click-box">
-            <div class="taxi-car-anim">🚶</div>
-            <h2 class="road-title" id="walk-title-text">Идём пешком</h2>
-            <p class="road-subtitle">Нажимайте на экран, чтобы идти</p>
-
-            <div class="road-progress-outer">
-                <div id="walk-progress-inner" class="road-progress-inner walk-progress-bar" style="width: 0%;"></div>
-            </div>
-            <div id="walk-percent-text" class="road-percent-text">0%</div>
-        </div>
+    <!-- КВАРТИРА -->
+    <div id="apartment-screen" class="screen full-screen room-screen hidden">
+        <img src="room.png" class="room-bg-img" alt="Квартира" onerror="this.src='gazon.png'">
+        <img id="bed-img" src="bed.png" class="bed-clickable-area" alt="Кровать" onerror="this.style.display='none'">
+        <button id="btn-exit-apartment" class="btn-room-exit">🚪 На улицу</button>
     </div>
 
-    <!-- ЛОКАЦИЯ: КВАРТИРА -->
-    <div id="apartment-screen" class="hidden">
-        <button id="btn-exit-apartment" class="back-circle-btn">←</button>
-        <div class="apartment-view">
-            <div class="room-container">
-                <img id="apartment-img" src="house.png" alt="Квартира">
-                <img id="bed-img" src="bed.png" alt="Кровать">
-            </div>
+    <!-- ПОЖАРНАЯ ЧАСТЬ -->
+    <div id="firestation-screen" class="screen full-screen room-screen hidden">
+        <img src="firestation.png" class="room-bg-img" alt="Пожарная часть" onerror="this.src='gazon.png'">
+        <div id="firefighter-npc-inroom" class="npc-clickable-area" title="Генерал МЧС">
+            <img src="npc_firefighter.png" alt="Генерал МЧС" class="npc-sprite-img" onerror="this.src='https://via.placeholder.com/80x150?text=🚒'">
         </div>
-        <div id="sleep-overlay" class="sleep-overlay hidden">
-            <div class="sleep-status-text">Вы спите</div>
-            <div class="sleep-bottom-bar">
-                <button id="btn-wake-up" class="btn-wake-up">⏰ ПРОСНУТЬСЯ</button>
-            </div>
-        </div>
+        <button id="btn-exit-firestation" class="btn-room-exit">🚪 На улицу</button>
     </div>
 
-    <!-- ИНТЕРАКЦИЯ С КРОВАТЬЮ -->
-    <div id="bed-modal" class="modal hidden">
-        <div class="modal-card bed-card">
-            <h2 id="bed-modal-title">🛏 Кровать</h2>
-            <p id="bed-modal-text">Во время сна время ускоряется в 7 раз.</p>
-            <div id="bed-modal-actions">
-                <button id="btn-sleep-action" class="btn btn-primary">Поспать</button>
-                <button id="btn-close-bed-modal" class="btn btn-secondary">Закрыть</button>
-            </div>
+    <!-- АВТОБАЗА -->
+    <div id="truckstation-screen" class="screen full-screen room-screen hidden">
+        <img src="truckstation.png" class="room-bg-img" alt="Автобаза" onerror="this.src='gazon.png'">
+        <div id="trucker-npc-inroom" class="npc-clickable-area" title="Начальник автобазы">
+            <img src="npc_trucker.png" alt="Начальник автобазы" class="npc-sprite-img" onerror="this.src='https://via.placeholder.com/80x150?text=🚛'">
         </div>
+        <button id="btn-exit-truckstation" class="btn-room-exit">🚪 На улицу</button>
     </div>
 
-    <!-- ЛОКАЦИЯ: ПОЖАРНАЯ ЧАСТЬ -->
-    <div id="firestation-screen" class="hidden">
-        <button id="btn-exit-firestation" class="back-circle-btn">←</button>
-        <div class="apartment-view">
-            <div class="room-container">
-                <img id="firestation-img" src="fire_station.png" alt="Пожарная часть">
-                <img id="firefighter-npc-inroom" src="firefighter_npc.png" alt="Пожарный">
-            </div>
+    <!-- МАГАЗИН -->
+    <div id="market-screen" class="screen full-screen room-screen hidden">
+        <img src="market.png" class="room-bg-img" alt="Магазин" onerror="this.src='gazon.png'">
+        <div id="market-npc-inroom" class="npc-clickable-area" title="Директор магазина">
+            <img src="npc_director.png" alt="Директор магазина" class="npc-sprite-img" onerror="this.src='https://via.placeholder.com/80x150?text=🛒'">
         </div>
+        <button id="btn-exit-market" class="btn-room-exit">🚪 На улицу</button>
+    </div>
 
-        <!-- ОКНО ДИАЛОГА С ПОЖАРНЫМ -->
-        <div id="dialogue-overlay" class="dialogue-overlay hidden">
-            <div class="dialogue-layout">
-                <div class="dialogue-npc-side">
-                    <img src="firefighter_npc.png" alt="Генерал-полковник МЧС" class="dialogue-npc-img-side">
+    <!-- ЭКРАН РАБОТЫ КАССИРА -->
+    <div id="cashier-work-screen" class="screen full-screen cashier-screen hidden">
+        <div class="cashier-ui-container">
+            <!-- Верхняя панель кассира -->
+            <div class="cashier-header-bar">
+                <button id="btn-exit-cashier-work" class="btn-room-exit cashier-exit-btn">🚪 Покинуть кассу</button>
+                <div class="cashier-status-box">
+                    <span id="cashier-shift-status">🟢 Смена идет</span>
+                    <span id="cashier-shift-timer">⏱ 0 ч</span>
                 </div>
-                <div class="dialogue-content-side">
-                    <div class="dialogue-card-new">
-                        <div class="dialogue-header">Генерал-полковник МЧС</div>
-                        <div class="dialogue-text" id="dialogue-text">Здравствуйте! Я генерал-полковник МЧС, чем могу помочь?!</div>
-                        <div class="dialogue-buttons-new">
-                            <button id="btn-dlg-hiring" class="btn-dlg">Трудоустройство</button>
-                            <button id="btn-dlg-about" class="btn-dlg">О работе</button>
-                            <button id="btn-dlg-orders" class="btn-dlg">Заказы</button>
-                            <button id="btn-dlg-close" class="btn-dlg btn-dlg-back">Назад</button>
+            </div>
+
+            <!-- Зона работы (Покупатель + Касса) -->
+            <div class="cashier-workspace">
+                <!-- Окно покупателя -->
+                <div class="cashier-customer-box">
+                    <div class="customer-avatar-wrapper">
+                        <img id="cashier-customer-image" src="customers/customer_1.png" alt="Покупатель" onerror="this.src='https://via.placeholder.com/120x160?text=👤'">
+                    </div>
+                </div>
+
+                <!-- Дисплей кассового терминала -->
+                <div class="cashier-pos-terminal">
+                    <div class="pos-screen-header">
+                        <span>POS-ТЕРМИНАЛ #01</span>
+                    </div>
+                    <div class="pos-display-grid">
+                        <div class="pos-data-row">
+                            <span>Сумма чека:</span>
+                            <strong id="cashier-check-display">0 ₽</strong>
+                        </div>
+                        <div class="pos-data-row">
+                            <span>Получено:</span>
+                            <strong id="cashier-paid-display" class="color-income">0 ₽</strong>
+                        </div>
+                        <div class="pos-data-row pos-highlight-row">
+                            <span>Сдача клиент:</span>
+                            <strong id="cashier-change-due-display">0 ₽</strong>
+                        </div>
+                        <div class="pos-data-row pos-selected-row">
+                            <span>Выбрано сдачи:</span>
+                            <strong id="cashier-selected-display">0 ₽</strong>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- ЛОКАЦИЯ: АВТОБАЗА ДАЛЬНОБОЙЩИКОВ -->
-    <div id="truckstation-screen" class="hidden">
-        <button id="btn-exit-truckstation" class="back-circle-btn">←</button>
-        <div class="apartment-view">
-            <div class="room-container">
-                <img id="truckstation-img" src="truck_station.png" alt="Автобаза" onerror="this.src='house.png'">
-                <img id="trucker-npc-inroom" src="trucker_npc.png" alt="Начальник автобазы" onerror="this.src='firefighter_npc.png'">
-            </div>
-        </div>
-
-        <!-- ОКНО ДИАЛОГА С НАЧАЛЬНИКОМ АВТОБАЗЫ -->
-        <div id="trucker-dialogue-overlay" class="dialogue-overlay hidden">
-            <div class="dialogue-layout">
-                <div class="dialogue-npc-side trucker-npc-left">
-                    <img src="trucker_npc.png" alt="Начальник автобазы" class="dialogue-npc-img-side" onerror="this.src='firefighter_npc.png'">
+            <!-- Лоток выбранной сдачи (Верхняя кассовая ячейка с возможностью возврата) -->
+            <div class="cashier-selected-items-box">
+                <div class="cashier-tray-header">
+                    <span>Выданные купюры/монеты (нажмите для возврата обратно):</span>
                 </div>
-                <div class="dialogue-content-side">
-                    <div class="dialogue-card-new trucker-theme">
-                        <div class="dialogue-header trucker-header">Начальник Автобазы</div>
-                        <div class="dialogue-text" id="trucker-dialogue-text">Приветствую! Я начальник автобазы. Готов сесть за руль тягача?!</div>
-                        <div class="dialogue-buttons-new">
-                            <button id="btn-trucker-hiring" class="btn-dlg">Трудоустройство</button>
-                            <button id="btn-trucker-about" class="btn-dlg">О работе</button>
-                            <button id="btn-trucker-orders" class="btn-dlg">Заказы</button>
-                            <button id="btn-trucker-close" class="btn-dlg btn-dlg-back">Назад</button>
-                        </div>
-                    </div>
+                <div id="cashier-selected-items-tray" class="cashier-selected-items-tray">
+                    <span class="cashier-empty-tray-label">Нажимайте на купюры ниже, чтобы собрать сдачу</span>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- ЛОКАЦИЯ: МАГАЗИН (СУПЕРМАРКЕТ - КАССИР) -->
-    <div id="market-screen" class="hidden">
-        <button id="btn-exit-market" class="back-circle-btn">←</button>
-        <div class="apartment-view">
-            <div class="room-container">
-                <img id="market-img" src="market_room.png" alt="Супермаркет" onerror="this.src='house.png'">
-                <div id="cashier-npc-inroom" class="cashier-manager-clicker" title="Управляющий магазина">🛒</div>
-            </div>
-        </div>
+            <!-- Нижняя панель с купюрами и кнопкой выдачи -->
+            <div class="cashier-controls-panel">
+                <div id="cashier-denominations-grid" class="cashier-denominations-grid"></div>
 
-        <!-- ОКНО ДИАЛОГА С УПРАВЛЯЮЩИМ МАГАЗИНА -->
-        <div id="cashier-dialogue-overlay" class="dialogue-overlay hidden">
-            <div class="dialogue-layout">
-                <div class="dialogue-npc-side">
-                    <div class="dialogue-npc-placeholder">🤵‍♂️</div>
-                </div>
-                <div class="dialogue-content-side">
-                    <div class="dialogue-card-new market-theme">
-                        <div class="dialogue-header market-header">Управляющий Супермаркета</div>
-                        <div class="dialogue-text" id="cashier-dialogue-text">Здравствуйте! Нам нужны ответственные кассиры. Готовы встать за кассу?!</div>
-                        <div class="dialogue-buttons-new">
-                            <button id="btn-cashier-hiring" class="btn-dlg">Трудоустройство</button>
-                            <button id="btn-cashier-about" class="btn-dlg">О работе</button>
-                            <button id="btn-cashier-start" class="btn-dlg">Начать смену</button>
-                            <button id="btn-cashier-close" class="btn-dlg btn-dlg-back">Назад</button>
-                        </div>
-                    </div>
+                <div class="cashier-actions-row">
+                    <button id="btn-cashier-break" class="btn btn-secondary btn-cashier-break">☕ Перерыв (13:00–14:30)</button>
+                    <button id="btn-cashier-give-change" class="btn btn-primary btn-cashier-action" disabled>Выдать сдачу</button>
+                    <button id="btn-cashier-end-shift" class="btn btn-secondary btn-cashier-end">🏁 Завершить смену</button>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- МОДАЛЬНОЕ ОКНО СОБЕСЕДОВАНИЯ КАССИРА -->
-    <div id="cashier-quiz-modal" class="modal hidden">
-        <div class="modal-card cashier-modal-card">
-            <div class="cashier-modal-header">
-                <h2>🛒 Экзамен Кассира</h2>
-                <span id="cashier-step-badge" class="pdd-step-badge">Вопрос 1 из 2</span>
-            </div>
-            <div class="cashier-question-body">
-                <p id="cashier-question-title" class="pdd-question-title">Вопрос...</p>
-                <div id="cashier-answers-grid" class="pdd-answers-grid"></div>
-            </div>
-            <button id="btn-close-cashier-quiz" class="btn btn-secondary" style="margin-top: 10px;">Отмена</button>
-        </div>
-    </div>
-
-    <!-- ПОЛНОЭКРАННАЯ РАБОТА КАССИРОМ -->
-    <div id="cashier-work-fullscreen" class="fullscreen-screen cashier-fullscreen-mode hidden">
-        <!-- ВЕРХНИЙ ХУД СМЕНЫ -->
-        <div class="cashier-top-hud">
-            <button id="btn-finish-cashier-shift" class="btn-finish-shift-top">🔴 Закончить смену</button>
-            <div class="cashier-hud-center">
-                <span id="cashier-clock-text">09:00</span> • <span id="cashier-date-text">1 май</span>
-            </div>
-            <div class="cashier-hud-right">
-                <span id="cashier-money-text">1 000 ₽</span>
-            </div>
-        </div>
-
-        <!-- ЦЕНТРАЛЬНАЯ КВАДРАТНАЯ ЗОНА КАССЫ -->
-        <div class="cashier-main-viewport">
-            <div class="cashier-customer-zone">
-                <div id="cashier-customer-avatar" class="customer-avatar">🧍‍♂️</div>
-                <div class="cashier-speech-bubble">
-                    <span id="customer-dialogue-line">Здравствуйте! Я хочу оплатить покупки.</span>
-                </div>
-            </div>
-
-            <div class="cashier-screen-display">
-                <div class="cashier-register-info">
-                    <div class="cashier-info-row">
-                        <span>Сумма покупки:</span>
-                        <strong id="cashier-cheque-val">0 ₽</strong>
-                    </div>
-                    <div class="cashier-info-row">
-                        <span>Клиент дал:</span>
-                        <strong id="cashier-given-val">0 ₽</strong>
-                    </div>
-                    <div class="cashier-info-row highlight-change">
-                        <span>Сдача:</span>
-                        <strong id="cashier-needed-change-val">0 ₽</strong>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ЗОНА ВЫБРАННОЙ СДАЧИ -->
-            <div class="cashier-selected-change-tray" id="cashier-selected-tray">
-                <span class="tray-placeholder">Выберите банкноты или монеты ниже</span>
-            </div>
-
-            <!-- КАССОВЫЙ ЯЩИК C КУПЮРАМИ И МОНЕТАМИ -->
-            <div class="cashier-till-box">
-                <div class="till-section-title">Кассовый ящик (рубли)</div>
-                <div class="till-bills-grid">
-                    <button class="till-btn bill-5000" data-val="5000">5000 ₽</button>
-                    <button class="till-btn bill-2000" data-val="2000">2000 ₽</button>
-                    <button class="till-btn bill-1000" data-val="1000">1000 ₽</button>
-                    <button class="till-btn bill-500" data-val="500">500 ₽</button>
-                    <button class="till-btn bill-100" data-val="100">100 ₽</button>
-                    <button class="till-btn bill-50" data-val="50">50 ₽</button>
-                </div>
-                <div class="till-coins-grid">
-                    <button class="till-btn coin-10" data-val="10">10 ₽</button>
-                    <button class="till-btn coin-5" data-val="5">5 ₽</button>
-                    <button class="till-btn coin-2" data-val="2">2 ₽</button>
-                    <button class="till-btn coin-1" data-val="1">1 ₽</button>
-                </div>
-            </div>
-
-            <!-- КНОПКИ ДЕЙСТВИЙ СДАЧИ -->
-            <div class="cashier-actions-row">
-                <button id="btn-cashier-give-change" class="btn-cashier-action give-btn">💵 Выдать сдачу</button>
-                <button id="btn-cashier-clear-tray" class="btn-cashier-action clear-btn">🗑 Сбросить</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- МОДАЛЬНОЕ ОКНО СОБЕСЕДОВАНИЯ ПДД (ДАЛЬНОБОЙЩИК) -->
-    <div id="pdd-quiz-modal" class="modal hidden">
+    <div id="cashier-interview-modal" class="modal-overlay hidden">
         <div class="modal-card pdd-modal-card">
-            <div class="pdd-modal-header">
-                <h2>🚦 Экзамен ПДД</h2>
-                <span id="pdd-step-badge" class="pdd-step-badge">Вопрос 1 из 2</span>
+            <div class="pdd-header-bar">
+                <span id="cashier-step-badge" class="pdd-step-badge">Вопрос 1 из 2</span>
+                <button id="btn-close-cashier-interview" class="modal-close-icon">✕</button>
             </div>
-            <div class="pdd-question-body">
-                <div class="pdd-image-wrapper">
-                    <img id="pdd-question-img" src="pdd_brick.png" alt="Знак ПДД" onerror="this.src='https://via.placeholder.com/180x120?text=Знак+ПДД'">
-                </div>
-                <p id="pdd-question-title" class="pdd-question-title">Что означает этот дорожный знак?</p>
-                <div id="pdd-answers-grid" class="pdd-answers-grid"></div>
-            </div>
-            <button id="btn-close-pdd" class="btn btn-secondary" style="margin-top: 10px;">Отмена</button>
+            <h2>Собеседование в Магазине</h2>
+            <div id="cashier-question-title" class="pdd-question-text">Вопрос...</div>
+            <div id="cashier-answers-grid" class="pdd-answers-grid"></div>
         </div>
     </div>
 
-    <!-- ВЫБОР ЗАКАЗА ПОЖАРНОГО -->
-    <div id="orders-modal" class="modal hidden">
-        <div class="modal-card orders-card">
-            <h2>🚒 Заказы МЧС</h2>
-            <p class="orders-subtitle">Выберите уровень сложности вызова:</p>
-            <div class="orders-list">
-                <div class="order-item-card" data-level="easy">
-                    <div class="order-item-header">🟢 Легкий вызов</div>
+    <!-- МОДАЛЬНОЕ ОКНО КРОВАТИ -->
+    <div id="bed-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h2 id="bed-modal-title">🌙 Сон</h2>
+            <p id="bed-modal-text">Во время сна время ускоряется в 7 раз.</p>
+            <div style="display:flex;gap:10px;margin-top:15px;">
+                <button id="btn-sleep-action" class="btn btn-primary" style="flex:1;">Лягу спать</button>
+                <button id="btn-close-bed-modal" class="btn btn-secondary" style="flex:1;">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ОВЕРЛЕЙ СНА -->
+    <div id="sleep-overlay" class="screen full-screen sleep-screen hidden">
+        <div class="sleep-content">
+            <span class="sleep-icon">🌙</span>
+            <h2>Вы спите...</h2>
+            <p>Восстановление сил и энергии...</p>
+            <button id="btn-wake-up" class="btn btn-primary" style="margin-top:20px;">Проснуться</button>
+        </div>
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО ВЫБОРА СПОСОБА ПЕРЕДВИЖЕНИЯ -->
+    <div id="travel-choice-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h2 id="travel-choice-title">Как отправимся?</h2>
+            <div class="travel-options-grid">
+                <button id="btn-travel-walk" class="btn-travel-option">
+                    <span class="travel-icon">🚶</span>
+                    <div>
+                        <strong>Пешком</strong>
+                        <small>150 кликов по экрану</small>
+                    </div>
+                </button>
+                <button id="btn-travel-car" class="btn-travel-option">
+                    <span class="travel-icon">🚗</span>
+                    <div>
+                        <strong>На машине</strong>
+                        <small id="travel-car-desc">Требуется личный автомобиль</small>
+                    </div>
+                </button>
+            </div>
+            <button id="btn-travel-back" class="btn btn-secondary" style="width:100%;margin-top:12px;">Отмена</button>
+        </div>
+    </div>
+
+    <!-- ЭКРАН ПЕШЕЙ ПРОГУЛКИ -->
+    <div id="walk-fullscreen" class="screen full-screen hidden">
+        <div id="walk-click-box" class="fullscreen-touch-area">
+            <button id="btn-walk-back" class="btn-road-cancel">✕ Отмена</button>
+            <div id="walk-title-text" class="road-hud-title">Идём пешком...</div>
+
+            <div class="road-progress-box">
+                <div class="road-progress-track">
+                    <div id="walk-progress-inner" class="road-progress-inner"></div>
+                </div>
+                <div id="walk-percent-text" class="road-percent-text">0%</div>
+            </div>
+
+            <div class="hud-top-bar walk-hud-override">
+                <div class="hud-pill clock-pill">
+                    <span id="walk-clock-text">06:00</span>
+                    <span class="hud-dot">•</span>
+                    <span id="walk-date-text">1 мая</span>
+                </div>
+                <div class="hud-pill money-pill">
+                    <span id="walk-money-text">1 000 ₽</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ТЕЛЕФОН -->
+    <div id="phone-modal" class="modal-overlay phone-modal-overlay hidden">
+        <div class="iphone-shell">
+            <div id="phone-status-bar" class="iphone-status-bar">
+                <span id="phone-clock-text">06:00</span>
+                <div class="iphone-notch"></div>
+                <div class="iphone-status-right">
+                    <span id="phone-date-text">1 мая</span>
+                    <span>67% 🔋</span>
+                </div>
+            </div>
+
+            <!-- ГЛАВНЫЙ ЭКРАН ТЕЛЕФОНА (СЕТКА ПРИЛОЖЕНИЙ) -->
+            <div id="phone-apps-grid" class="iphone-apps-grid">
+                <div class="app-item" data-app="taxi">
+                    <div class="app-icon-wrapper"><img src="apps/taxi.png" alt="Такси" onerror="this.src='https://via.placeholder.com/50?text=🚕'"></div>
+                    <span>Такси</span>
+                </div>
+                <div class="app-item" data-app="work">
+                    <div class="app-icon-wrapper"><img src="apps/rabota_ru.png" alt="Работа.ру" onerror="this.src='https://via.placeholder.com/50?text=💼'"></div>
+                    <span>Работа.ру</span>
+                </div>
+                <div class="app-item" data-app="shtraf">
+                    <div class="app-icon-wrapper"><img src="apps/gibdd.png" alt="Штрафы" onerror="this.src='https://via.placeholder.com/50?text=⚠️'"></div>
+                    <span>Штрафы</span>
+                </div>
+                <div class="app-item" data-app="plat">
+                    <div class="app-icon-wrapper"><img src="apps/oplata.png" alt="Оплата" onerror="this.src='https://via.placeholder.com/50?text=🧾'"></div>
+                    <span>Оплата</span>
+                </div>
+                <div class="app-item" data-app="business">
+                    <div class="app-icon-wrapper"><img src="apps/business.png" alt="Бизнес" onerror="this.src='https://via.placeholder.com/50?text=🏢'"></div>
+                    <span>Бизнес</span>
+                </div>
+                <div class="app-item" data-app="karta">
+                    <div class="app-icon-wrapper"><img src="apps/schet.png" alt="Счёт" onerror="this.src='https://via.placeholder.com/50?text=💳'"></div>
+                    <span>Счёт</span>
+                </div>
+                <div class="app-item" data-app="avto">
+                    <div class="app-icon-wrapper"><img src="apps/auto_ru.png" alt="Авто.ру" onerror="this.src='https://via.placeholder.com/50?text=🚗'"></div>
+                    <span>Авто.ру</span>
+                </div>
+                <div class="app-item" data-app="casino">
+                    <div class="app-icon-wrapper"><img src="apps/lottery.png" alt="Лотерея" onerror="this.src='https://via.placeholder.com/50?text=🎰'"></div>
+                    <span>Лотерея</span>
+                </div>
+                <div class="app-item" data-app="sms">
+                    <div class="app-icon-wrapper">
+                        <img src="apps/sms.png" alt="СМС" onerror="this.src='https://via.placeholder.com/50?text=💬'">
+                        <span id="sms-app-badge" class="app-badge hidden">0</span>
+                    </div>
+                    <span>СМС</span>
+                </div>
+                <div class="app-item" data-app="eda">
+                    <div class="app-icon-wrapper"><img src="apps/eda.png" alt="Еда" onerror="this.src='https://via.placeholder.com/50?text=🍕'"></div>
+                    <span>Еда</span>
+                </div>
+                <div class="app-item" data-app="poisk">
+                    <div class="app-icon-wrapper"><img src="apps/poisk.png" alt="Поиск" onerror="this.src='https://via.placeholder.com/50?text=🔍'"></div>
+                    <span>Поиск</span>
+                </div>
+                <div class="app-item" data-app="zakaz">
+                    <div class="app-icon-wrapper"><img src="apps/zakaz.png" alt="Заказ" onerror="this.src='https://via.placeholder.com/50?text=📦'"></div>
+                    <span>Заказ</span>
+                </div>
+                <div class="app-item" data-app="kollectiv">
+                    <div class="app-icon-wrapper">
+                        <img src="apps/kollectiv.png" alt="Коллектив" onerror="this.src='https://via.placeholder.com/50?text=👥'">
+                        <span id="kollectiv-app-badge" class="app-badge hidden">0</span>
+                    </div>
+                    <span>Коллектив</span>
+                </div>
+                <div class="app-item" data-app="imushka">
+                    <div class="app-icon-wrapper"><img src="apps/imushchestvo.png" alt="Имущество" onerror="this.src='https://via.placeholder.com/50?text=🏡'"></div>
+                    <span>Имущество</span>
+                </div>
+                <div class="app-item" data-app="compania">
+                    <div class="app-icon-wrapper"><img src="apps/compania.png" alt="Компания" onerror="this.src='https://via.placeholder.com/50?text=📊'"></div>
+                    <span>Компания</span>
+                </div>
+            </div>
+
+            <!-- КОНТЕНТ ОТКРЫТОГО ПРИЛОЖЕНИЯ -->
+            <div id="phone-app-content" class="iphone-app-content hidden">
+                <div class="app-header-nav">
+                    <button id="btn-phone-back" class="btn-app-back">←</button>
+                    <h2 id="app-title-text">Приложение</h2>
+                </div>
+                <div id="app-scrollable-body" class="app-scrollable-body"></div>
+            </div>
+
+            <button id="btn-close-phone" class="iphone-close-btn">✕</button>
+        </div>
+    </div>
+
+    <!-- ДИАЛОГ С ГЕНЕРАЛОМ МЧС -->
+    <div id="dialogue-overlay" class="dialogue-overlay hidden">
+        <div class="dialogue-card">
+            <div class="dialogue-speaker-info">
+                <span class="speaker-avatar">🚒</span>
+                <strong>Генерал-полковник МЧС</strong>
+            </div>
+            <p id="dialogue-text">Здравствуйте! Чем могу помочь?</p>
+            <div class="dialogue-buttons-grid">
+                <button id="btn-dlg-hiring" class="btn-dlg">Трудоустройство</button>
+                <button id="btn-dlg-about" class="btn-dlg">О работе</button>
+                <button id="btn-dlg-orders" class="btn-dlg">Заказы</button>
+                <button id="btn-dlg-close" class="btn-dlg btn-dlg-cancel">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО ЗАКАЗОВ МЧС -->
+    <div id="orders-modal" class="modal-overlay hidden">
+        <div class="modal-card orders-modal-card">
+            <div class="pdd-header-bar">
+                <h2>🚒 Доступные вызовы МЧС</h2>
+                <button id="btn-close-orders" class="modal-close-icon">✕</button>
+            </div>
+            <div class="orders-list-grid">
+                <div class="order-item-card">
+                    <div class="order-item-header">🟢 Лёгкий вызов</div>
                     <div class="order-item-reward">+600 ₽</div>
-                    <div class="order-item-desc">5 очагов возгорания (по 3 нажатия)</div>
+                    <div class="order-item-desc">Небольшое возгорание (5 очагов)</div>
                     <button class="btn btn-primary btn-select-order" data-level="easy">Принять вызов</button>
                 </div>
-                <div class="order-item-card" data-level="medium">
+                <div class="order-item-card">
                     <div class="order-item-header">🟡 Средний вызов</div>
                     <div class="order-item-reward">+700 ₽</div>
-                    <div class="order-item-desc">7 очагов возгорания (по 3 нажатия)</div>
+                    <div class="order-item-desc">Пожар в здании (7 очагов)</div>
                     <button class="btn btn-primary btn-select-order" data-level="medium">Принять вызов</button>
                 </div>
-                <div class="order-item-card" data-level="hard">
+                <div class="order-item-card">
                     <div class="order-item-header">🔴 Сложный вызов</div>
                     <div class="order-item-reward">+850 ₽</div>
-                    <div class="order-item-desc">10 очагов возгорания (по 5 нажатий)</div>
+                    <div class="order-item-desc">Крупный пожар (10 очагов)</div>
                     <button class="btn btn-primary btn-select-order" data-level="hard">Принять вызов</button>
                 </div>
             </div>
-            <button id="btn-close-orders" class="btn btn-secondary" style="margin-top: 15px;">Закрыть</button>
         </div>
     </div>
 
-    <!-- ВЫБОР ЗАКАЗА ДАЛЬНОБОЙЩИКА -->
-    <div id="trucker-orders-modal" class="modal hidden">
-        <div class="modal-card orders-card trucker-orders-card">
-            <h2>🚛 Рейсы дальнобойщика</h2>
-            <p class="orders-subtitle">Выберите подходящий рейс из двух предложенных:</p>
-            <div id="trucker-orders-list" class="orders-list"></div>
-            <button id="btn-close-trucker-orders" class="btn btn-secondary" style="margin-top: 15px;">Закрыть</button>
-        </div>
-    </div>
-
-    <!-- ПОЛНОЭКРАННЫЙ ЭКРАН ПОЕЗДКИ НА ВЫЗОВ (МЧС) -->
-    <div id="road-fullscreen" class="fullscreen-screen hidden">
-        <button id="btn-road-back" class="road-back-btn">← Назад</button>
-        <div class="road-center-box">
-            <h2 class="road-title">🚒 Выезд на пожарный вызов</h2>
-            <p class="road-subtitle">Нажимайте на экран, чтобы доехать до места назначения!</p>
-            
-            <div class="road-progress-outer">
-                <div id="road-progress-inner" class="road-progress-inner" style="width: 0%;"></div>
-            </div>
-            <div id="road-percent-text" class="road-percent-text">0%</div>
-
-            <button id="btn-arrive-destination" class="btn-arrive-destination hidden">🔥 НАЧАТЬ ТУШЕНИЕ ПОЖАРА</button>
-        </div>
-    </div>
-
-    <!-- ПОЛНОЭКРАННЫЙ ЭКРАН РЕЙСА ДАЛЬНОБОЙЩИКА -->
-    <div id="trucker-road-fullscreen" class="fullscreen-screen trucker-road-fullscreen-mode hidden">
-        <button id="btn-trucker-road-back" class="road-back-btn">← Назад</button>
-        <div class="taxi-top-hud">
-            <div id="time-pill">
-                <span id="trucker-clock-text">05:00</span>
-                <span class="pill-divider">•</span>
-                <span id="trucker-date-text">1 май</span>
-            </div>
-            <div id="money-pill">
-                <span id="trucker-money-text">1 000 ₽</span>
-            </div>
-        </div>
-
-        <div class="road-center-box" id="trucker-click-box">
-            <div class="taxi-car-anim">🚛</div>
-            <h2 class="road-title" id="trucker-trip-title">Рейс дальнобойщика</h2>
-            <p class="road-subtitle" id="trucker-trip-sub">Нажимайте на экран, чтобы проехать каждый километр пути!</p>
-
-            <div class="road-progress-outer">
-                <div id="trucker-progress-inner" class="road-progress-inner trucker-progress-bar" style="width: 0%;"></div>
-            </div>
-            <div id="trucker-percent-text" class="road-percent-text">0%</div>
-            <div id="trucker-km-counter" class="road-subtitle" style="font-weight: 800; margin-top: 4px;">0 / 0 км</div>
-        </div>
-    </div>
-
-    <!-- ПОЛНОЭКРАННЫЙ ЭКРАН ПОЕЗДКИ НА ТАКСИ -->
-    <div id="taxi-fullscreen" class="fullscreen-screen taxi-fullscreen-mode hidden">
-        <div class="taxi-top-hud">
-            <div id="time-pill">
-                <span id="taxi-clock-text">06:00</span>
-                <span class="pill-divider">•</span>
-                <span id="taxi-date-text">1 май</span>
-            </div>
-            <div id="money-pill">
-                <span id="taxi-money-text">1 000 ₽</span>
-            </div>
-        </div>
-
-        <div id="taxi-stats-hud">
-            <div class="stat-circle-item" title="Голод">
-                <svg class="stat-svg" viewBox="0 0 44 44">
-                    <circle class="stat-bg-circle" cx="22" cy="22" r="18"></circle>
-                    <circle id="taxi-hunger-ring" class="stat-progress-circle hunger-color" cx="22" cy="22" r="18"></circle>
-                </svg>
-                <div class="stat-inner">
-                    <span class="stat-icon">🍗</span>
-                    <span id="taxi-hunger-val" class="stat-pct">100%</span>
+    <!-- ЭКРАН ПОЕЗДКИ МЧС -->
+    <div id="road-fullscreen" class="screen full-screen hidden">
+        <div id="road-click-box" class="fullscreen-touch-area">
+            <button id="btn-road-back" class="btn-road-cancel">✕ Отмена</button>
+            <div class="road-hud-title">🚒 Выезд на пожар...</div>
+            <div class="road-progress-box">
+                <div class="road-progress-track">
+                    <div id="road-progress-inner" class="road-progress-inner"></div>
                 </div>
+                <div id="road-percent-text" class="road-percent-text">0%</div>
             </div>
+            <button id="btn-arrive-destination" class="btn-arrive-destination hidden">🔥 Начать тушение</button>
+        </div>
+    </div>
 
-            <div class="stat-circle-item" title="Энергия">
-                <svg class="stat-svg" viewBox="0 0 44 44">
-                    <circle class="stat-bg-circle" cx="22" cy="22" r="18"></circle>
-                    <circle id="taxi-energy-ring" class="stat-progress-circle energy-color" cx="22" cy="22" r="18"></circle>
-                </svg>
-                <div class="stat-inner">
-                    <span class="stat-icon">⚡</span>
-                    <span id="taxi-energy-val" class="stat-pct">100%</span>
+    <!-- ЭКРАН ТУШЕНИЯ ПОЖАРА -->
+    <div id="fire-fullscreen" class="screen full-screen fire-game-screen hidden">
+        <button id="btn-fire-back" class="btn-road-cancel">✕ Отмена</button>
+        <div class="fire-hud-title">💧 Нажимайте на огонь, чтобы потушить!</div>
+        <div id="flames-container" class="flames-container"></div>
+    </div>
+
+    <!-- ДИАЛОГ ДАЛЬНОБОЙЩИКА -->
+    <div id="trucker-dialogue-overlay" class="dialogue-overlay hidden">
+        <div class="dialogue-card">
+            <div class="dialogue-speaker-info">
+                <span class="speaker-avatar">🚛</span>
+                <strong>Начальник автобазы</strong>
+            </div>
+            <p id="trucker-dialogue-text">Приветствую! Готов к рейсам?</p>
+            <div class="dialogue-buttons-grid">
+                <button id="btn-trucker-hiring" class="btn-dlg">Сдать ПДД</button>
+                <button id="btn-trucker-about" class="btn-dlg">О работе</button>
+                <button id="btn-trucker-orders" class="btn-dlg">Рейсы</button>
+                <button id="btn-trucker-close" class="btn-dlg btn-dlg-cancel">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ЭКЗАМЕН ПДД -->
+    <div id="pdd-quiz-modal" class="modal-overlay hidden">
+        <div class="modal-card pdd-modal-card">
+            <div class="pdd-header-bar">
+                <span id="pdd-step-badge" class="pdd-step-badge">Вопрос 1 из 2</span>
+                <button id="btn-close-pdd" class="modal-close-icon">✕</button>
+            </div>
+            <h2>Экзамен ПДД</h2>
+            <div class="pdd-image-container">
+                <img id="pdd-question-img" src="pdd_brick.png" alt="Знак ПДД" onerror="this.src='https://via.placeholder.com/200x120?text=ПДД'">
+            </div>
+            <div id="pdd-question-title" class="pdd-question-text">Вопрос...</div>
+            <div id="pdd-answers-grid" class="pdd-answers-grid"></div>
+        </div>
+    </div>
+
+    <!-- ВЫБОР РЕЙСА ДАЛЬНОБОЙЩИКА -->
+    <div id="trucker-orders-modal" class="modal-overlay hidden">
+        <div class="modal-card orders-modal-card">
+            <div class="pdd-header-bar">
+                <h2>🚛 Доступные рейсы</h2>
+                <button id="btn-close-trucker-orders" class="modal-close-icon">✕</button>
+            </div>
+            <div id="trucker-orders-list" class="orders-list-grid"></div>
+        </div>
+    </div>
+
+    <!-- ЭКРАН РЕЙСА ДАЛЬНОБОЙЩИКА -->
+    <div id="trucker-road-fullscreen" class="screen full-screen hidden">
+        <div id="trucker-click-box" class="fullscreen-touch-area">
+            <button id="btn-trucker-road-back" class="btn-road-cancel">✕ Отмена</button>
+            <div id="trucker-trip-title" class="road-hud-title">🚛 Рейс в пути...</div>
+            <div id="trucker-trip-sub" class="road-hud-sub">Нажимайте на экран для движения</div>
+
+            <div class="road-progress-box">
+                <div class="road-progress-track">
+                    <div id="trucker-progress-inner" class="road-progress-inner"></div>
                 </div>
+                <div id="trucker-percent-text" class="road-percent-text">0%</div>
+                <div id="trucker-km-counter" class="trucker-km-counter">0 / 0 км</div>
             </div>
 
-            <div class="stat-circle-item" title="Сон">
-                <svg class="stat-svg" viewBox="0 0 44 44">
-                    <circle class="stat-bg-circle" cx="22" cy="22" r="18"></circle>
-                    <circle id="taxi-sleep-ring" class="stat-progress-circle sleep-color" cx="22" cy="22" r="18"></circle>
-                </svg>
-                <div class="stat-inner">
-                    <span class="stat-icon">🌙</span>
-                    <span id="taxi-sleep-val" class="stat-pct">100%</span>
+            <div class="hud-top-bar walk-hud-override">
+                <div class="hud-pill clock-pill">
+                    <span id="trucker-clock-text">06:00</span>
+                    <span class="hud-dot">•</span>
+                    <span id="trucker-date-text">1 мая</span>
+                </div>
+                <div class="hud-pill money-pill">
+                    <span id="trucker-money-text">1 000 ₽</span>
                 </div>
             </div>
         </div>
-
-        <div class="road-center-box">
-            <div class="taxi-car-anim">🚕</div>
-            <h2 class="road-title" id="taxi-route-title-text">Поездка на такси</h2>
-            <p class="road-subtitle" id="taxi-route-sub-text"></p>
-
-            <div class="road-progress-outer">
-                <div id="taxi-progress-inner" class="road-progress-inner taxi-progress-bar" style="width: 0%;"></div>
-            </div>
-            <div id="taxi-percent-text" class="road-percent-text">0%</div>
-        </div>
     </div>
 
-    <!-- ПОЛНОЭКРАННЫЙ ЭКРАН ТУШЕНИЯ ПОЖАРА -->
-    <div id="fire-fullscreen" class="fullscreen-screen hidden">
-        <button id="btn-fire-back" class="road-back-btn">← Назад</button>
-        
-        <div class="fire-scene-container">
-            <div class="fire-building-wrapper">
-                <img id="burning-house-img" src="burning_house.png" alt="Горящий дом" onerror="this.src='house.png'">
-                <div id="flames-container" class="flames-container"></div>
+    <!-- ДИАЛОГ ДИРЕКТОРА МАГАЗИНА -->
+    <div id="market-dialogue-overlay" class="dialogue-overlay hidden">
+        <div class="dialogue-card">
+            <div class="dialogue-speaker-info">
+                <span class="speaker-avatar">🛒</span>
+                <strong>Директор магазина</strong>
+            </div>
+            <p id="market-dialogue-text">Здравствуйте! Хотите устроиться кассиром?</p>
+            <div class="dialogue-buttons-grid">
+                <button id="btn-market-hiring" class="btn-dlg">Трудоустройство</button>
+                <button id="btn-market-about" class="btn-dlg">О работе</button>
+                <button id="btn-market-work" class="btn-dlg">Начать смену</button>
+                <button id="btn-market-close" class="btn-dlg btn-dlg-cancel">Закрыть</button>
             </div>
         </div>
     </div>
 
-    <!-- СМАРТФОН И ПРИЛОЖЕНИЯ -->
-    <div id="phone-modal" class="modal hidden">
-        <div class="phone-modal-card">
-            <button id="btn-close-phone" class="phone-close-btn">✕</button>
-            <div class="phone-shell">
-                <div class="phone-notch"><div class="phone-camera"></div><div class="phone-speaker"></div></div>
-                <div class="phone-screen-display">
-                    <div class="phone-status-bar" id="phone-status-bar">
-                        <div class="status-left"><span id="phone-clock-text">06:00</span></div>
-                        <div class="status-right">
-                            <span id="phone-date-text">1 май</span>
-                            <span class="battery-pill"><span>67%</span><span class="battery-icon"><span class="battery-level"></span></span></span>
-                        </div>
-                    </div>
-                    
-                    <div class="phone-apps-grid" id="phone-apps-grid">
-                        <div class="app-item" data-app="taxi"><div class="app-icon-box"><img src="logo/taxi.png" alt="Такси" onerror="this.src='https://via.placeholder.com/46/f59e0b/ffffff?text=🚕'"></div><span class="app-label">Такси</span></div>
-                        <div class="app-item" data-app="work"><div class="app-icon-box"><img src="logo/work.png" alt="Работа.ру" onerror="this.src='https://via.placeholder.com/46/2563eb/ffffff?text=💼'"></div><span class="app-label">Работа.ру</span></div>
-                        <div class="app-item" data-app="shtraf">
-                            <div class="app-icon-box">
-                                <img src="logo/shtraf.png" alt="Штрафы" onerror="this.src='https://via.placeholder.com/46/ef4444/ffffff?text=⚠️'">
-                                <span id="shtraf-app-badge" class="app-unread-badge hidden">0</span>
-                            </div>
-                            <span class="app-label">Штрафы</span>
-                        </div>
-                        <div class="app-item" data-app="plat">
-                            <div class="app-icon-box">
-                                <img src="logo/plat.png" alt="Оплата" onerror="this.src='https://via.placeholder.com/46/10b981/ffffff?text=💳'">
-                                <span id="plat-app-badge" class="app-unread-badge hidden">0</span>
-                            </div>
-                            <span class="app-label">Оплата</span>
-                        </div>
-                        <div class="app-item" data-app="business"><div class="app-icon-box"><img src="logo/business.png" alt="Бизнес" onerror="this.src='https://via.placeholder.com/46/8b5cf6/ffffff?text=🏢'"></div><span class="app-label">Бизнес</span></div>
-                        <div class="app-item" data-app="karta"><div class="app-icon-box"><img src="logo/karta.png" alt="Счёт" onerror="this.src='https://via.placeholder.com/46/059669/ffffff?text=💳'"></div><span class="app-label">Счёт</span></div>
-                        <div class="app-item" data-app="avto"><div class="app-icon-box"><img src="logo/avto.png" alt="Авто.ру" onerror="this.src='https://via.placeholder.com/46/3b82f6/ffffff?text=🚗'"></div><span class="app-label">Авто.ру</span></div>
-                        <div class="app-item" data-app="casino"><div class="app-icon-box"><img src="logo/casino.png" alt="Лотерея" onerror="this.src='https://via.placeholder.com/46/ec4899/ffffff?text=🎰'"></div><span class="app-label">Лотерея</span></div>
-                        <div class="app-item" data-app="sms">
-                            <div class="app-icon-box">
-                                <img src="logo/sms.png" alt="СМС" onerror="this.src='https://via.placeholder.com/46/3b82f6/ffffff?text=💬'">
-                                <span id="sms-app-badge" class="app-unread-badge hidden">0</span>
-                            </div>
-                            <span class="app-label">СМС</span>
-                        </div>
-                        <div class="app-item" data-app="eda"><div class="app-icon-box"><img src="logo/eda.png" alt="Еда" onerror="this.src='https://via.placeholder.com/46/f97316/ffffff?text=🍔'"></div><span class="app-label">Еда</span></div>
-                        <div class="app-item" data-app="poisk"><div class="app-icon-box"><img src="logo/poisk.png" alt="Поиск" onerror="this.src='https://via.placeholder.com/46/0284c7/ffffff?text=🔍'"></div><span class="app-label">Поиск</span></div>
-                        <div class="app-item" data-app="zakaz"><div class="app-icon-box"><img src="logo/zakaz.png" alt="Заказ" onerror="this.src='https://via.placeholder.com/46/14b8a6/ffffff?text=📦'"></div><span class="app-label">Заказ</span></div>
-                        <div class="app-item" data-app="kollectiv"><div class="app-icon-box"><img src="logo/kollectiv.png" alt="Коллектив" onerror="this.src='https://via.placeholder.com/46/6366f1/ffffff?text=👥'">
-                                <span id="kollectiv-app-badge" class="app-unread-badge hidden">0</span>
-                            </div><span class="app-label">Коллектив</span></div>
-                        <div class="app-item" data-app="imushka"><div class="app-icon-box"><img src="logo/imushka.png" alt="Имущество" onerror="this.src='https://via.placeholder.com/46/a855f7/ffffff?text=🏠'"></div><span class="app-label">Имущество</span></div>
-                        <div class="app-item" data-app="compania"><div class="app-icon-box"><img src="logo/compania.png" alt="Компания" onerror="this.src='https://via.placeholder.com/46/64748b/ffffff?text=🏛'"></div><span class="app-label">Компания</span></div>
-                    </div>
+    <!-- ЭКРАН ПОЕЗДКИ НА ТАКСИ -->
+    <div id="taxi-fullscreen" class="screen full-screen taxi-screen hidden">
+        <div class="taxi-content-wrapper">
+            <div class="taxi-cab-icon">🚕</div>
+            <h2 id="taxi-route-title-text">Такси едет...</h2>
+            <p id="taxi-route-sub-text"></p>
 
-                    <div id="phone-app-content" class="phone-app-content hidden">
-                        <div class="app-header-bar">
-                            <button id="btn-phone-back" class="phone-back-btn">←</button>
-                            <span id="app-title-text" class="app-title-text">Приложение</span>
-                        </div>
-                        <div class="app-scrollable-body" id="app-scrollable-body"></div>
-                    </div>
+            <div class="road-progress-box" style="margin-top:25px;width:80%;">
+                <div class="road-progress-track">
+                    <div id="taxi-progress-inner" class="road-progress-inner"></div>
                 </div>
-                <div class="phone-home-bar"></div>
+                <div id="taxi-percent-text" class="road-percent-text">0%</div>
+            </div>
+
+            <div class="hud-top-bar walk-hud-override">
+                <div class="hud-pill clock-pill">
+                    <span id="taxi-clock-text">06:00</span>
+                    <span class="hud-dot">•</span>
+                    <span id="taxi-date-text">1 мая</span>
+                </div>
+                <div class="hud-pill money-pill">
+                    <span id="taxi-money-text">1 000 ₽</span>
+                </div>
+            </div>
+
+            <div class="player-stats-hud taxi-hud-stats">
+                <div class="stat-circle-item">
+                    <svg class="circle-svg" viewBox="0 0 40 40">
+                        <circle class="circle-bg" cx="20" cy="20" r="18"/>
+                        <circle id="taxi-hunger-ring" class="circle-progress hunger-color" cx="20" cy="20" r="18"/>
+                    </svg>
+                    <div class="circle-content"><span class="stat-emoji">🍗</span></div>
+                    <div class="stat-tooltip hidden"><span id="taxi-hunger-val">100%</span> Голод</div>
+                </div>
+                <div class="stat-circle-item">
+                    <svg class="circle-svg" viewBox="0 0 40 40">
+                        <circle class="circle-bg" cx="20" cy="20" r="18"/>
+                        <circle id="taxi-energy-ring" class="circle-progress energy-color" cx="20" cy="20" r="18"/>
+                    </svg>
+                    <div class="circle-content"><span class="stat-emoji">⚡</span></div>
+                    <div class="stat-tooltip hidden"><span id="taxi-energy-val">100%</span> Энергия</div>
+                </div>
+                <div class="stat-circle-item">
+                    <svg class="circle-svg" viewBox="0 0 40 40">
+                        <circle class="circle-bg" cx="20" cy="20" r="18"/>
+                        <circle id="taxi-sleep-ring" class="circle-progress sleep-color" cx="20" cy="20" r="18"/>
+                    </svg>
+                    <div class="circle-content"><span class="stat-emoji">🌙</span></div>
+                    <div class="stat-tooltip hidden"><span id="taxi-sleep-val">100%</span> Сон</div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- УВЕДОМЛЕНИЯ TOAST -->
-    <div id="toast-message" class="toast-message hidden">Сообщение</div>
-
+    <!-- СКРИПТ ИГРЫ -->
     <script src="game.js"></script>
 </body>
 </html>

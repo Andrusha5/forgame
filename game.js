@@ -1,6 +1,6 @@
 /* =========================================================
    BESTLIFE — GAME.JS
-   Полный обновленный код игры с исправлениями
+   Полный обновленный код игры
    ========================================================= */
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -200,21 +200,20 @@ document.addEventListener('DOMContentLoaded', function () {
     const CASHIER_LATE_FINE = 2500;
     const CASHIER_EARLY_END_FINE = 3000;
     const CASHIER_TAX_RATE = 0.03;
-    const CASHIER_INTERVIEW_HOUR = 10;
     const CASHIER_CHECK_MIN = 75;
     const CASHIER_CHECK_MAX = 1000;
 
     const CASHIER_DENOMINATIONS = [
-        { value: 5000, type: 'bill', label: '5000', image: 'cash/rub_5000.png' },
-        { value: 2000, type: 'bill', label: '2000', image: 'cash/rub_2000.png' },
-        { value: 1000, type: 'bill', label: '1000', image: 'cash/rub_1000.png' },
-        { value: 500, type: 'bill', label: '500', image: 'cash/rub_500.png' },
-        { value: 100, type: 'bill', label: '100', image: 'cash/rub_100.png' },
-        { value: 50, type: 'bill', label: '50', image: 'cash/rub_50.png' },
-        { value: 10, type: 'coin', label: '10', image: 'cash/coin_10.png' },
-        { value: 5, type: 'coin', label: '5', image: 'cash/coin_5.png' },
-        { value: 2, type: 'coin', label: '2', image: 'cash/coin_2.png' },
-        { value: 1, type: 'coin', label: '1', image: 'cash/coin_1.png' }
+        { id: 'rub_5000', value: 5000, label: '5000 ₽', image: 'cash/rub_5000.png' },
+        { id: 'rub_2000', value: 2000, label: '2000 ₽', image: 'cash/rub_2000.png' },
+        { id: 'rub_1000', value: 1000, label: '1000 ₽', image: 'cash/rub_1000.png' },
+        { id: 'rub_500', value: 500, label: '500 ₽', image: 'cash/rub_500.png' },
+        { id: 'rub_100', value: 100, label: '100 ₽', image: 'cash/rub_100.png' },
+        { id: 'rub_50', value: 50, label: '50 ₽', image: 'cash/rub_50.png' },
+        { id: 'coin_10', value: 10, label: '10 ₽', image: 'cash/coin_10.png' },
+        { id: 'coin_5', value: 5, label: '5 ₽', image: 'cash/coin_5.png' },
+        { id: 'coin_2', value: 2, label: '2 ₽', image: 'cash/coin_2.png' },
+        { id: 'coin_1', value: 1, label: '1 ₽', image: 'cash/coin_1.png' }
     ];
 
     const MAP_POINTS = {
@@ -520,6 +519,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const cashierPaidDisplay = document.getElementById('cashier-paid-display');
     const cashierChangeDueDisplay = document.getElementById('cashier-change-due-display');
     const cashierSelectedDisplay = document.getElementById('cashier-selected-display');
+    const cashierSelectedItemsTray = document.getElementById('cashier-selected-items-tray');
     const cashierDenominationsGrid = document.getElementById('cashier-denominations-grid');
     const btnCashierGiveChange = document.getElementById('btn-cashier-give-change');
     const cashierCustomerImage = document.getElementById('cashier-customer-image');
@@ -1068,20 +1068,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function updatePhoneBadge() {
         const unreadMessages = messages.filter(function (message) { return !message.read; }).length;
-        const pendingJobs = (jobState.pendingJobId ? 1 : 0) + (truckerJobState.pendingJobId ? 1 : 0) + (cashierJobState.pendingJobId ? 1 : 0);
-        const totalUnread = unreadMessages + pendingJobs;
 
         if (phoneBadge) {
-            phoneBadge.textContent = totalUnread;
-            phoneBadge.classList.toggle('hidden', totalUnread === 0);
+            phoneBadge.textContent = unreadMessages;
+            phoneBadge.classList.toggle('hidden', unreadMessages === 0);
         }
         if (smsAppBadge) {
             smsAppBadge.textContent = unreadMessages;
             smsAppBadge.classList.toggle('hidden', unreadMessages === 0);
         }
         if (kollectivAppBadge) {
-            kollectivAppBadge.textContent = pendingJobs;
-            kollectivAppBadge.classList.toggle('hidden', pendingJobs === 0);
+            kollectivAppBadge.classList.add('hidden');
         }
     }
 
@@ -1204,7 +1201,7 @@ document.addEventListener('DOMContentLoaded', function () {
             tax.overdueAmount = penalty;
             tax.paidDate = getDateString();
             tax.paidTime = getTimeString();
-            addBankTransaction('Оплата налога и штрафа', totalCharge, false);
+            addBankTransaction('Налог и просрочка', totalCharge, false);
             createFine(penalty, 'Просрочка оплаты налога: ' + tax.title);
             addMessage('Оплата', '⚠️', 'Налог «' + tax.title + '» просрочен. Списан налог и штраф.');
         });
@@ -1220,7 +1217,7 @@ document.addEventListener('DOMContentLoaded', function () {
             fine.status = 'expired_penalty';
             fine.paidDate = getDateString();
             fine.paidTime = getTimeString();
-            addBankTransaction('Просрочка штрафа (x3)', penaltyAmount, false);
+            addBankTransaction('Просрочка штрафа', penaltyAmount, false);
             addMessage('Штрафы', '❌', 'Штраф «' + fine.reason + '» просрочен. Списано ' + penaltyAmount + ' ₽.');
         });
         saveGameData();
@@ -1280,7 +1277,7 @@ document.addEventListener('DOMContentLoaded', function () {
         governmentRewardYearKey = yearKey;
         governmentNewYearRewardClaimed = true;
         playerMoney += NEW_YEAR_REWARD;
-        addBankTransaction('Новогоднее поощрение от государства', NEW_YEAR_REWARD, true);
+        addBankTransaction('Премия от государства', NEW_YEAR_REWARD, true);
         addMessage('Государство', '🎄', 'Поздравляем с Новым годом! Вам начислено государственное поощрение — 3 000 ₽.');
         showToast('🎄 С Новым годом! Вам начислено 3 000 ₽');
         saveGameData();
@@ -2000,7 +1997,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function cancelActiveFireOrder() {
         if (!orderState.active) return;
-        createFine(300, 'Невыполнение вызова МЧС');
+        createFine(300, 'Отмена заказа МЧС');
+        addBankTransaction('Штраф за отмену МЧС', 300, false);
         orderState = {
             active: false,
             level: null,
@@ -2023,8 +2021,8 @@ document.addEventListener('DOMContentLoaded', function () {
     function completeFireOrder() {
         const reward = orderState.reward;
         playerMoney += reward;
-        addBankTransaction('Зарплата за вызов МЧС', reward, true);
-        createTax('salary', reward * SALARY_TAX_RATE, 'Налог с зарплаты пожарного 3%');
+        addBankTransaction('Зарплата: Пожарный', reward, true);
+        createTax('salary', reward * SALARY_TAX_RATE, 'Налог: Пожарный 3%');
         checkResetDailyOrdersCounter();
         ordersCompletedToday += 1;
         totalOrdersCompleted += 1;
@@ -2261,8 +2259,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const salary = Math.round(order.dist * order.rate);
 
         playerMoney += salary;
-        addBankTransaction('Зарплата за рейс (' + order.dist + ' км)', salary, true);
-        createTax('salary', salary * SALARY_TAX_RATE, 'Налог с зарплаты дальнобойщика 3%');
+        addBankTransaction('Зарплата: Дальнобойщик', salary, true);
+        createTax('salary', salary * SALARY_TAX_RATE, 'Налог: Дальнобойщик 3%');
         checkResetDailyTruckerCounter();
         truckerOrdersCompletedToday += 1;
         truckerTotalOrdersCompleted += 1;
@@ -2279,7 +2277,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function cancelTruckerTrip() {
         if (!truckerTripState.active) return;
-        createFine(1200, 'Досрочный отказ от рейса дальнобойщика');
+        createFine(1200, 'Отказ от рейса');
+        addBankTransaction('Штраф за отказ от рейса', 1200, false);
         truckerCurrentOffers = getRandomTruckerOffers();
         truckerTripState = { active: false, order: null, currentClicks: 0, totalClicks: 0 };
         truckerRoadFullscreen.classList.add('hidden');
@@ -2290,7 +2289,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     /* =========================================================
-       ДИАЛОГ КАССИРА И РАБОТА
+       ДИАЛОГ КАССИРА И ПОЛНОЦЕННАЯ РАБОТА
        ========================================================= */
 
     function showMarketDialogue(text) {
@@ -2303,7 +2302,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!marketDialogueOverlay) return;
         marketDialogueOverlay.classList.remove('hidden');
         if (cashierShiftState.active) {
-            showMarketDialogue('Вы сейчас находитесь на рабочей смене! Касса ждёт вас. Вы можете вернуться за кассу или завершить смену.');
+            showMarketDialogue('Вы сейчас находитесь на рабочей смене! Вы можете вернуться за кассу или завершить смену.');
             if (btnMarketWork) btnMarketWork.textContent = '▶ На кассу';
             if (btnMarketHiring) {
                 btnMarketHiring.textContent = '🏁 Сдать смену';
@@ -2461,12 +2460,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function generateCashierCustomers() {
         cashierCustomers = [];
-        const count = Math.floor(Math.random() * 15) + 20;
+        const count = Math.floor(Math.random() * 10) + 15;
         for (let i = 0; i < count; i++) {
             const checkAmount = Math.floor(Math.random() * (CASHIER_CHECK_MAX - CASHIER_CHECK_MIN + 1)) + CASHIER_CHECK_MIN;
-            const paidOptions = [checkAmount + 1, checkAmount + 2, checkAmount + 5, checkAmount + 10, checkAmount + 50, checkAmount + 100];
-            const paid = paidOptions[Math.floor(Math.random() * paidOptions.length)];
-            const customerIndex = Math.floor(Math.random() * 3) + 1;
+            const possibleAdditions = [50, 100, 200, 500, 1000];
+            const paidExtra = possibleAdditions[Math.floor(Math.random() * possibleAdditions.length)];
+            const paid = checkAmount + paidExtra;
+            const customerIndex = (i % 3) + 1;
             cashierCustomers.push({
                 checkAmount: checkAmount,
                 paid: paid,
@@ -2534,8 +2534,11 @@ document.addEventListener('DOMContentLoaded', function () {
             cashierCustomerImage.onerror = function () {
                 this.src = 'https://via.placeholder.com/120x160?text=👤';
             };
+
             btnCashierGiveChange.disabled = cashierShiftState.selectedChange !== cashierShiftState.changeDue;
-            btnCashierGiveChange.textContent = 'Выдать сдачу (' + cashierShiftState.selectedChange + ' / ' + cashierShiftState.changeDue + ' ₽)';
+            btnCashierGiveChange.textContent = cashierShiftState.selectedChange === cashierShiftState.changeDue 
+                ? 'Выдать сдачу (' + cashierShiftState.selectedChange + ' ₽)' 
+                : 'Выдать сдачу (' + cashierShiftState.selectedChange + ' / ' + cashierShiftState.changeDue + ' ₽)';
         } else {
             cashierCheckDisplay.textContent = '0 ₽';
             cashierPaidDisplay.textContent = '0 ₽';
@@ -2545,6 +2548,8 @@ document.addEventListener('DOMContentLoaded', function () {
             btnCashierGiveChange.textContent = 'Нет покупателя';
         }
 
+        renderSelectedDenominationsTray();
+
         const hourNow = getCurrentHour();
         if (hourNow >= CASHIER_SHIFT_END_HOUR && cashierShiftState.active && !cashierShiftState.shiftCompleted) {
             btnCashierEndShift.classList.remove('hidden');
@@ -2552,23 +2557,25 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function renderCashierDenominations() {
-        cashierDenominationsGrid.innerHTML = '';
-        CASHIER_DENOMINATIONS.forEach(function (denom) {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'cashier-denom-btn';
-            const img = document.createElement('img');
-            img.src = denom.image;
-            img.alt = denom.label;
-            img.onerror = function () {
-                this.src = 'https://via.placeholder.com/60x40?text=' + denom.label;
-            };
-            button.appendChild(img);
-            button.addEventListener('click', function () {
-                selectCashierDenomination(denom);
+    function renderSelectedDenominationsTray() {
+        if (!cashierSelectedItemsTray) return;
+        cashierSelectedItemsTray.innerHTML = '';
+
+        if (!cashierShiftState.selectedDenominations.length) {
+            cashierSelectedItemsTray.innerHTML = '<span class="cashier-empty-tray-label">Нажимайте на купюры ниже, чтобы собрать сдачу</span>';
+            return;
+        }
+
+        cashierShiftState.selectedDenominations.forEach(function (denom, index) {
+            const chip = document.createElement('div');
+            chip.className = 'cashier-selected-chip';
+            chip.title = 'Нажмите для возврата';
+            chip.innerHTML = '<span>' + denom.label + '</span><button type="button" class="cashier-chip-remove">✕</button>';
+            chip.addEventListener('click', function (event) {
+                event.stopPropagation();
+                removeCashierDenomination(index);
             });
-            cashierDenominationsGrid.appendChild(button);
+            cashierSelectedItemsTray.appendChild(chip);
         });
     }
 
@@ -2579,13 +2586,38 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         if (cashierShiftState.selectedChange + denom.value > cashierShiftState.changeDue) {
-            showToast('Слишком много!');
+            showToast('Слишком много! Сумма сдачи превышена.');
             return;
         }
         cashierShiftState.selectedChange += denom.value;
         cashierShiftState.selectedDenominations.push(denom);
         updateCashierUI();
         playClick();
+    }
+
+    function removeCashierDenomination(index) {
+        if (index < 0 || index >= cashierShiftState.selectedDenominations.length) return;
+        const removed = cashierShiftState.selectedDenominations.splice(index, 1)[0];
+        if (removed) {
+            cashierShiftState.selectedChange = Math.max(0, cashierShiftState.selectedChange - removed.value);
+        }
+        updateCashierUI();
+        playClick();
+    }
+
+    function renderCashierDenominations() {
+        if (!cashierDenominationsGrid) return;
+        cashierDenominationsGrid.innerHTML = '';
+        CASHIER_DENOMINATIONS.forEach(function (denom) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'cashier-denom-btn';
+            button.innerHTML = '<span class="denom-val-title">' + denom.label + '</span>';
+            button.addEventListener('click', function () {
+                selectCashierDenomination(denom);
+            });
+            cashierDenominationsGrid.appendChild(button);
+        });
     }
 
     function giveChange() {
@@ -2595,7 +2627,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         if (cashierShiftState.selectedChange !== cashierShiftState.changeDue) {
-            showToast('Соберите правильную сумму сдачи');
+            showToast('Соберите точную сумму сдачи');
             return;
         }
 
@@ -2607,13 +2639,12 @@ document.addEventListener('DOMContentLoaded', function () {
         cashierShiftState.selectedChange = 0;
         cashierShiftState.selectedDenominations = [];
         updateCashierUI();
-        renderCashierDenominations();
         playClick();
 
         if (currentCustomerIndex >= cashierCustomers.length) {
-            showToast('Все покупатели обслужены! Завершите смену.');
+            showToast('Все покупатели обслужены! Все товары пробиты!');
         } else {
-            showToast('Следующий покупатель!');
+            showToast('Сдача выдана! Следующий покупатель');
         }
     }
 
@@ -2632,15 +2663,15 @@ document.addEventListener('DOMContentLoaded', function () {
         if (hour < CASHIER_SHIFT_END_HOUR) {
             const fine = CASHIER_EARLY_END_FINE;
             playerMoney = Math.max(0, playerMoney - fine);
-            addBankTransaction('Штраф за досрочное завершение смены', fine, false);
+            addBankTransaction('Штраф за завершение смены', fine, false);
             createFine(fine, 'Досрочное завершение смены кассира');
             showToast('Штраф за досрочное завершение: ' + fine + ' ₽');
         } else {
             const salary = CASHIER_SALARY;
             playerMoney += salary;
-            addBankTransaction('Зарплата кассира', salary, true);
+            addBankTransaction('Зарплата: Кассир', salary, true);
             const tax = Math.round(salary * CASHIER_TAX_RATE);
-            createTax('salary', tax, 'Налог с зарплаты кассира 3%');
+            createTax('salary', tax, 'Налог: Кассир 3%');
             showToast('Зарплата +' + salary + ' ₽');
         }
 
@@ -2828,7 +2859,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         playerMoney = Math.max(0, playerMoney - total);
-        addBankTransaction('Покупка лотерейных билетов', total, false);
+        addBankTransaction('Покупка лотереи', total, false);
         lottoState.ticketsBought = indexes;
         lottoState.step = 'drawing';
         lottoState.drawNumbers = [];
@@ -2859,7 +2890,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (payout > 0) {
             playerMoney += payout;
             addBankTransaction('Выигрыш в лотерею', payout, true);
-            createTax('lottery', payout * LOTTERY_TAX_RATE, 'Налог с выигрыша в лотерею 1.5%');
+            createTax('lottery', payout * LOTTERY_TAX_RATE, 'Налог с выигрыша 1.5%');
         }
         lottoState.step = 'result';
         saveGameData();
@@ -3065,11 +3096,8 @@ document.addEventListener('DOMContentLoaded', function () {
         ctx.scale(dpr, dpr);
     }
 
-    function drawMarker(rawX, rawY, color, icon, label, glowColor) {
-        const padX = 45;
-        const padY = 65;
-        const x = clamp(rawX, padX, innerWidth - padX);
-        const y = clamp(rawY, padY, innerHeight - padY);
+    function drawMarker(x, y, color, icon, label, glowColor) {
+        if (x < -120 || x > innerWidth + 120 || y < -120 || y > innerHeight + 120) return { x: x, y: y };
 
         const markerY = y - 38 * camera.zoom + Math.sin(animTimer * 1.5) * 6;
         const width = Math.max(28, 36 * camera.zoom);
@@ -3151,20 +3179,16 @@ document.addEventListener('DOMContentLoaded', function () {
         const marketX = left + map.w * MAP_POINTS.market.x;
         const marketY = top + map.h * MAP_POINTS.market.y;
 
-        // 1. Дом - всегда показывается
         drawMarker(homeX, homeY, '#0284c7', '🏠', 'Дом', '#38bdf8');
 
-        // 2. Пожарная часть - только если работаешь или подал заявку
         if (jobState.pendingJobId === 'firefighter' || jobState.activeJobId === 'firefighter') {
             drawMarker(fireX, fireY, '#dc2626', '🚒', 'МЧС', '#f87171');
         }
 
-        // 3. Автобаза - только если работаешь или подал заявку
         if (truckerJobState.pendingJobId === 'driver' || truckerJobState.activeJobId === 'driver') {
             drawMarker(truckX, truckY, '#d97706', '🚛', 'Автобаза', '#fbbf24');
         }
 
-        // 4. Магазин - только если работаешь или подал заявку
         if (cashierJobState.pendingJobId === 'cashier' || cashierJobState.activeJobId === 'cashier') {
             drawMarker(marketX, marketY, '#16a34a', '🛒', 'Магазин', '#4ade80');
         }
@@ -3236,10 +3260,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const point = points[index];
             if (!point.active) continue;
 
-            const padX = 45;
-            const padY = 65;
-            const markerX = clamp(point.x, padX, innerWidth - padX);
-            const markerY = clamp(point.y, padY, innerHeight - padY);
+            const markerX = point.x;
+            const markerY = point.y;
 
             if (Math.hypot(x - markerX, y - markerY) > Math.max(45, 60 * camera.zoom)) continue;
 
@@ -3460,6 +3482,10 @@ document.addEventListener('DOMContentLoaded', function () {
     if (btnCloseBedModal) btnCloseBedModal.addEventListener('click', function () { bedModal.classList.add('hidden'); });
 
     if (btnOpenPhone) btnOpenPhone.addEventListener('click', function () {
+        if (isSleeping) {
+            showToast('Нельзя пользоваться телефоном во время сна!');
+            return;
+        }
         if (cashierShiftState.active && !cashierShiftState.onBreak && !cashierShiftState.shiftCompleted) {
             showToast('Телефон доступен только в перерыв (13:00–14:30)');
             return;
