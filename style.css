@@ -2519,3 +2519,126 @@ html, body {
     .cashier-denom-btn { padding: 6px 2px; }
     .denom-val-title { font-size: 0.68rem; }
 }
+
+
+/* =========================================================
+   ДОПОЛНЕНИЯ: новые профессии, запасные картинки,
+   адаптация под телефоны и ПК
+   ========================================================= */
+
+/* Запасные значки, если картинка не загрузилась */
+.npc-emoji-fallback {
+    display: none;
+    font-size: 110px;
+    line-height: 1;
+    text-align: center;
+    filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5));
+}
+.app-icon-wrapper[data-emoji] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.app-icon-wrapper[data-emoji]::after {
+    content: attr(data-emoji);
+    font-size: 1.7rem;
+    line-height: 1;
+}
+.npc-clickable-area.npc-left {
+    left: 20%;
+}
+
+/* Новые локации: фон, если картинки комнаты нет */
+.xj-room-police { background: linear-gradient(160deg, #1e3a8a 0%, #0f172a 100%); }
+.xj-room-hospital { background: linear-gradient(160deg, #0f766e 0%, #0f172a 100%); }
+.xj-room-taxipark { background: linear-gradient(160deg, #a16207 0%, #0f172a 100%); }
+#apartment-screen { background: linear-gradient(160deg, #334155 0%, #0f172a 100%); }
+#firestation-screen { background: linear-gradient(160deg, #991b1b 0%, #0f172a 100%); }
+#truckstation-screen { background: linear-gradient(160deg, #92400e 0%, #0f172a 100%); }
+#market-screen { background: linear-gradient(160deg, #166534 0%, #0f172a 100%); }
+.xj-room-title {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 800;
+    padding: 8px 18px;
+    border-radius: 16px;
+    z-index: 12;
+    white-space: nowrap;
+}
+
+/* Диалог и задания новых профессий */
+#xj-dialogue-text {
+    font-size: 0.78rem;
+    line-height: 1.4;
+    color: #f1f5f9;
+    margin-bottom: 14px;
+}
+.xj-task-quiz {
+    width: 100%;
+    max-width: 380px;
+    margin-top: 10px;
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 18px;
+    padding: 16px;
+}
+#xj-task-box {
+    touch-action: none;
+}
+#xj-task-screen {
+    z-index: 40;
+}
+
+/* Адаптация под телефоны: настоящая высота экрана, вырезы и нижние панели */
+@supports (height: 100dvh) {
+    .full-screen { height: 100dvh; }
+    .modal-overlay { height: 100dvh; }
+}
+.toast-message {
+    top: calc(18px + env(safe-area-inset-top, 0px));
+    max-width: 92vw;
+    text-align: center;
+}
+.btn-room-exit {
+    bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+}
+.dialogue-overlay {
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    max-height: 88vh;
+    overflow-y: auto;
+}
+.modal-card {
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+@supports (height: 100dvh) {
+    .modal-card { max-height: calc(100dvh - 40px); }
+    .dialogue-overlay { max-height: 88dvh; }
+}
+.btn-road-cancel {
+    top: calc(20px + env(safe-area-inset-top, 0px));
+}
+
+/* Низкие экраны (телефон в горизонтальном положении) */
+@media (max-height: 500px) {
+    .npc-sprite-img { height: 110px; }
+    .npc-emoji-fallback { font-size: 70px; }
+    .bed-clickable-area { width: 90px; height: 90px; }
+    .dialogue-card { padding: 10px; }
+    .xj-room-title { top: 8px; padding: 5px 12px; font-size: 0.72rem; }
+    .btn-room-exit { padding: 8px 16px; bottom: 10px; }
+}
+
+/* Широкие экраны (ПК) */
+@media (min-width: 900px) {
+    .dialogue-overlay { max-width: 460px; }
+    .npc-sprite-img { height: 240px; }
+    .npc-emoji-fallback { font-size: 140px; }
+}
