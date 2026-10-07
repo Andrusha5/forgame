@@ -220,7 +220,10 @@ document.addEventListener('DOMContentLoaded', function () {
         home: { x: 0.36, y: 0.42 },
         firestation: { x: 0.65, y: 0.55 },
         truckstation: { x: 0.20, y: 0.68 },
-        market: { x: 0.50, y: 0.65 }
+        market: { x: 0.50, y: 0.65 },
+        police: { x: 0.74, y: 0.34 },
+        hospital: { x: 0.45, y: 0.28 },
+        taxipark: { x: 0.80, y: 0.74 }
     };
 
     const TAXI_ROUTE_PRICES = {
@@ -329,26 +332,34 @@ document.addEventListener('DOMContentLoaded', function () {
         {
             id: 'seller',
             title: 'Продавец',
-            icon: '🛒',
+            icon: '🛍️',
             salary: 42000,
-            schedule: '2/2, 10:00–22:00',
-            description: 'Работа с покупателями и товаром.'
+            schedule: 'Рабочее время: 10:00–22:00',
+            description: 'Выкладывать товар, консультировать покупателей и проводить инвентаризацию.'
         },
         {
             id: 'police',
             title: 'Полицейский',
-            icon: '👮',
+            icon: '🚓',
             salary: 70000,
-            schedule: '5/2, 08:00–17:00',
-            description: 'Охранять порядок в городе.'
+            schedule: 'Рабочее время: 08:00–17:00',
+            description: 'Патрулировать город, выезжать на происшествия и задерживать нарушителей.'
         },
         {
-            id: 'electrician',
-            title: 'Электрик',
-            icon: '⚡',
-            salary: 58000,
-            schedule: '5/2, 09:00–18:00',
-            description: 'Ремонтировать электросети и оборудование.'
+            id: 'doctor',
+            title: 'Доктор',
+            icon: '🩺',
+            salary: 75000,
+            schedule: 'Рабочее время: 08:00–20:00',
+            description: 'Принимать пациентов, выезжать на вызовы и проводить операции.'
+        },
+        {
+            id: 'taxi',
+            title: 'Таксист',
+            icon: '🚕',
+            salary: 52000,
+            schedule: 'Рабочее время: 06:00–22:00',
+            description: 'Возить пассажиров по городу и получать оплату за каждую поездку.'
         }
     ];
 
@@ -723,6 +734,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (currentScreen === 'firestation' || lastExitedLocation === 'firestation') return 'firestation';
         if (currentScreen === 'truckstation' || lastExitedLocation === 'truckstation') return 'truckstation';
         if (currentScreen === 'market' || lastExitedLocation === 'market') return 'market';
+        if (XJ_LOCATIONS[currentScreen]) return currentScreen;
+        if (XJ_LOCATIONS[lastExitedLocation]) return lastExitedLocation;
         return 'home';
     }
 
@@ -730,11 +743,12 @@ document.addEventListener('DOMContentLoaded', function () {
         if (key === 'firestation') return '🚒 Пожарная часть';
         if (key === 'truckstation') return '🚛 Автобаза';
         if (key === 'market') return '🛒 Магазин';
+        if (XJ_LOCATIONS[key]) return XJ_LOCATIONS[key].title;
         return '🏠 Дом';
     }
 
     function getTaxiRoutePrice(fromKey, toKey) {
-        return TAXI_ROUTE_PRICES[fromKey + '->' + toKey] || 650;
+        return TAXI_ROUTE_PRICES[fromKey + '->' + toKey] || xjTaxiPrice(fromKey, toKey);
     }
 
     function getActiveJobsCount() {
@@ -742,6 +756,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (jobState.activeJobId) count += 1;
         if (truckerJobState.activeJobId) count += 1;
         if (cashierJobState.activeJobId) count += 1;
+        count += xjActiveCount();
         return count;
     }
 
@@ -1507,7 +1522,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const isCashier = job.id === 'cashier';
             const alreadyApplied = isFirefighter
                 ? Boolean(jobState.activeJobId || jobState.pendingJobId)
-                : (isTrucker ? Boolean(truckerJobState.activeJobId || truckerJobState.pendingJobId) : (isCashier ? Boolean(cashierJobState.activeJobId || cashierJobState.pendingJobId) : false));
+                : (isTrucker ? Boolean(truckerJobState.activeJobId || truckerJobState.pendingJobId) : (isCashier ? Boolean(cashierJobState.activeJobId || cashierJobState.pendingJobId) : xjIsAppliedOrActive(job.id)));
             const unavailableByLimit = hasTwoActiveJobs() && !alreadyApplied;
             const unavailable = alreadyApplied || unavailableByLimit;
 
@@ -1523,6 +1538,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (isTrucker) applyForTruckerJob(job);
                 else if (isFirefighter) applyForFirefighterJob(job);
                 else if (isCashier) applyForCashierJob(job);
+                else if (xjIsJob(job.id)) xjApply(job);
                 else applyForSimpleJob(job);
             });
             list.appendChild(card);
@@ -1604,7 +1620,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const truckerPending = truckerJobState.pendingJobId === 'driver';
         const cashierPending = cashierJobState.pendingJobId === 'cashier';
 
-        if (!fireActive && !truckerActive && !cashierActive && !firePending && !truckerPending && !cashierPending) {
+        if (!fireActive && !truckerActive && !cashierActive && !firePending && !truckerPending && !cashierPending && !xjAnyJobActiveOrPending()) {
             appScrollableBody.innerHTML = '<div class="empty-app-page"><h3>Вы нигде не работаете</h3><p>Устройтесь на работу через приложение «Работа.ру».</p></div>';
             return;
         }
@@ -1676,6 +1692,7 @@ document.addEventListener('DOMContentLoaded', function () {
             wrapper.appendChild(card);
         }
 
+        xjAppendCollectiveCards(wrapper);
         appScrollableBody.appendChild(wrapper);
     }
 
@@ -1687,7 +1704,7 @@ document.addEventListener('DOMContentLoaded', function () {
         appScrollableBody.innerHTML = '';
         const fromKey = getLocationKey();
         const fromTitle = getLocationTitle(fromKey);
-        const targets = ['home', 'firestation', 'truckstation', 'market'].filter(function (key) { return key !== fromKey; });
+        const targets = ['home', 'firestation', 'truckstation', 'market', 'police', 'hospital', 'taxipark'].filter(function (key) { return key !== fromKey; });
 
         const wrapper = document.createElement('div');
         wrapper.className = 'taxi-app-wrapper';
@@ -1763,6 +1780,7 @@ document.addEventListener('DOMContentLoaded', function () {
         firestationScreen.classList.add('hidden');
         truckstationScreen.classList.add('hidden');
         marketScreen.classList.add('hidden');
+        xjHideScreens();
         lastExitedLocation = toKey;
 
         if (toKey === 'home') {
@@ -1777,6 +1795,9 @@ document.addEventListener('DOMContentLoaded', function () {
         } else if (toKey === 'market') {
             currentScreen = 'market';
             marketScreen.classList.remove('hidden');
+        } else if (XJ_LOCATIONS[toKey]) {
+            currentScreen = toKey;
+            xjShowScreen(toKey);
         }
 
         playerEnergy = clamp(playerEnergy - 3, 0, 100);
@@ -1787,7 +1808,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function openTravelChoiceModal(targetKey) {
         targetLocationSelected = targetKey;
-        travelChoiceTitle.textContent = targetKey === 'home' ? 'Едем домой' : (targetKey === 'firestation' ? 'Едем в Пожарную часть' : (targetKey === 'truckstation' ? 'Едем на Автобазу' : 'Едем в Магазин'));
+        travelChoiceTitle.textContent = targetKey === 'home' ? 'Едем домой' : (targetKey === 'firestation' ? 'Едем в Пожарную часть' : (targetKey === 'truckstation' ? 'Едем на Автобазу' : (targetKey === 'market' ? 'Едем в Магазин' : xjTravelTitle(targetKey, 'choice'))));
         const hasCar = ownedCars.length > 0;
         btnTravelCar.classList.toggle('disabled-card', !hasCar);
         travelCarDesc.textContent = hasCar ? 'На личном авто (' + ownedCars[0].title + ')' : 'Требуется личное авто';
@@ -1799,7 +1820,7 @@ document.addEventListener('DOMContentLoaded', function () {
         travelChoiceModal.classList.add('hidden');
         walkClicksLeft = 150;
         walkFullscreen.classList.remove('hidden');
-        const title = targetLocationSelected === 'home' ? 'Дом' : (targetLocationSelected === 'firestation' ? 'Пожарную часть' : (targetLocationSelected === 'truckstation' ? 'Автобазу' : 'Магазин'));
+        const title = targetLocationSelected === 'home' ? 'Дом' : (targetLocationSelected === 'firestation' ? 'Пожарную часть' : (targetLocationSelected === 'truckstation' ? 'Автобазу' : (targetLocationSelected === 'market' ? 'Магазин' : xjTravelTitle(targetLocationSelected, 'walk'))));
         walkTitleText.textContent = 'Идём пешком в ' + title;
         walkProgressInner.style.width = '0%';
         walkPercentText.textContent = '0%';
@@ -1825,6 +1846,7 @@ document.addEventListener('DOMContentLoaded', function () {
         firestationScreen.classList.add('hidden');
         truckstationScreen.classList.add('hidden');
         marketScreen.classList.add('hidden');
+        xjHideScreens();
         lastExitedLocation = targetLocationSelected;
 
         if (targetLocationSelected === 'home') {
@@ -1839,6 +1861,9 @@ document.addEventListener('DOMContentLoaded', function () {
         } else if (targetLocationSelected === 'market') {
             currentScreen = 'market';
             marketScreen.classList.remove('hidden');
+        } else if (XJ_LOCATIONS[targetLocationSelected]) {
+            currentScreen = targetLocationSelected;
+            xjShowScreen(targetLocationSelected);
         }
 
         playerEnergy = clamp(playerEnergy - 8, 0, 100);
@@ -1860,6 +1885,7 @@ document.addEventListener('DOMContentLoaded', function () {
         firestationScreen.classList.add('hidden');
         truckstationScreen.classList.add('hidden');
         marketScreen.classList.add('hidden');
+        xjHideScreens();
         lastExitedLocation = targetLocationSelected;
 
         if (targetLocationSelected === 'home') {
@@ -1874,6 +1900,9 @@ document.addEventListener('DOMContentLoaded', function () {
         } else if (targetLocationSelected === 'market') {
             currentScreen = 'market';
             marketScreen.classList.remove('hidden');
+        } else if (XJ_LOCATIONS[targetLocationSelected]) {
+            currentScreen = targetLocationSelected;
+            xjShowScreen(targetLocationSelected);
         }
 
         saveGameData();
@@ -2477,6 +2506,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function showCashierWorkScreen() {
         marketScreen.classList.add('hidden');
+        xjHideScreens();
         cashierWorkScreen.classList.remove('hidden');
         btnOpenSettingsGame.classList.add('hidden');
         updateCashierUI();
@@ -3041,6 +3071,7 @@ document.addEventListener('DOMContentLoaded', function () {
         gameMinutes += minutesPassed;
         advanceCalendar();
         processInterviewDeadline();
+        xjProcessDeadlines();
         processTaxOneDayReminders();
         processTaxesExpiration();
         processFinesExpiration();
@@ -3189,14 +3220,17 @@ document.addEventListener('DOMContentLoaded', function () {
             drawMarker(truckX, truckY, '#d97706', '🚛', 'Автобаза', '#fbbf24');
         }
 
-        if (cashierJobState.pendingJobId === 'cashier' || cashierJobState.activeJobId === 'cashier') {
+        if (cashierJobState.pendingJobId === 'cashier' || cashierJobState.activeJobId === 'cashier' || xjHas('seller')) {
             drawMarker(marketX, marketY, '#16a34a', '🛒', 'Магазин', '#4ade80');
         }
 
+        xjDrawMarkers(left, top, map);
         let playerPoint = { x: homeX + 22 * camera.zoom, y: homeY };
         if (lastExitedLocation === 'firestation') playerPoint = { x: fireX + 22 * camera.zoom, y: fireY };
         if (lastExitedLocation === 'truckstation') playerPoint = { x: truckX + 22 * camera.zoom, y: truckY };
         if (lastExitedLocation === 'market') playerPoint = { x: marketX + 22 * camera.zoom, y: marketY };
+        const xjPoint = xjPlayerPoint(left, top, map);
+        if (xjPoint) playerPoint = xjPoint;
 
         ctx.save();
         const size = Math.max(48, 62 * camera.zoom);
@@ -3252,10 +3286,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 key: 'market', 
                 x: left + map.w * MAP_POINTS.market.x, 
                 y: top + map.h * MAP_POINTS.market.y, 
-                active: cashierJobState.pendingJobId === 'cashier' || cashierJobState.activeJobId === 'cashier' 
+                active: cashierJobState.pendingJobId === 'cashier' || cashierJobState.activeJobId === 'cashier' || xjHas('seller') 
             }
         ];
 
+        xjAddMapPoints(points, left, top, map);
         for (let index = 0; index < points.length; index += 1) {
             const point = points[index];
             if (!point.active) continue;
@@ -3270,6 +3305,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 firestationScreen.classList.add('hidden');
                 truckstationScreen.classList.add('hidden');
                 marketScreen.classList.add('hidden');
+        xjHideScreens();
                 cashierWorkScreen.classList.add('hidden');
                 btnOpenSettingsGame.classList.add('hidden');
                 if (point.key === 'home') {
@@ -3286,7 +3322,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 } else if (point.key === 'market') {
                     currentScreen = 'market';
                     marketScreen.classList.remove('hidden');
-                }
+                } else if (XJ_LOCATIONS[point.key]) {
+            currentScreen = point.key;
+            xjShowScreen(point.key);
+        }
             } else {
                 openTravelChoiceModal(point.key);
             }
@@ -3530,7 +3569,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const exitTruckstation = document.getElementById('btn-exit-truckstation');
     if (exitTruckstation) exitTruckstation.addEventListener('click', function () { truckstationScreen.classList.add('hidden'); currentScreen = 'city'; lastExitedLocation = 'truckstation'; saveGameData(); btnOpenSettingsGame.classList.remove('hidden'); });
     const exitMarket = document.getElementById('btn-exit-market');
-    if (exitMarket) exitMarket.addEventListener('click', function () { marketScreen.classList.add('hidden'); currentScreen = 'city'; lastExitedLocation = 'market'; saveGameData(); btnOpenSettingsGame.classList.remove('hidden'); });
+    if (exitMarket) exitMarket.addEventListener('click', function () { marketScreen.classList.add('hidden');
+        xjHideScreens(); currentScreen = 'city'; lastExitedLocation = 'market'; saveGameData(); btnOpenSettingsGame.classList.remove('hidden'); });
 
     const exitCashierWork = document.getElementById('btn-exit-cashier-work');
     if (exitCashierWork) exitCashierWork.addEventListener('click', function () {
@@ -3630,6 +3670,1058 @@ document.addEventListener('DOMContentLoaded', function () {
             render();
         }
     });
+
+        /* =========================================================
+       ДОПОЛНИТЕЛЬНЫЕ ПРОФЕССИИ
+       Полицейский, Доктор, Таксист, Продавец
+       (отдельный блок, не затрагивает пожарного, дальнобойщика и кассира)
+       ========================================================= */
+    const XJ_STORAGE_KEY = 'bestlife_extra_jobs_v1';
+
+    const XJ_LOCATIONS = {
+        police: {
+            key: 'police',
+            jobId: 'police',
+            title: '🚓 Полицейский участок',
+            label: 'Полиция',
+            icon: '🚓',
+            color: '#1d4ed8',
+            glow: '#60a5fa',
+            screenId: 'police-screen',
+            exitId: 'btn-exit-police',
+            npcId: 'police-npc-inroom',
+            travelTitle: 'Едем в Полицейский участок',
+            walkTitle: 'Полицейский участок'
+        },
+        hospital: {
+            key: 'hospital',
+            jobId: 'doctor',
+            title: '🏥 Больница',
+            label: 'Больница',
+            icon: '🏥',
+            color: '#0d9488',
+            glow: '#5eead4',
+            screenId: 'hospital-screen',
+            exitId: 'btn-exit-hospital',
+            npcId: 'hospital-npc-inroom',
+            travelTitle: 'Едем в Больницу',
+            walkTitle: 'Больницу'
+        },
+        taxipark: {
+            key: 'taxipark',
+            jobId: 'taxi',
+            title: '🚕 Таксопарк',
+            label: 'Таксопарк',
+            icon: '🚕',
+            color: '#ca8a04',
+            glow: '#fde047',
+            screenId: 'taxipark-screen',
+            exitId: 'btn-exit-taxipark',
+            npcId: 'taxipark-npc-inroom',
+            travelTitle: 'Едем в Таксопарк',
+            walkTitle: 'Таксопарк'
+        }
+    };
+
+    const XJ_JOBS = {
+        police: {
+            id: 'police',
+            title: 'Полицейский',
+            icon: '🚓',
+            locKey: 'police',
+            placeText: 'в Полицейском участке',
+            npcName: 'Начальник полиции',
+            npcIcon: '👮',
+            greeting: 'Здравствуйте! Я начальник полиции. Хотите служить закону?',
+            about: 'Рабочее время полицейского: 08:00–17:00. Выполняйте вызовы, патрулируйте город и получайте зарплату за каждое выполненное задание.',
+            ordersLabel: 'Вызовы',
+            ordersTitle: '🚓 Доступные вызовы',
+            startH: 8,
+            endH: 17,
+            interviewMin: 720,
+            questions: [
+                {
+                    title: 'Какой номер экстренного вызова полиции в России?',
+                    options: ['102', '101', '103', '104'],
+                    correct: 0
+                },
+                {
+                    title: 'Что должен сделать полицейский, заметив нарушение ПДД?',
+                    options: [
+                        'Остановить нарушителя и составить протокол',
+                        'Сделать вид, что ничего не заметил',
+                        'Забрать у водителя машину',
+                        'Уехать с места нарушения'
+                    ],
+                    correct: 0
+                }
+            ],
+            tasks: [
+                {
+                    id: 'patrol',
+                    title: '🟢 Патрулирование улиц',
+                    desc: 'Обход района и проверка порядка',
+                    reward: 700,
+                    clicks: 60,
+                    steps: [
+                        {
+                            title: 'Во время патруля вы видите, как прохожий бросил мусор мимо урны. Ваши действия?',
+                            options: [
+                                'Вежливо сделать замечание и объяснить правила',
+                                'Не обращать внимания',
+                                'Накричать на него',
+                                'Забрать у него телефон'
+                            ],
+                            correct: 0
+                        }
+                    ]
+                },
+                {
+                    id: 'accident',
+                    title: '🟡 Дорожное происшествие',
+                    desc: 'Выезд на место ДТП',
+                    reward: 800,
+                    clicks: 80,
+                    steps: [
+                        {
+                            title: 'Вы прибыли на место ДТП. Что нужно сделать в первую очередь?',
+                            options: [
+                                'Обеспечить безопасность и вызвать скорую при пострадавших',
+                                'Выяснять, кто виноват',
+                                'Убрать машины и уехать',
+                                'Сфотографироваться на фоне аварии'
+                            ],
+                            correct: 0
+                        }
+                    ]
+                },
+                {
+                    id: 'arrest',
+                    title: '🔴 Задержание нарушителя',
+                    desc: 'Погоня и задержание',
+                    reward: 950,
+                    clicks: 100,
+                    steps: [
+                        {
+                            title: 'Перед задержанием подозреваемого вы должны…',
+                            options: [
+                                'Представиться и объяснить причину задержания',
+                                'Сразу применить силу',
+                                'Скрыть своё звание',
+                                'Отпустить подозреваемого'
+                            ],
+                            correct: 0
+                        },
+                        {
+                            title: 'Что нужно сделать после задержания?',
+                            options: [
+                                'Разъяснить права и составить протокол',
+                                'Отпустить без документов',
+                                'Ничего не оформлять',
+                                'Отправить домой на такси'
+                            ],
+                            correct: 0
+                        }
+                    ]
+                }
+            ]
+        },
+        doctor: {
+            id: 'doctor',
+            title: 'Доктор',
+            icon: '🩺',
+            locKey: 'hospital',
+            placeText: 'в Больнице',
+            npcName: 'Главврач',
+            npcIcon: '👨‍⚕️',
+            greeting: 'Добрый день! Я главврач. Готовы спасать жизни?',
+            about: 'Рабочее время доктора: 08:00–20:00. Принимайте пациентов, выезжайте на вызовы и проводите операции. За каждое задание вы получаете зарплату.',
+            ordersLabel: 'Пациенты',
+            ordersTitle: '🩺 Доступные пациенты',
+            startH: 8,
+            endH: 20,
+            interviewMin: 660,
+            questions: [
+                {
+                    title: 'Какая температура тела у здорового взрослого человека?',
+                    options: ['36,6 °C', '38,5 °C', '34,0 °C', '40,0 °C'],
+                    correct: 0
+                },
+                {
+                    title: 'Что нужно сделать при сильном кровотечении из раны?',
+                    options: [
+                        'Наложить давящую повязку и вызвать скорую',
+                        'Промыть рану соком',
+                        'Подождать, пока остановится само',
+                        'Дать пациенту поспать'
+                    ],
+                    correct: 0
+                }
+            ],
+            tasks: [
+                {
+                    id: 'checkup',
+                    title: '🟢 Приём в поликлинике',
+                    desc: 'Осмотр и назначение лечения',
+                    reward: 750,
+                    clicks: 30,
+                    steps: [
+                        {
+                            title: 'У пациента температура 39 °C и сильный кашель. Что вы сделаете в первую очередь?',
+                            options: [
+                                'Проведу осмотр, измерю давление и назначу анализы',
+                                'Выпишу конфеты',
+                                'Отправлю домой без осмотра',
+                                'Посоветую не лечиться'
+                            ],
+                            correct: 0
+                        }
+                    ]
+                },
+                {
+                    id: 'housecall',
+                    title: '🟡 Вызов на дом',
+                    desc: 'Срочный выезд к пациенту',
+                    reward: 900,
+                    clicks: 70,
+                    steps: [
+                        {
+                            title: 'У пожилого пациента резкая боль в груди. Что делать?',
+                            options: [
+                                'Обеспечить покой и вызвать скорую помощь',
+                                'Отправить на прогулку',
+                                'Предложить сделать зарядку',
+                                'Сказать, что само пройдёт'
+                            ],
+                            correct: 0
+                        }
+                    ]
+                },
+                {
+                    id: 'surgery',
+                    title: '🔴 Операция',
+                    desc: 'Сложная плановая операция',
+                    reward: 1150,
+                    clicks: 90,
+                    steps: [
+                        {
+                            title: 'Что нужно сделать перед операцией?',
+                            options: [
+                                'Обработать руки и надеть стерильную одежду',
+                                'Выпить кофе и сразу начать',
+                                'Пропустить подготовку',
+                                'Начать без анестезии'
+                            ],
+                            correct: 0
+                        },
+                        {
+                            title: 'У пациента аллергия на препарат. Что делать?',
+                            options: [
+                                'Заменить препарат на безопасный',
+                                'Всё равно ввести его',
+                                'Увеличить дозу',
+                                'Не говорить пациенту'
+                            ],
+                            correct: 0
+                        }
+                    ]
+                }
+            ]
+        },
+        taxi: {
+            id: 'taxi',
+            title: 'Таксист',
+            icon: '🚕',
+            locKey: 'taxipark',
+            placeText: 'в Таксопарке',
+            npcName: 'Диспетчер таксопарка',
+            npcIcon: '🚕',
+            greeting: 'Привет! Я диспетчер. Хочешь возить пассажиров?',
+            about: 'Рабочее время таксиста: 06:00–22:00. Принимайте заказы пассажиров, нажимайте на экран, чтобы ехать, и получайте оплату за каждую поездку.',
+            ordersLabel: 'Заказы',
+            ordersTitle: '🚕 Доступные заказы',
+            startH: 6,
+            endH: 22,
+            interviewMin: 600,
+            questions: [
+                {
+                    title: 'Какой документ обязательно должен быть у водителя такси?',
+                    options: [
+                        'Водительское удостоверение',
+                        'Читательский билет',
+                        'Абонемент в спортзал',
+                        'Диплом об окончании школы'
+                    ],
+                    correct: 0
+                },
+                {
+                    title: 'Пассажир просит нарушить ПДД, чтобы приехать быстрее. Что делать?',
+                    options: [
+                        'Вежливо отказать и ехать по правилам',
+                        'Согласиться и проехать на красный',
+                        'Разогнаться до 200 км/ч',
+                        'Высадить пассажира посреди дороги'
+                    ],
+                    correct: 0
+                }
+            ],
+            tasks: [
+                {
+                    id: 'short',
+                    title: '🟢 Короткая поездка',
+                    desc: 'Пассажир едет в соседний район',
+                    reward: 400,
+                    clicks: 50,
+                    steps: []
+                },
+                {
+                    id: 'city',
+                    title: '🟡 Поездка по городу',
+                    desc: 'Пассажир едет через весь город',
+                    reward: 550,
+                    clicks: 90,
+                    steps: [
+                        {
+                            title: 'Пассажир торопится и просит ехать на красный свет. Что делать?',
+                            options: [
+                                'Вежливо отказаться и ехать по правилам',
+                                'Проехать на красный',
+                                'Ехать со скоростью 150 км/ч',
+                                'Высадить его на дороге'
+                            ],
+                            correct: 0
+                        }
+                    ]
+                },
+                {
+                    id: 'airport',
+                    title: '🔴 Поездка в аэропорт',
+                    desc: 'Дальний рейс с багажом',
+                    reward: 800,
+                    clicks: 140,
+                    steps: [
+                        {
+                            title: 'Пассажир забыл вещи в машине. Что делать?',
+                            options: [
+                                'Связаться с пассажиром и вернуть вещи',
+                                'Оставить вещи себе',
+                                'Выбросить вещи',
+                                'Продать вещи'
+                            ],
+                            correct: 0
+                        }
+                    ]
+                }
+            ]
+        },
+        seller: {
+            id: 'seller',
+            title: 'Продавец',
+            icon: '🛍️',
+            locKey: 'market',
+            placeText: 'в Магазине (у продавца-консультанта)',
+            npcName: 'Продавец-консультант',
+            npcIcon: '🛍️',
+            greeting: 'Здравствуйте! Я старший продавец. Хотите работать в торговом зале?',
+            about: 'Рабочее время продавца: 10:00–22:00. Выкладывайте товар, консультируйте покупателей и проводите инвентаризацию. За каждое задание вы получаете зарплату.',
+            ordersLabel: 'Задания',
+            ordersTitle: '🛍️ Доступные задания',
+            startH: 10,
+            endH: 22,
+            interviewMin: 840,
+            questions: [
+                {
+                    title: 'Покупатель сомневается в выборе товара. Как поступить?',
+                    options: [
+                        'Вежливо рассказать о товаре и помочь выбрать',
+                        'Сказать «мне некогда»',
+                        'Навязать самый дорогой товар',
+                        'Отвернуться и уйти'
+                    ],
+                    correct: 0
+                },
+                {
+                    title: 'Покупатель взял 3 товара по 120 ₽. Сколько он должен заплатить?',
+                    options: ['360 ₽', '320 ₽', '340 ₽', '380 ₽'],
+                    correct: 0
+                }
+            ],
+            tasks: [
+                {
+                    id: 'shelves',
+                    title: '🟢 Выкладка товара',
+                    desc: 'Разложить товар по полкам',
+                    reward: 350,
+                    clicks: 40,
+                    steps: []
+                },
+                {
+                    id: 'consult',
+                    title: '🟡 Консультация покупателя',
+                    desc: 'Помочь клиентам с выбором',
+                    reward: 450,
+                    clicks: 20,
+                    steps: [
+                        {
+                            title: 'Покупатель просит посоветовать товар. Что сделать?',
+                            options: [
+                                'Узнать, что ему нужно, и предложить подходящие варианты',
+                                'Продать самое дорогое',
+                                'Сказать «не знаю» и уйти',
+                                'Не обращать внимания'
+                            ],
+                            correct: 0
+                        },
+                        {
+                            title: 'Покупатель взял 3 товара по 120 ₽ и 2 товара по 85 ₽. Итого?',
+                            options: ['530 ₽', '510 ₽', '550 ₽', '490 ₽'],
+                            correct: 0
+                        }
+                    ]
+                },
+                {
+                    id: 'inventory',
+                    title: '🔴 Инвентаризация склада',
+                    desc: 'Пересчёт и проверка товара',
+                    reward: 600,
+                    clicks: 90,
+                    steps: [
+                        {
+                            title: 'Вы нашли просроченный товар. Что делать?',
+                            options: [
+                                'Убрать с полки и списать',
+                                'Оставить на полке',
+                                'Переклеить дату',
+                                'Спрятать под другой товар'
+                            ],
+                            correct: 0
+                        }
+                    ]
+                }
+            ]
+        }
+    };
+
+    function xjDefaultJobState() {
+        return { active: false, pending: false, interviewDay: null, today: 0, todayKey: null, total: 0 };
+    }
+
+    const xjState = {
+        police: xjDefaultJobState(),
+        doctor: xjDefaultJobState(),
+        taxi: xjDefaultJobState(),
+        seller: xjDefaultJobState()
+    };
+
+    let xjTask = null;
+    let xjQuiz = null;
+    let xjDialogueJobId = null;
+
+    const xjDialogueOverlay = document.getElementById('xj-dialogue-overlay');
+    const xjDialogueText = document.getElementById('xj-dialogue-text');
+    const xjSpeakerAvatar = document.getElementById('xj-speaker-avatar');
+    const xjSpeakerName = document.getElementById('xj-speaker-name');
+    const btnXjHiring = document.getElementById('btn-xj-hiring');
+    const btnXjAbout = document.getElementById('btn-xj-about');
+    const btnXjOrders = document.getElementById('btn-xj-orders');
+    const btnXjClose = document.getElementById('btn-xj-close');
+    const xjQuizModal = document.getElementById('xj-quiz-modal');
+    const xjQuizBadge = document.getElementById('xj-quiz-badge');
+    const xjQuizHeading = document.getElementById('xj-quiz-heading');
+    const xjQuizTitle = document.getElementById('xj-quiz-title');
+    const xjQuizAnswers = document.getElementById('xj-quiz-answers');
+    const btnXjQuizClose = document.getElementById('btn-xj-quiz-close');
+    const xjOrdersModal = document.getElementById('xj-orders-modal');
+    const xjOrdersHeading = document.getElementById('xj-orders-heading');
+    const xjOrdersList = document.getElementById('xj-orders-list');
+    const btnXjOrdersClose = document.getElementById('btn-xj-orders-close');
+    const xjTaskScreen = document.getElementById('xj-task-screen');
+    const xjTaskBox = document.getElementById('xj-task-box');
+    const btnXjTaskBack = document.getElementById('btn-xj-task-back');
+    const xjTaskTitle = document.getElementById('xj-task-title');
+    const xjTaskSub = document.getElementById('xj-task-sub');
+    const xjTaskProgressBox = document.getElementById('xj-task-progress-box');
+    const xjTaskProgressInner = document.getElementById('xj-task-progress-inner');
+    const xjTaskPercent = document.getElementById('xj-task-percent');
+    const xjTaskQuiz = document.getElementById('xj-task-quiz');
+    const xjTaskQuestion = document.getElementById('xj-task-question');
+    const xjTaskAnswers = document.getElementById('xj-task-answers');
+
+    function xjLoad() {
+        try {
+            const raw = localStorage.getItem(XJ_STORAGE_KEY);
+            if (!raw) return;
+            const data = JSON.parse(raw);
+            Object.keys(xjState).forEach(function (id) {
+                if (data && data[id] && typeof data[id] === 'object') {
+                    xjState[id] = Object.assign(xjDefaultJobState(), data[id]);
+                }
+            });
+        } catch (error) {
+            console.warn('Не удалось загрузить данные дополнительных профессий:', error);
+        }
+    }
+
+    function xjSave() {
+        try {
+            localStorage.setItem(XJ_STORAGE_KEY, JSON.stringify(xjState));
+        } catch (error) {
+            console.warn('Не удалось сохранить данные дополнительных профессий:', error);
+        }
+    }
+
+    xjLoad();
+
+    function xjIsJob(jobId) {
+        return Object.prototype.hasOwnProperty.call(XJ_JOBS, jobId);
+    }
+
+    function xjHas(jobId) {
+        const state = xjState[jobId];
+        return Boolean(state && (state.active || state.pending));
+    }
+
+    function xjIsAppliedOrActive(jobId) {
+        return xjHas(jobId);
+    }
+
+    function xjActiveCount() {
+        return Object.keys(xjState).filter(function (id) { return xjState[id].active; }).length;
+    }
+
+    function xjAnyJobActiveOrPending() {
+        return Object.keys(xjState).some(function (id) { return xjHas(id); });
+    }
+
+    function xjIsWorkTime(config) {
+        const hour = getCurrentHour();
+        return hour >= config.startH && hour < config.endH;
+    }
+
+    function xjHourLabel(hour) {
+        return String(hour).padStart(2, '0') + ':00';
+    }
+
+    function xjCheckDayReset(state) {
+        const dayKey = currentDay + '_' + currentMonthIdx;
+        if (state.todayKey !== dayKey) {
+            state.todayKey = dayKey;
+            state.today = 0;
+        }
+    }
+
+    function xjShuffleQuestion(question) {
+        const order = question.options.map(function (_, index) { return index; });
+        for (let index = order.length - 1; index > 0; index -= 1) {
+            const randomIndex = Math.floor(Math.random() * (index + 1));
+            const temporary = order[index];
+            order[index] = order[randomIndex];
+            order[randomIndex] = temporary;
+        }
+        return {
+            title: question.title,
+            options: order.map(function (optionIndex) { return question.options[optionIndex]; }),
+            correct: order.indexOf(question.correct)
+        };
+    }
+
+    function xjTaxiPrice(fromKey, toKey) {
+        const from = MAP_POINTS[fromKey];
+        const to = MAP_POINTS[toKey];
+        if (!from || !to) return 650;
+        const distance = Math.hypot(from.x - to.x, from.y - to.y);
+        const price = Math.round((300 + distance * 1600) / 25) * 25;
+        return clamp(price, 350, 900);
+    }
+
+    function xjTravelTitle(key, mode) {
+        const location = XJ_LOCATIONS[key];
+        if (!location) return '';
+        return mode === 'choice' ? location.travelTitle : location.walkTitle;
+    }
+
+    function xjHideScreens() {
+        Object.keys(XJ_LOCATIONS).forEach(function (key) {
+            const element = document.getElementById(XJ_LOCATIONS[key].screenId);
+            if (element) element.classList.add('hidden');
+        });
+    }
+
+    function xjShowScreen(key) {
+        xjHideScreens();
+        const location = XJ_LOCATIONS[key];
+        if (!location) return;
+        const element = document.getElementById(location.screenId);
+        if (element) element.classList.remove('hidden');
+    }
+
+    function xjDrawMarkers(left, top, map) {
+        Object.keys(XJ_LOCATIONS).forEach(function (key) {
+            const location = XJ_LOCATIONS[key];
+            const point = MAP_POINTS[key];
+            if (!point || !xjHas(location.jobId)) return;
+            drawMarker(left + map.w * point.x, top + map.h * point.y, location.color, location.icon, location.label, location.glow);
+        });
+    }
+
+    function xjPlayerPoint(left, top, map) {
+        const point = MAP_POINTS[lastExitedLocation];
+        if (!XJ_LOCATIONS[lastExitedLocation] || !point) return null;
+        return { x: left + map.w * point.x + 22 * camera.zoom, y: top + map.h * point.y };
+    }
+
+    function xjAddMapPoints(points, left, top, map) {
+        Object.keys(XJ_LOCATIONS).forEach(function (key) {
+            const location = XJ_LOCATIONS[key];
+            const point = MAP_POINTS[key];
+            if (!point) return;
+            points.push({
+                key: key,
+                x: left + map.w * point.x,
+                y: top + map.h * point.y,
+                active: xjHas(location.jobId)
+            });
+        });
+    }
+
+    /* ---------- Отклик, собеседование, увольнение ---------- */
+
+    function xjApply(job) {
+        const config = XJ_JOBS[job.id];
+        const state = xjState[job.id];
+        if (!config || !state) return;
+        if (hasTwoActiveJobs()) {
+            showToast('Можно одновременно работать максимум на двух работах');
+            return;
+        }
+        if (state.active || state.pending) {
+            showToast('У вас уже есть работа или заявка: ' + config.title);
+            return;
+        }
+        state.pending = true;
+        state.interviewDay = absoluteDay() + 1;
+        const nextDate = dateAfterDays(1);
+        addMessage(
+            'Работа.ру',
+            config.icon,
+            'Вы откликнулись на вакансию «' + config.title + '». Собеседование завтра, ' + nextDate.day + ' ' + MONTH_NAMES[nextDate.monthIndex] +
+            ' в ' + getTimeString(config.interviewMin) + ' ' + config.placeText + '.'
+        );
+        xjSave();
+        saveGameData();
+        renderJobsApp();
+    }
+
+    function xjProcessDeadlines() {
+        const now = absoluteDay() * 1440 + gameMinutes;
+        Object.keys(XJ_JOBS).forEach(function (jobId) {
+            const state = xjState[jobId];
+            const config = XJ_JOBS[jobId];
+            if (state.pending && now > Number(state.interviewDay) * 1440 + config.interviewMin + 60) {
+                state.pending = false;
+                state.interviewDay = null;
+                addMessage('Работа.ру', '❌', 'Вы пропустили собеседование на должность «' + config.title + '». Заявка аннулирована.');
+                xjSave();
+            }
+        });
+    }
+
+    function xjInterviewAvailableNow(jobId) {
+        const state = xjState[jobId];
+        const config = XJ_JOBS[jobId];
+        return Boolean(state.pending) &&
+            absoluteDay() === Number(state.interviewDay) &&
+            gameMinutes >= config.interviewMin &&
+            gameMinutes <= config.interviewMin + 60;
+    }
+
+    function xjInterviewWhenText(jobId) {
+        const state = xjState[jobId];
+        const config = XJ_JOBS[jobId];
+        const diff = Number(state.interviewDay) - absoluteDay();
+        const time = getTimeString(config.interviewMin);
+        if (diff <= 0) return 'сегодня в ' + time;
+        if (diff === 1) return 'завтра в ' + time;
+        return 'через ' + diff + ' дн. в ' + time;
+    }
+
+    /* ---------- Диалог с работодателем ---------- */
+
+    function xjSay(text) {
+        if (!xjDialogueOverlay) return;
+        xjDialogueOverlay.classList.remove('hidden');
+        if (xjDialogueText) xjDialogueText.textContent = text;
+    }
+
+    function xjOpenDialogue(jobId) {
+        const config = XJ_JOBS[jobId];
+        if (!config) return;
+        xjDialogueJobId = jobId;
+        if (xjSpeakerAvatar) xjSpeakerAvatar.textContent = config.npcIcon;
+        if (xjSpeakerName) xjSpeakerName.textContent = config.npcName;
+        if (btnXjOrders) btnXjOrders.textContent = config.ordersLabel;
+        xjSay(config.greeting);
+    }
+
+    function xjHandleHiring() {
+        const jobId = xjDialogueJobId;
+        if (!jobId) return;
+        const config = XJ_JOBS[jobId];
+        const state = xjState[jobId];
+        if (state.active) {
+            xjSay('Вы уже работаете: ' + config.title + '.');
+            return;
+        }
+        if (!state.pending) {
+            xjSay('Сначала откликнитесь на вакансию в приложении «Работа.ру».');
+            return;
+        }
+        if (!xjInterviewAvailableNow(jobId)) {
+            xjSay('Ваше собеседование — ' + xjInterviewWhenText(jobId) + '. Пройти его можно в течение часа.');
+            return;
+        }
+        if (hasTwoActiveJobs()) {
+            xjSay('У вас уже две активные работы. Сначала увольтесь с одной из них.');
+            return;
+        }
+        xjStartInterview(jobId);
+    }
+
+    function xjHandleAbout() {
+        const config = XJ_JOBS[xjDialogueJobId];
+        if (!config) return;
+        xjSay(config.about);
+    }
+
+    function xjHandleOrders() {
+        const jobId = xjDialogueJobId;
+        if (!jobId) return;
+        const config = XJ_JOBS[jobId];
+        const state = xjState[jobId];
+        if (!state.active) {
+            xjSay('Сначала получите должность: ' + config.title + '.');
+            return;
+        }
+        if (!xjIsWorkTime(config)) {
+            xjSay('Задания доступны с ' + xjHourLabel(config.startH) + ' до ' + xjHourLabel(config.endH) + '.');
+            return;
+        }
+        if (!hasEnoughEnergyOrSleep()) {
+            xjSay('У вас недостаточно энергии или сна для выполнения задания.');
+            return;
+        }
+        if (xjTask && xjTask.active) {
+            xjSay('У вас уже есть активное задание.');
+            return;
+        }
+        if (xjDialogueOverlay) xjDialogueOverlay.classList.add('hidden');
+        xjRenderOrders(jobId);
+    }
+
+    /* ---------- Собеседование ---------- */
+
+    function xjStartInterview(jobId) {
+        const config = XJ_JOBS[jobId];
+        xjQuiz = {
+            jobId: jobId,
+            index: 0,
+            answers: [],
+            questions: config.questions.map(xjShuffleQuestion)
+        };
+        if (xjDialogueOverlay) xjDialogueOverlay.classList.add('hidden');
+        if (xjQuizHeading) xjQuizHeading.textContent = 'Собеседование: ' + config.title;
+        if (xjQuizModal) xjQuizModal.classList.remove('hidden');
+        xjRenderQuizQuestion();
+    }
+
+    function xjRenderQuizQuestion() {
+        if (!xjQuiz) return;
+        const question = xjQuiz.questions[xjQuiz.index];
+        if (xjQuizBadge) xjQuizBadge.textContent = 'Вопрос ' + (xjQuiz.index + 1) + ' из ' + xjQuiz.questions.length;
+        if (xjQuizTitle) xjQuizTitle.textContent = question.title;
+        if (!xjQuizAnswers) return;
+        xjQuizAnswers.innerHTML = '';
+        question.options.forEach(function (option, optionIndex) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'pdd-answer-btn';
+            button.textContent = option;
+            button.addEventListener('click', function () { xjAnswerQuizQuestion(optionIndex); });
+            xjQuizAnswers.appendChild(button);
+        });
+    }
+
+    function xjAnswerQuizQuestion(selectedIndex) {
+        if (!xjQuiz) return;
+        const question = xjQuiz.questions[xjQuiz.index];
+        xjQuiz.answers.push(selectedIndex === question.correct);
+        playClick();
+        if (xjQuiz.index < xjQuiz.questions.length - 1) {
+            xjQuiz.index += 1;
+            xjRenderQuizQuestion();
+            return;
+        }
+        const jobId = xjQuiz.jobId;
+        const config = XJ_JOBS[jobId];
+        const state = xjState[jobId];
+        const allCorrect = xjQuiz.answers.every(Boolean);
+        xjQuiz = null;
+        if (xjQuizModal) xjQuizModal.classList.add('hidden');
+        xjDialogueJobId = jobId;
+        if (allCorrect) {
+            state.active = true;
+            state.pending = false;
+            state.interviewDay = null;
+            addMessage('Коллектив', config.icon, 'Поздравляем! Вы приняты на работу: ' + config.title + '.');
+            xjSave();
+            saveGameData();
+            xjSay('Отлично! Вы прошли собеседование. Добро пожаловать в команду: ' + config.title + '!');
+        } else {
+            state.pending = false;
+            state.interviewDay = null;
+            xjSave();
+            saveGameData();
+            xjSay('К сожалению, вы допустили ошибки на собеседовании. Откликнитесь повторно через приложение «Работа.ру».');
+        }
+    }
+
+    /* ---------- Задания ---------- */
+
+    function xjRenderOrders(jobId) {
+        const config = XJ_JOBS[jobId];
+        if (!xjOrdersModal || !xjOrdersList) return;
+        if (xjOrdersHeading) xjOrdersHeading.textContent = config.ordersTitle;
+        xjOrdersList.innerHTML = '';
+        config.tasks.forEach(function (task) {
+            const card = document.createElement('div');
+            card.className = 'order-item-card';
+            card.innerHTML = '<div class="order-item-header">' + task.title + '</div>' +
+                '<div class="order-item-reward">+' + task.reward.toLocaleString('ru-RU') + ' ₽</div>' +
+                '<div class="order-item-desc">' + task.desc + '</div>' +
+                '<button type="button" class="btn btn-primary btn-select-order">Взять задание</button>';
+            card.querySelector('button').addEventListener('click', function () { xjAcceptTask(jobId, task); });
+            xjOrdersList.appendChild(card);
+        });
+        xjOrdersModal.classList.remove('hidden');
+    }
+
+    function xjAcceptTask(jobId, task) {
+        const config = XJ_JOBS[jobId];
+        if (!xjIsWorkTime(config)) {
+            showToast('Рабочее время закончилось');
+            return;
+        }
+        if (!hasEnoughEnergyOrSleep()) {
+            showToast('Недостаточно энергии или сна для задания');
+            return;
+        }
+        xjTask = {
+            active: true,
+            jobId: jobId,
+            task: task,
+            clicksDone: 0,
+            phase: task.clicks > 0 ? 'clicks' : 'quiz',
+            stepIndex: 0,
+            mistakes: 0,
+            steps: (task.steps || []).map(xjShuffleQuestion)
+        };
+        if (xjOrdersModal) xjOrdersModal.classList.add('hidden');
+        if (xjTaskScreen) xjTaskScreen.classList.remove('hidden');
+        if (xjTaskTitle) xjTaskTitle.textContent = config.icon + ' ' + task.title.replace(/^[^\s]+\s/, '');
+        if (xjTaskSub) xjTaskSub.textContent = task.desc + '. Нажимайте на экран, чтобы продвигаться';
+        xjUpdateTaskProgress();
+        if (xjTask.phase === 'quiz') {
+            xjShowTaskQuestion();
+        } else {
+            if (xjTaskQuiz) xjTaskQuiz.classList.add('hidden');
+            if (xjTaskProgressBox) xjTaskProgressBox.classList.remove('hidden');
+        }
+        showToast('Задание принято');
+    }
+
+    function xjUpdateTaskProgress() {
+        if (!xjTask) return;
+        const needed = xjTask.task.clicks;
+        const percent = needed > 0 ? Math.min(100, Math.round((xjTask.clicksDone / needed) * 100)) : 100;
+        if (xjTaskProgressInner) xjTaskProgressInner.style.width = percent + '%';
+        if (xjTaskPercent) xjTaskPercent.textContent = percent + '%';
+    }
+
+    function xjHandleTaskTap(event) {
+        if (!xjTask || !xjTask.active || xjTask.phase !== 'clicks') return;
+        if (event.target && event.target.closest && event.target.closest('button')) return;
+        event.preventDefault();
+        xjTask.clicksDone += 1;
+        xjUpdateTaskProgress();
+        playClick();
+        if (xjTask.clicksDone >= xjTask.task.clicks) {
+            if (xjTask.steps.length > 0) {
+                xjTask.phase = 'quiz';
+                xjShowTaskQuestion();
+            } else {
+                xjCompleteTask();
+            }
+        }
+    }
+
+    function xjShowTaskQuestion() {
+        if (!xjTask) return;
+        const question = xjTask.steps[xjTask.stepIndex];
+        if (!question) {
+            xjCompleteTask();
+            return;
+        }
+        if (xjTaskProgressBox) xjTaskProgressBox.classList.add('hidden');
+        if (xjTaskSub) xjTaskSub.textContent = 'Вопрос ' + (xjTask.stepIndex + 1) + ' из ' + xjTask.steps.length;
+        if (xjTaskQuiz) xjTaskQuiz.classList.remove('hidden');
+        if (xjTaskQuestion) xjTaskQuestion.textContent = question.title;
+        if (!xjTaskAnswers) return;
+        xjTaskAnswers.innerHTML = '';
+        question.options.forEach(function (option, optionIndex) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'pdd-answer-btn';
+            button.textContent = option;
+            button.addEventListener('click', function () { xjAnswerTaskQuestion(optionIndex); });
+            xjTaskAnswers.appendChild(button);
+        });
+    }
+
+    function xjAnswerTaskQuestion(selectedIndex) {
+        if (!xjTask) return;
+        const question = xjTask.steps[xjTask.stepIndex];
+        if (!question) return;
+        playClick();
+        if (selectedIndex === question.correct) {
+            showToast('✅ Верно!');
+        } else {
+            xjTask.mistakes += 1;
+            showToast('❌ Неверно! Премия уменьшена');
+        }
+        xjTask.stepIndex += 1;
+        if (xjTask.stepIndex >= xjTask.steps.length) xjCompleteTask();
+        else xjShowTaskQuestion();
+    }
+
+    function xjReturnToLocation(jobId) {
+        const config = XJ_JOBS[jobId];
+        if (xjTaskScreen) xjTaskScreen.classList.add('hidden');
+        if (config.locKey === 'market') {
+            currentScreen = 'market';
+            marketScreen.classList.remove('hidden');
+        } else {
+            currentScreen = config.locKey;
+            xjShowScreen(config.locKey);
+        }
+        lastExitedLocation = config.locKey;
+    }
+
+    function xjCompleteTask() {
+        if (!xjTask) return;
+        const jobId = xjTask.jobId;
+        const config = XJ_JOBS[jobId];
+        const state = xjState[jobId];
+        const baseReward = xjTask.task.reward;
+        const factor = Math.max(0.4, 1 - xjTask.mistakes * 0.25);
+        const reward = Math.round(baseReward * factor);
+        playerMoney += reward;
+        addBankTransaction('Зарплата: ' + config.title, reward, true);
+        createTax('salary', reward * SALARY_TAX_RATE, 'Налог: ' + config.title + ' 3%');
+        xjCheckDayReset(state);
+        state.today += 1;
+        state.total += 1;
+        playerEnergy = clamp(playerEnergy - 6, 0, 100);
+        playerHunger = clamp(playerHunger - 3, 0, 100);
+        xjTask = null;
+        xjSave();
+        saveGameData();
+        xjReturnToLocation(jobId);
+        updateClockUI();
+        updateStatsHUD();
+        showToast('Задание выполнено! Зарплата +' + reward.toLocaleString('ru-RU') + ' ₽');
+    }
+
+    function xjCancelTask() {
+        if (!xjTask) return;
+        const jobId = xjTask.jobId;
+        const config = XJ_JOBS[jobId];
+        xjTask = null;
+        createFine(300, 'Отмена задания: ' + config.title);
+        saveGameData();
+        xjReturnToLocation(jobId);
+        updateClockUI();
+    }
+
+    /* ---------- Карточки в приложении «Коллектив» ---------- */
+
+    function xjAppendCollectiveCards(wrapper) {
+        Object.keys(XJ_JOBS).forEach(function (jobId) {
+            const config = XJ_JOBS[jobId];
+            const state = xjState[jobId];
+            if (!state.active && !state.pending) return;
+            xjCheckDayReset(state);
+            const card = document.createElement('div');
+            card.className = 'collective-card';
+            if (state.active) {
+                card.innerHTML = '<div class="collective-header"><div class="collective-avatar">' + config.icon + '</div><div><div class="collective-title">' + config.title +
+                    '</div><div class="collective-sub" style="color:#16a34a;">Служба активна</div></div></div>' +
+                    '<p style="font-size:.75rem;color:#475569;line-height:1.4;">Рабочее время: ' + xjHourLabel(config.startH) + '–' + xjHourLabel(config.endH) + '.<br>Берите задания у работодателя ' + config.placeText + '.</p>' +
+                    '<div class="collective-stats-box"><div class="collective-stat-item"><span class="collective-stat-title">Заданий сегодня</span><span class="collective-stat-value">' + state.today +
+                    '</span></div><div class="collective-stat-item"><span class="collective-stat-title">Всего заданий</span><span class="collective-stat-value">' + state.total + '</span></div></div>' +
+                    '<button type="button" class="job-decline-btn">Уволиться</button>';
+                card.querySelector('.job-decline-btn').addEventListener('click', function () {
+                    if (xjTask && xjTask.active && xjTask.jobId === jobId) {
+                        showToast('Сначала завершите задание!');
+                        return;
+                    }
+                    state.active = false;
+                    xjSave();
+                    renderCollectiveApp();
+                    showToast('Вы уволились с работы: ' + config.title);
+                });
+            } else {
+                card.innerHTML = '<div class="collective-header"><div class="collective-avatar">' + config.icon + '</div><div><div class="collective-title">' + config.title +
+                    '</div><div class="collective-sub" style="color:#d97706;">Ожидает собеседования</div></div></div>' +
+                    '<p style="font-size:.75rem;color:#475569;">Собеседование — ' + xjInterviewWhenText(jobId) + ' ' + config.placeText + '.</p>';
+            }
+            wrapper.appendChild(card);
+        });
+    }
+
+    /* ---------- Обработчики ---------- */
+
+    if (btnXjHiring) btnXjHiring.addEventListener('click', xjHandleHiring);
+    if (btnXjAbout) btnXjAbout.addEventListener('click', xjHandleAbout);
+    if (btnXjOrders) btnXjOrders.addEventListener('click', xjHandleOrders);
+    if (btnXjClose) btnXjClose.addEventListener('click', function () { xjDialogueOverlay.classList.add('hidden'); });
+    if (btnXjQuizClose) btnXjQuizClose.addEventListener('click', function () { xjQuiz = null; xjQuizModal.classList.add('hidden'); });
+    if (btnXjOrdersClose) btnXjOrdersClose.addEventListener('click', function () { xjOrdersModal.classList.add('hidden'); });
+    if (btnXjTaskBack) btnXjTaskBack.addEventListener('click', xjCancelTask);
+    if (xjTaskBox) xjTaskBox.addEventListener('pointerdown', xjHandleTaskTap, { passive: false });
+
+    Object.keys(XJ_LOCATIONS).forEach(function (key) {
+        const location = XJ_LOCATIONS[key];
+        const screen = document.getElementById(location.screenId);
+        const exitButton = document.getElementById(location.exitId);
+        const npc = document.getElementById(location.npcId);
+        if (exitButton) {
+            exitButton.addEventListener('click', function () {
+                if (screen) screen.classList.add('hidden');
+                if (xjDialogueOverlay) xjDialogueOverlay.classList.add('hidden');
+                currentScreen = 'city';
+                lastExitedLocation = key;
+                saveGameData();
+                if (btnOpenSettingsGame) btnOpenSettingsGame.classList.remove('hidden');
+            });
+        }
+        if (npc) {
+            npc.addEventListener('click', function () { xjOpenDialogue(location.jobId); });
+        }
+    });
+
+    const sellerNpc = document.getElementById('seller-npc-inroom');
+    if (sellerNpc) sellerNpc.addEventListener('click', function () { xjOpenDialogue('seller'); });
+    if (exitMarket) exitMarket.addEventListener('click', function () { if (xjDialogueOverlay) xjDialogueOverlay.classList.add('hidden'); });
 
     /* =========================================================
        ИНИЦИАЛИЗАЦИЯ
