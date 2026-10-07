@@ -102,7 +102,7 @@
         <!-- ИКОНКА ТЕЛЕФОНА НА ЭКРАНЕ -->
         <div id="phone-btn-wrapper" class="phone-btn-wrapper">
             <button id="btn-open-phone" class="btn-phone-hud">
-                <img src="phone.png" alt="Phone" class="phone-icon-img" onerror="this.src='phone.png'">
+                <img src="phone.png" alt="Phone" class="phone-icon-img" onerror="this.style.display='none'">
                 <span id="phone-badge" class="phone-badge hidden">0</span>
             </button>
         </div>
@@ -138,34 +138,37 @@
 
     <!-- КВАРТИРА -->
     <div id="apartment-screen" class="screen full-screen room-screen hidden">
-        <img src="room.png" class="room-bg-img" alt="Квартира" onerror="this.src='gazon.png'">
+        <img src="house.png" class="room-bg-img" alt="Квартира" onerror="this.style.display='none'">
         <img id="bed-img" src="bed.png" class="bed-clickable-area" alt="Кровать" onerror="this.style.display='none'">
         <button id="btn-exit-apartment" class="btn-room-exit">🚪 На улицу</button>
     </div>
 
     <!-- ПОЖАРНАЯ ЧАСТЬ -->
     <div id="firestation-screen" class="screen full-screen room-screen hidden">
-        <img src="firestation.png" class="room-bg-img" alt="Пожарная часть" onerror="this.src='gazon.png'">
+        <img src="fire_station.png" class="room-bg-img" alt="Пожарная часть" onerror="this.style.display='none'">
         <div id="firefighter-npc-inroom" class="npc-clickable-area" title="Генерал МЧС">
-            <img src="npc_firefighter.png" alt="Генерал МЧС" class="npc-sprite-img" onerror="this.src='https://via.placeholder.com/80x150?text=🚒'">
+            <img src="firefighter_npc.png" alt="Генерал МЧС" class="npc-sprite-img" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="npc-emoji-fallback">🚒</span>
         </div>
         <button id="btn-exit-firestation" class="btn-room-exit">🚪 На улицу</button>
     </div>
 
     <!-- АВТОБАЗА -->
     <div id="truckstation-screen" class="screen full-screen room-screen hidden">
-        <img src="truckstation.png" class="room-bg-img" alt="Автобаза" onerror="this.src='gazon.png'">
+        <img src="truck_station.png" class="room-bg-img" alt="Автобаза" onerror="this.style.display='none'">
         <div id="trucker-npc-inroom" class="npc-clickable-area" title="Начальник автобазы">
-            <img src="npc_trucker.png" alt="Начальник автобазы" class="npc-sprite-img" onerror="this.src='https://via.placeholder.com/80x150?text=🚛'">
+            <img src="trucker_npc.png" alt="Начальник автобазы" class="npc-sprite-img" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="npc-emoji-fallback">🚛</span>
         </div>
         <button id="btn-exit-truckstation" class="btn-room-exit">🚪 На улицу</button>
     </div>
 
     <!-- МАГАЗИН -->
     <div id="market-screen" class="screen full-screen room-screen hidden">
-        <img src="market.png" class="room-bg-img" alt="Магазин" onerror="this.src='gazon.png'">
+        <img src="market_room.png" class="room-bg-img" alt="Магазин" onerror="this.style.display='none'">
         <div id="market-npc-inroom" class="npc-clickable-area" title="Директор магазина">
-            <img src="npc_director.png" alt="Директор магазина" class="npc-sprite-img" onerror="this.src='https://via.placeholder.com/80x150?text=🛒'">
+            <img src="cashier_manager.png" alt="Директор магазина" class="npc-sprite-img" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="npc-emoji-fallback">🛒</span>
+        </div>
+        <div id="seller-npc-inroom" class="npc-clickable-area npc-left" title="Продавец-консультант">
+            <img src="seller_npc.png" alt="Продавец-консультант" class="npc-sprite-img" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="npc-emoji-fallback">🛍️</span>
         </div>
         <button id="btn-exit-market" class="btn-room-exit">🚪 На улицу</button>
     </div>
@@ -187,7 +190,7 @@
                 <!-- Окно покупателя -->
                 <div class="cashier-customer-box">
                     <div class="customer-avatar-wrapper">
-                        <img id="cashier-customer-image" src="customers/customer_1.png" alt="Покупатель" onerror="this.src='https://via.placeholder.com/120x160?text=👤'">
+                        <img id="cashier-customer-image" src="customers/customer_1.png" alt="Покупатель" onerror="this.style.visibility='hidden'">
                     </div>
                 </div>
 
@@ -340,69 +343,69 @@
             <!-- ГЛАВНЫЙ ЭКРАН ТЕЛЕФОНА (СЕТКА ПРИЛОЖЕНИЙ) -->
             <div id="phone-apps-grid" class="iphone-apps-grid">
                 <div class="app-item" data-app="taxi">
-                    <div class="app-icon-wrapper"><img src="apps/taxi.png" alt="Такси" onerror="this.src='https://via.placeholder.com/50?text=🚕'"></div>
+                    <div class="app-icon-wrapper"><img src="logo/taxi.png" alt="Такси" onerror="this.style.display='none';this.parentNode.setAttribute('data-emoji','🚕')"></div>
                     <span>Такси</span>
                 </div>
                 <div class="app-item" data-app="work">
-                    <div class="app-icon-wrapper"><img src="apps/rabota_ru.png" alt="Работа.ру" onerror="this.src='https://via.placeholder.com/50?text=💼'"></div>
+                    <div class="app-icon-wrapper"><img src="logo/work.png" alt="Работа.ру" onerror="this.style.display='none';this.parentNode.setAttribute('data-emoji','💼')"></div>
                     <span>Работа.ру</span>
                 </div>
                 <div class="app-item" data-app="shtraf">
-                    <div class="app-icon-wrapper"><img src="apps/gibdd.png" alt="Штрафы" onerror="this.src='https://via.placeholder.com/50?text=⚠️'"></div>
+                    <div class="app-icon-wrapper"><img src="logo/shtraf.png" alt="Штрафы" onerror="this.style.display='none';this.parentNode.setAttribute('data-emoji','⚠️')"></div>
                     <span>Штрафы</span>
                 </div>
                 <div class="app-item" data-app="plat">
-                    <div class="app-icon-wrapper"><img src="apps/oplata.png" alt="Оплата" onerror="this.src='https://via.placeholder.com/50?text=🧾'"></div>
+                    <div class="app-icon-wrapper"><img src="logo/plat.png" alt="Оплата" onerror="this.style.display='none';this.parentNode.setAttribute('data-emoji','🧾')"></div>
                     <span>Оплата</span>
                 </div>
                 <div class="app-item" data-app="business">
-                    <div class="app-icon-wrapper"><img src="apps/business.png" alt="Бизнес" onerror="this.src='https://via.placeholder.com/50?text=🏢'"></div>
+                    <div class="app-icon-wrapper"><img src="logo/business.png" alt="Бизнес" onerror="this.style.display='none';this.parentNode.setAttribute('data-emoji','🏢')"></div>
                     <span>Бизнес</span>
                 </div>
                 <div class="app-item" data-app="karta">
-                    <div class="app-icon-wrapper"><img src="apps/schet.png" alt="Счёт" onerror="this.src='https://via.placeholder.com/50?text=💳'"></div>
+                    <div class="app-icon-wrapper"><img src="logo/karta.png" alt="Счёт" onerror="this.style.display='none';this.parentNode.setAttribute('data-emoji','💳')"></div>
                     <span>Счёт</span>
                 </div>
                 <div class="app-item" data-app="avto">
-                    <div class="app-icon-wrapper"><img src="apps/auto_ru.png" alt="Авто.ру" onerror="this.src='https://via.placeholder.com/50?text=🚗'"></div>
+                    <div class="app-icon-wrapper"><img src="logo/avto.png" alt="Авто.ру" onerror="this.style.display='none';this.parentNode.setAttribute('data-emoji','🚗')"></div>
                     <span>Авто.ру</span>
                 </div>
                 <div class="app-item" data-app="casino">
-                    <div class="app-icon-wrapper"><img src="apps/lottery.png" alt="Лотерея" onerror="this.src='https://via.placeholder.com/50?text=🎰'"></div>
+                    <div class="app-icon-wrapper"><img src="logo/casino.png" alt="Лотерея" onerror="this.style.display='none';this.parentNode.setAttribute('data-emoji','🎰')"></div>
                     <span>Лотерея</span>
                 </div>
                 <div class="app-item" data-app="sms">
                     <div class="app-icon-wrapper">
-                        <img src="apps/sms.png" alt="СМС" onerror="this.src='https://via.placeholder.com/50?text=💬'">
+                        <img src="logo/sms.png" alt="СМС" onerror="this.style.display='none';this.parentNode.setAttribute('data-emoji','💬')">
                         <span id="sms-app-badge" class="app-badge hidden">0</span>
                     </div>
                     <span>СМС</span>
                 </div>
                 <div class="app-item" data-app="eda">
-                    <div class="app-icon-wrapper"><img src="apps/eda.png" alt="Еда" onerror="this.src='https://via.placeholder.com/50?text=🍕'"></div>
+                    <div class="app-icon-wrapper"><img src="logo/eda.png" alt="Еда" onerror="this.style.display='none';this.parentNode.setAttribute('data-emoji','🍕')"></div>
                     <span>Еда</span>
                 </div>
                 <div class="app-item" data-app="poisk">
-                    <div class="app-icon-wrapper"><img src="apps/poisk.png" alt="Поиск" onerror="this.src='https://via.placeholder.com/50?text=🔍'"></div>
+                    <div class="app-icon-wrapper"><img src="logo/poisk.png" alt="Поиск" onerror="this.style.display='none';this.parentNode.setAttribute('data-emoji','🔍')"></div>
                     <span>Поиск</span>
                 </div>
                 <div class="app-item" data-app="zakaz">
-                    <div class="app-icon-wrapper"><img src="apps/zakaz.png" alt="Заказ" onerror="this.src='https://via.placeholder.com/50?text=📦'"></div>
+                    <div class="app-icon-wrapper"><img src="logo/zakaz.png" alt="Заказ" onerror="this.style.display='none';this.parentNode.setAttribute('data-emoji','📦')"></div>
                     <span>Заказ</span>
                 </div>
                 <div class="app-item" data-app="kollectiv">
                     <div class="app-icon-wrapper">
-                        <img src="apps/kollectiv.png" alt="Коллектив" onerror="this.src='https://via.placeholder.com/50?text=👥'">
+                        <img src="logo/kollectiv.png" alt="Коллектив" onerror="this.style.display='none';this.parentNode.setAttribute('data-emoji','👥')">
                         <span id="kollectiv-app-badge" class="app-badge hidden">0</span>
                     </div>
                     <span>Коллектив</span>
                 </div>
                 <div class="app-item" data-app="imushka">
-                    <div class="app-icon-wrapper"><img src="apps/imushchestvo.png" alt="Имущество" onerror="this.src='https://via.placeholder.com/50?text=🏡'"></div>
+                    <div class="app-icon-wrapper"><img src="logo/imushka.png" alt="Имущество" onerror="this.style.display='none';this.parentNode.setAttribute('data-emoji','🏡')"></div>
                     <span>Имущество</span>
                 </div>
                 <div class="app-item" data-app="compania">
-                    <div class="app-icon-wrapper"><img src="apps/compania.png" alt="Компания" onerror="this.src='https://via.placeholder.com/50?text=📊'"></div>
+                    <div class="app-icon-wrapper"><img src="logo/compania.png" alt="Компания" onerror="this.style.display='none';this.parentNode.setAttribute('data-emoji','📊')"></div>
                     <span>Компания</span>
                 </div>
             </div>
@@ -515,7 +518,7 @@
             </div>
             <h2>Экзамен ПДД</h2>
             <div class="pdd-image-container">
-                <img id="pdd-question-img" src="pdd_brick.png" alt="Знак ПДД" onerror="this.src='https://via.placeholder.com/200x120?text=ПДД'">
+                <img id="pdd-question-img" src="pdd_brick.png" alt="Знак ПДД" onerror="this.style.display='none'">
             </div>
             <div id="pdd-question-title" class="pdd-question-text">Вопрос...</div>
             <div id="pdd-answers-grid" class="pdd-answers-grid"></div>
@@ -628,6 +631,96 @@
                     <div class="circle-content"><span class="stat-emoji">🌙</span></div>
                     <div class="stat-tooltip hidden"><span id="taxi-sleep-val">100%</span> Сон</div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Полицейский участок -->
+    <div id="police-screen" class="screen full-screen room-screen xj-room xj-room-police hidden">
+        <img src="police_station.png" class="room-bg-img" alt="Полицейский участок" onerror="this.style.display='none'">
+        <div class="xj-room-title">Полицейский участок</div>
+        <div id="police-npc-inroom" class="npc-clickable-area" title="Начальник полиции">
+            <img src="police_npc.png" alt="Начальник полиции" class="npc-sprite-img" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="npc-emoji-fallback">👮</span>
+        </div>
+        <button id="btn-exit-police" class="btn-room-exit">🚪 На улицу</button>
+    </div>
+
+    <!-- Больница -->
+    <div id="hospital-screen" class="screen full-screen room-screen xj-room xj-room-hospital hidden">
+        <img src="hospital.png" class="room-bg-img" alt="Больница" onerror="this.style.display='none'">
+        <div class="xj-room-title">Больница</div>
+        <div id="hospital-npc-inroom" class="npc-clickable-area" title="Главврач">
+            <img src="doctor_npc.png" alt="Главврач" class="npc-sprite-img" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="npc-emoji-fallback">👨‍⚕️</span>
+        </div>
+        <button id="btn-exit-hospital" class="btn-room-exit">🚪 На улицу</button>
+    </div>
+
+    <!-- Таксопарк -->
+    <div id="taxipark-screen" class="screen full-screen room-screen xj-room xj-room-taxipark hidden">
+        <img src="taxi_park.png" class="room-bg-img" alt="Таксопарк" onerror="this.style.display='none'">
+        <div class="xj-room-title">Таксопарк</div>
+        <div id="taxipark-npc-inroom" class="npc-clickable-area" title="Диспетчер таксопарка">
+            <img src="taxi_npc.png" alt="Диспетчер таксопарка" class="npc-sprite-img" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="npc-emoji-fallback">🚕</span>
+        </div>
+        <button id="btn-exit-taxipark" class="btn-room-exit">🚪 На улицу</button>
+    </div>
+
+    <!-- ДИАЛОГ РАБОТОДАТЕЛЯ (ПОЛИЦЕЙСКИЙ, ДОКТОР, ТАКСИСТ, ПРОДАВЕЦ) -->
+    <div id="xj-dialogue-overlay" class="dialogue-overlay hidden">
+        <div class="dialogue-card">
+            <div class="dialogue-speaker-info">
+                <span id="xj-speaker-avatar" class="speaker-avatar">👮</span>
+                <strong id="xj-speaker-name">Работодатель</strong>
+            </div>
+            <p id="xj-dialogue-text">Здравствуйте!</p>
+            <div class="dialogue-buttons-grid">
+                <button id="btn-xj-hiring" class="btn-dlg">Трудоустройство</button>
+                <button id="btn-xj-about" class="btn-dlg">О работе</button>
+                <button id="btn-xj-orders" class="btn-dlg">Задания</button>
+                <button id="btn-xj-close" class="btn-dlg btn-dlg-cancel">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- СОБЕСЕДОВАНИЕ -->
+    <div id="xj-quiz-modal" class="modal-overlay hidden">
+        <div class="modal-card pdd-modal-card">
+            <div class="pdd-header-bar">
+                <span id="xj-quiz-badge" class="pdd-step-badge">Вопрос 1 из 2</span>
+                <button id="btn-xj-quiz-close" class="modal-close-icon">✕</button>
+            </div>
+            <h2 id="xj-quiz-heading">Собеседование</h2>
+            <div id="xj-quiz-title" class="pdd-question-text">Вопрос...</div>
+            <div id="xj-quiz-answers" class="pdd-answers-grid"></div>
+        </div>
+    </div>
+
+    <!-- СПИСОК ЗАДАНИЙ -->
+    <div id="xj-orders-modal" class="modal-overlay hidden">
+        <div class="modal-card orders-modal-card">
+            <div class="pdd-header-bar">
+                <h2 id="xj-orders-heading">Задания</h2>
+                <button id="btn-xj-orders-close" class="modal-close-icon">✕</button>
+            </div>
+            <div id="xj-orders-list" class="orders-list-grid"></div>
+        </div>
+    </div>
+
+    <!-- ЭКРАН ВЫПОЛНЕНИЯ ЗАДАНИЯ -->
+    <div id="xj-task-screen" class="screen full-screen hidden">
+        <div id="xj-task-box" class="fullscreen-touch-area">
+            <button id="btn-xj-task-back" class="btn-road-cancel">✕ Отмена</button>
+            <div id="xj-task-title" class="road-hud-title">Задание</div>
+            <div id="xj-task-sub" class="road-hud-sub">Нажимайте на экран</div>
+            <div id="xj-task-progress-box" class="road-progress-box">
+                <div class="road-progress-track">
+                    <div id="xj-task-progress-inner" class="road-progress-inner"></div>
+                </div>
+                <div id="xj-task-percent" class="road-percent-text">0%</div>
+            </div>
+            <div id="xj-task-quiz" class="xj-task-quiz hidden">
+                <div id="xj-task-question" class="pdd-question-text">Вопрос...</div>
+                <div id="xj-task-answers" class="pdd-answers-grid"></div>
             </div>
         </div>
     </div>
