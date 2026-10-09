@@ -217,13 +217,13 @@ document.addEventListener('DOMContentLoaded', function () {
     ];
 
     const MAP_POINTS = {
-        home: { x: 0.36, y: 0.42 },
-        firestation: { x: 0.65, y: 0.55 },
-        truckstation: { x: 0.20, y: 0.68 },
-        market: { x: 0.50, y: 0.65 },
-        police: { x: 0.74, y: 0.34 },
-        hospital: { x: 0.45, y: 0.28 },
-        taxipark: { x: 0.80, y: 0.74 }
+        home: { x: 0.38, y: 0.47 },
+        firestation: { x: 0.66, y: 0.55 },
+        truckstation: { x: 0.36, y: 0.57 },
+        market: { x: 0.50, y: 0.52 },
+        police: { x: 0.66, y: 0.46 },
+        hospital: { x: 0.50, y: 0.43 },
+        taxipark: { x: 0.57, y: 0.585 }
     };
 
     const TAXI_ROUTE_PRICES = {
@@ -328,14 +328,6 @@ document.addEventListener('DOMContentLoaded', function () {
             salary: 11500,
             schedule: 'Рабочее время: 09:00–21:00',
             description: 'Работа в магазине, обслуживание покупателей, работа с кассой.'
-        },
-        {
-            id: 'seller',
-            title: 'Продавец',
-            icon: '🛍️',
-            salary: 42000,
-            schedule: 'Рабочее время: 10:00–22:00',
-            description: 'Выкладывать товар, консультировать покупателей и проводить инвентаризацию.'
         },
         {
             id: 'police',
@@ -1726,6 +1718,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function orderTaxi(fromKey, toKey, price, fromTitle, toTitle) {
+        if (cashierShiftState.active || (xjTask && xjTask.active)) {
+            showToast('Сначала завершите смену или задание');
+            return;
+        }
         if (fromKey === toKey) {
             showToast('Нельзя ехать в ту же локацию');
             return;
@@ -1740,7 +1736,7 @@ document.addEventListener('DOMContentLoaded', function () {
         addBankTransaction('Поездка на такси', price, false);
         phoneModal.classList.add('hidden');
         closePhoneApp();
-        btnOpenSettingsGame.classList.add('hidden');
+        /* HUD всегда виден */
         taxiFullscreen.classList.remove('hidden');
 
         taxiRouteTitleText.textContent = '🚕 ' + fromTitle + ' → ' + toTitle;
@@ -1813,7 +1809,7 @@ document.addEventListener('DOMContentLoaded', function () {
         btnTravelCar.classList.toggle('disabled-card', !hasCar);
         travelCarDesc.textContent = hasCar ? 'На личном авто (' + ownedCars[0].title + ')' : 'Требуется личное авто';
         travelChoiceModal.classList.remove('hidden');
-        btnOpenSettingsGame.classList.add('hidden');
+        /* HUD всегда виден */
     }
 
     function startWalkTravel() {
@@ -2508,7 +2504,7 @@ document.addEventListener('DOMContentLoaded', function () {
         marketScreen.classList.add('hidden');
         xjHideScreens();
         cashierWorkScreen.classList.remove('hidden');
-        btnOpenSettingsGame.classList.add('hidden');
+        /* HUD всегда виден */
         updateCashierUI();
         renderCashierDenominations();
     }
@@ -2560,9 +2556,10 @@ document.addEventListener('DOMContentLoaded', function () {
             cashierPaidDisplay.textContent = cashierShiftState.customer.paid + ' ₽';
             cashierChangeDueDisplay.textContent = cashierShiftState.changeDue + ' ₽';
             cashierSelectedDisplay.textContent = cashierShiftState.selectedChange + ' ₽';
+            cashierCustomerImage.style.visibility = 'visible';
             cashierCustomerImage.src = cashierShiftState.customer.customerImage;
             cashierCustomerImage.onerror = function () {
-                this.src = 'https://via.placeholder.com/120x160?text=👤';
+                this.style.visibility = 'hidden';
             };
 
             btnCashierGiveChange.disabled = cashierShiftState.selectedChange !== cashierShiftState.changeDue;
@@ -3077,7 +3074,7 @@ document.addEventListener('DOMContentLoaded', function () {
         processFinesExpiration();
         processFoodDeliveries();
 
-        if (cashierShiftState.active && !cashierShiftState.onBreak && !cashierShiftState.shiftCompleted) {
+        if (cashierShiftState.active && !cashierShiftState.shiftCompleted) {
             updateCashierUI();
         }
 
@@ -3100,7 +3097,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function fitAndCenterMap() {
         const map = getMapDimensions();
         const fit = Math.max(innerWidth / map.rawW, innerHeight / map.rawH);
-        camera.minZoom = fit * 1.85;
+        camera.minZoom = fit * 1.2;
         camera.maxZoom = fit * 4.5;
         camera.zoom = camera.minZoom;
         camera.x = innerWidth / 2;
@@ -3109,11 +3106,11 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function clampCamera() {
-        const ratio = camera.zoom / camera.minZoom;
-        const maxX = 12 + (ratio - 1) * innerWidth * 0.25;
-        const maxY = 12 + (ratio - 1) * innerHeight * 0.25;
-        camera.x = clamp(camera.x, innerWidth / 2 - maxX, innerWidth / 2 + maxX);
-        camera.y = clamp(camera.y, innerHeight / 2 - maxY, innerHeight / 2 + maxY);
+        const map = getMapDimensions();
+        if (map.w <= innerWidth) camera.x = innerWidth / 2;
+        else camera.x = clamp(camera.x, innerWidth - map.w / 2, map.w / 2);
+        if (map.h <= innerHeight) camera.y = innerHeight / 2;
+        else camera.y = clamp(camera.y, innerHeight - map.h / 2, map.h / 2);
     }
 
     function resizeCanvas() {
@@ -3220,15 +3217,15 @@ document.addEventListener('DOMContentLoaded', function () {
             drawMarker(truckX, truckY, '#d97706', '🚛', 'Автобаза', '#fbbf24');
         }
 
-        if (cashierJobState.pendingJobId === 'cashier' || cashierJobState.activeJobId === 'cashier' || xjHas('seller')) {
+        if (cashierJobState.pendingJobId === 'cashier' || cashierJobState.activeJobId === 'cashier') {
             drawMarker(marketX, marketY, '#16a34a', '🛒', 'Магазин', '#4ade80');
         }
 
         xjDrawMarkers(left, top, map);
-        let playerPoint = { x: homeX + 22 * camera.zoom, y: homeY };
-        if (lastExitedLocation === 'firestation') playerPoint = { x: fireX + 22 * camera.zoom, y: fireY };
-        if (lastExitedLocation === 'truckstation') playerPoint = { x: truckX + 22 * camera.zoom, y: truckY };
-        if (lastExitedLocation === 'market') playerPoint = { x: marketX + 22 * camera.zoom, y: marketY };
+        let playerPoint = { x: homeX + 34 * camera.zoom, y: homeY };
+        if (lastExitedLocation === 'firestation') playerPoint = { x: fireX + 34 * camera.zoom, y: fireY };
+        if (lastExitedLocation === 'truckstation') playerPoint = { x: truckX + 34 * camera.zoom, y: truckY };
+        if (lastExitedLocation === 'market') playerPoint = { x: marketX + 34 * camera.zoom, y: marketY };
         const xjPoint = xjPlayerPoint(left, top, map);
         if (xjPoint) playerPoint = xjPoint;
 
@@ -3286,7 +3283,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 key: 'market', 
                 x: left + map.w * MAP_POINTS.market.x, 
                 y: top + map.h * MAP_POINTS.market.y, 
-                active: cashierJobState.pendingJobId === 'cashier' || cashierJobState.activeJobId === 'cashier' || xjHas('seller') 
+                active: cashierJobState.pendingJobId === 'cashier' || cashierJobState.activeJobId === 'cashier' 
             }
         ];
 
@@ -3307,7 +3304,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 marketScreen.classList.add('hidden');
         xjHideScreens();
                 cashierWorkScreen.classList.add('hidden');
-                btnOpenSettingsGame.classList.add('hidden');
+                /* HUD всегда виден */
                 if (point.key === 'home') {
                     currentScreen = 'apartment';
                     apartmentScreen.classList.remove('hidden');
@@ -4013,92 +4010,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     ]
                 }
             ]
-        },
-        seller: {
-            id: 'seller',
-            title: 'Продавец',
-            icon: '🛍️',
-            locKey: 'market',
-            placeText: 'в Магазине (у продавца-консультанта)',
-            npcName: 'Продавец-консультант',
-            npcIcon: '🛍️',
-            greeting: 'Здравствуйте! Я старший продавец. Хотите работать в торговом зале?',
-            about: 'Рабочее время продавца: 10:00–22:00. Выкладывайте товар, консультируйте покупателей и проводите инвентаризацию. За каждое задание вы получаете зарплату.',
-            ordersLabel: 'Задания',
-            ordersTitle: '🛍️ Доступные задания',
-            startH: 10,
-            endH: 22,
-            interviewMin: 840,
-            questions: [
-                {
-                    title: 'Покупатель сомневается в выборе товара. Как поступить?',
-                    options: [
-                        'Вежливо рассказать о товаре и помочь выбрать',
-                        'Сказать «мне некогда»',
-                        'Навязать самый дорогой товар',
-                        'Отвернуться и уйти'
-                    ],
-                    correct: 0
-                },
-                {
-                    title: 'Покупатель взял 3 товара по 120 ₽. Сколько он должен заплатить?',
-                    options: ['360 ₽', '320 ₽', '340 ₽', '380 ₽'],
-                    correct: 0
-                }
-            ],
-            tasks: [
-                {
-                    id: 'shelves',
-                    title: '🟢 Выкладка товара',
-                    desc: 'Разложить товар по полкам',
-                    reward: 350,
-                    clicks: 40,
-                    steps: []
-                },
-                {
-                    id: 'consult',
-                    title: '🟡 Консультация покупателя',
-                    desc: 'Помочь клиентам с выбором',
-                    reward: 450,
-                    clicks: 20,
-                    steps: [
-                        {
-                            title: 'Покупатель просит посоветовать товар. Что сделать?',
-                            options: [
-                                'Узнать, что ему нужно, и предложить подходящие варианты',
-                                'Продать самое дорогое',
-                                'Сказать «не знаю» и уйти',
-                                'Не обращать внимания'
-                            ],
-                            correct: 0
-                        },
-                        {
-                            title: 'Покупатель взял 3 товара по 120 ₽ и 2 товара по 85 ₽. Итого?',
-                            options: ['530 ₽', '510 ₽', '550 ₽', '490 ₽'],
-                            correct: 0
-                        }
-                    ]
-                },
-                {
-                    id: 'inventory',
-                    title: '🔴 Инвентаризация склада',
-                    desc: 'Пересчёт и проверка товара',
-                    reward: 600,
-                    clicks: 90,
-                    steps: [
-                        {
-                            title: 'Вы нашли просроченный товар. Что делать?',
-                            options: [
-                                'Убрать с полки и списать',
-                                'Оставить на полке',
-                                'Переклеить дату',
-                                'Спрятать под другой товар'
-                            ],
-                            correct: 0
-                        }
-                    ]
-                }
-            ]
         }
     };
 
@@ -4109,8 +4020,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const xjState = {
         police: xjDefaultJobState(),
         doctor: xjDefaultJobState(),
-        taxi: xjDefaultJobState(),
-        seller: xjDefaultJobState()
+        taxi: xjDefaultJobState()
     };
 
     let xjTask = null;
@@ -4267,7 +4177,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function xjPlayerPoint(left, top, map) {
         const point = MAP_POINTS[lastExitedLocation];
         if (!XJ_LOCATIONS[lastExitedLocation] || !point) return null;
-        return { x: left + map.w * point.x + 22 * camera.zoom, y: top + map.h * point.y };
+        return { x: left + map.w * point.x + 34 * camera.zoom, y: top + map.h * point.y };
     }
 
     function xjAddMapPoints(points, left, top, map) {
@@ -4719,8 +4629,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    const sellerNpc = document.getElementById('seller-npc-inroom');
-    if (sellerNpc) sellerNpc.addEventListener('click', function () { xjOpenDialogue('seller'); });
     if (exitMarket) exitMarket.addEventListener('click', function () { if (xjDialogueOverlay) xjDialogueOverlay.classList.add('hidden'); });
 
     /* =========================================================
