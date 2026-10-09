@@ -2642,3 +2642,50 @@ html, body {
     .npc-sprite-img { height: 240px; }
     .npc-emoji-fallback { font-size: 140px; }
 }
+
+
+/* =========================================================
+   ГЛОБАЛЬНЫЙ HUD (виден в комнатах, на карте, в такси и на работе)
+   ========================================================= */
+#global-hud {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 250;
+    pointer-events: none;
+}
+#global-hud .hud-top-bar { pointer-events: none; }
+#global-hud .player-stats-hud,
+#global-hud .phone-btn-wrapper,
+#global-hud .settings-hud-btn { pointer-events: auto; }
+
+/* Во время поездок и заданий телефон и настройки скрыты */
+body:has(:is(#walk-fullscreen, #road-fullscreen, #fire-fullscreen, #trucker-road-fullscreen, #taxi-fullscreen, #xj-task-screen):not(.hidden)) #phone-btn-wrapper,
+body:has(:is(#walk-fullscreen, #road-fullscreen, #fire-fullscreen, #trucker-road-fullscreen, #taxi-fullscreen, #xj-task-screen):not(.hidden)) #btn-open-settings-game {
+    display: none;
+}
+
+/* Исправление «вытянутых» плашек в такси и пешем пути: дубли убраны, остальное выровнено */
+.walk-hud-override {
+    top: auto;
+    bottom: 30px;
+}
+.walk-hud-override .hud-pill { display: none; }
+.taxi-hud-stats { display: none !important; }
+
+/* Кнопки отмены и заголовки не перекрывают HUD */
+.btn-road-cancel { top: calc(62px + env(safe-area-inset-top, 0px)); }
+.xj-room-title { top: calc(62px + env(safe-area-inset-top, 0px)); }
+.cashier-ui-container { padding-top: calc(62px + env(safe-area-inset-top, 0px)); }
+
+/* Узкие телефоны: HUD компактнее, чтобы плашки не накладывались */
+@media (max-width: 480px) {
+    .hud-top-bar { left: 8px; gap: 6px; }
+    .hud-pill { padding: 6px 10px; font-size: 0.7rem; }
+    .player-stats-hud { right: 54px; gap: 6px; }
+    .stat-circle-item { width: 32px; height: 32px; }
+    .settings-hud-btn { right: 8px; width: 36px; height: 36px; }
+    .phone-btn-wrapper { right: 8px; }
+}
