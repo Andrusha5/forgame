@@ -84,56 +84,6 @@
     <!-- ИГРОВОЙ ЭКРАН (КАРТА) -->
     <div id="game-screen" class="screen full-screen hidden">
         <canvas id="gameCanvas"></canvas>
-
-        <!-- ВЕРХНИЙ ИНФОРМАЦИОННЫЙ HUD -->
-        <div id="hud-top-bar" class="hud-top-bar">
-            <div class="hud-pill clock-pill">
-                <span id="hud-clock-text">06:00</span>
-                <span class="hud-dot">•</span>
-                <span id="hud-date-text">1 мая</span>
-            </div>
-            <div class="hud-pill money-pill">
-                <span id="hud-money-text">1 000 ₽</span>
-            </div>
-        </div>
-
-        <button id="btn-open-settings-game" class="btn-icon-hud settings-hud-btn">⚙</button>
-
-        <!-- ИКОНКА ТЕЛЕФОНА НА ЭКРАНЕ -->
-        <div id="phone-btn-wrapper" class="phone-btn-wrapper">
-            <button id="btn-open-phone" class="btn-phone-hud">
-                <img src="phone.png" alt="Phone" class="phone-icon-img" onerror="this.style.display='none'">
-                <span id="phone-badge" class="phone-badge hidden">0</span>
-            </button>
-        </div>
-
-        <!-- КРУГОВЫЕ ИНДИКАТОРЫ ПОТРЕБНОСТЕЙ -->
-        <div id="player-stats-hud" class="player-stats-hud">
-            <div class="stat-circle-item" data-stat="hunger">
-                <svg class="circle-svg" viewBox="0 0 40 40">
-                    <circle class="circle-bg" cx="20" cy="20" r="18"/>
-                    <circle id="hunger-ring" class="circle-progress hunger-color" cx="20" cy="20" r="18"/>
-                </svg>
-                <div class="circle-content"><span class="stat-emoji">🍗</span></div>
-                <div class="stat-tooltip hidden"><span id="hunger-val-text">100%</span> Голод</div>
-            </div>
-            <div class="stat-circle-item" data-stat="energy">
-                <svg class="circle-svg" viewBox="0 0 40 40">
-                    <circle class="circle-bg" cx="20" cy="20" r="18"/>
-                    <circle id="energy-ring" class="circle-progress energy-color" cx="20" cy="20" r="18"/>
-                </svg>
-                <div class="circle-content"><span class="stat-emoji">⚡</span></div>
-                <div class="stat-tooltip hidden"><span id="energy-val-text">100%</span> Энергия</div>
-            </div>
-            <div class="stat-circle-item" data-stat="sleep">
-                <svg class="circle-svg" viewBox="0 0 40 40">
-                    <circle class="circle-bg" cx="20" cy="20" r="18"/>
-                    <circle id="sleep-ring" class="circle-progress sleep-color" cx="20" cy="20" r="18"/>
-                </svg>
-                <div class="circle-content"><span class="stat-emoji">🌙</span></div>
-                <div class="stat-tooltip hidden"><span id="sleep-val-text">100%</span> Сон</div>
-            </div>
-        </div>
     </div>
 
     <!-- КВАРТИРА -->
@@ -166,9 +116,6 @@
         <img src="market_room.png" class="room-bg-img" alt="Магазин" onerror="this.style.display='none'">
         <div id="market-npc-inroom" class="npc-clickable-area" title="Директор магазина">
             <img src="cashier_manager.png" alt="Директор магазина" class="npc-sprite-img" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="npc-emoji-fallback">🛒</span>
-        </div>
-        <div id="seller-npc-inroom" class="npc-clickable-area npc-left" title="Продавец-консультант">
-            <img src="seller_npc.png" alt="Продавец-консультант" class="npc-sprite-img" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="npc-emoji-fallback">🛍️</span>
         </div>
         <button id="btn-exit-market" class="btn-room-exit">🚪 На улицу</button>
     </div>
@@ -721,6 +668,59 @@
             <div id="xj-task-quiz" class="xj-task-quiz hidden">
                 <div id="xj-task-question" class="pdd-question-text">Вопрос...</div>
                 <div id="xj-task-answers" class="pdd-answers-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ГЛОБАЛЬНЫЙ HUD: время, баланс, голод, энергия, сон, телефон (виден везде) -->
+    <div id="global-hud">
+        <!-- ВЕРХНИЙ ИНФОРМАЦИОННЫЙ HUD -->
+        <div id="hud-top-bar" class="hidden hud-top-bar">
+            <div class="hud-pill clock-pill">
+                <span id="hud-clock-text">06:00</span>
+                <span class="hud-dot">•</span>
+                <span id="hud-date-text">1 мая</span>
+            </div>
+            <div class="hud-pill money-pill">
+                <span id="hud-money-text">1 000 ₽</span>
+            </div>
+        </div>
+
+        <button id="btn-open-settings-game" class="hidden btn-icon-hud settings-hud-btn">⚙</button>
+
+        <!-- ИКОНКА ТЕЛЕФОНА НА ЭКРАНЕ -->
+        <div id="phone-btn-wrapper" class="hidden phone-btn-wrapper">
+            <button id="btn-open-phone" class="btn-phone-hud">
+                <img src="phone.png" alt="Phone" class="phone-icon-img" onerror="this.style.display='none'">
+                <span id="phone-badge" class="phone-badge hidden">0</span>
+            </button>
+        </div>
+
+        <!-- КРУГОВЫЕ ИНДИКАТОРЫ ПОТРЕБНОСТЕЙ -->
+        <div id="player-stats-hud" class="hidden player-stats-hud">
+            <div class="stat-circle-item" data-stat="hunger">
+                <svg class="circle-svg" viewBox="0 0 40 40">
+                    <circle class="circle-bg" cx="20" cy="20" r="18"/>
+                    <circle id="hunger-ring" class="circle-progress hunger-color" cx="20" cy="20" r="18"/>
+                </svg>
+                <div class="circle-content"><span class="stat-emoji">🍗</span></div>
+                <div class="stat-tooltip hidden"><span id="hunger-val-text">100%</span> Голод</div>
+            </div>
+            <div class="stat-circle-item" data-stat="energy">
+                <svg class="circle-svg" viewBox="0 0 40 40">
+                    <circle class="circle-bg" cx="20" cy="20" r="18"/>
+                    <circle id="energy-ring" class="circle-progress energy-color" cx="20" cy="20" r="18"/>
+                </svg>
+                <div class="circle-content"><span class="stat-emoji">⚡</span></div>
+                <div class="stat-tooltip hidden"><span id="energy-val-text">100%</span> Энергия</div>
+            </div>
+            <div class="stat-circle-item" data-stat="sleep">
+                <svg class="circle-svg" viewBox="0 0 40 40">
+                    <circle class="circle-bg" cx="20" cy="20" r="18"/>
+                    <circle id="sleep-ring" class="circle-progress sleep-color" cx="20" cy="20" r="18"/>
+                </svg>
+                <div class="circle-content"><span class="stat-emoji">🌙</span></div>
+                <div class="stat-tooltip hidden"><span id="sleep-val-text">100%</span> Сон</div>
             </div>
         </div>
     </div>
