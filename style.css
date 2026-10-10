@@ -2653,7 +2653,7 @@ html, body {
     left: 0;
     width: 100%;
     height: 100%;
-    z-index: 250;
+    z-index: 450;
     pointer-events: none;
 }
 #global-hud .hud-top-bar { pointer-events: none; }
@@ -2662,8 +2662,8 @@ html, body {
 #global-hud .settings-hud-btn { pointer-events: auto; }
 
 /* Во время поездок и заданий телефон и настройки скрыты */
-body:has(:is(#walk-fullscreen, #road-fullscreen, #fire-fullscreen, #trucker-road-fullscreen, #taxi-fullscreen, #xj-task-screen):not(.hidden)) #phone-btn-wrapper,
-body:has(:is(#walk-fullscreen, #road-fullscreen, #fire-fullscreen, #trucker-road-fullscreen, #taxi-fullscreen, #xj-task-screen):not(.hidden)) #btn-open-settings-game {
+body:has(:is(#walk-fullscreen, #road-fullscreen, #fire-fullscreen, #trucker-road-fullscreen, #taxi-fullscreen, #xj-task-screen, #xj-game-screen):not(.hidden)) #phone-btn-wrapper,
+body:has(:is(#walk-fullscreen, #road-fullscreen, #fire-fullscreen, #trucker-road-fullscreen, #taxi-fullscreen, #xj-task-screen, #xj-game-screen):not(.hidden)) #btn-open-settings-game {
     display: none;
 }
 
@@ -2688,4 +2688,342 @@ body:has(:is(#walk-fullscreen, #road-fullscreen, #fire-fullscreen, #trucker-road
     .stat-circle-item { width: 32px; height: 32px; }
     .settings-hud-btn { right: 8px; width: 36px; height: 36px; }
     .phone-btn-wrapper { right: 8px; }
+}
+
+
+/* =========================================================
+   ОБНОВЛЕНИЕ 3: HUD по центру, кровать слева, телефон, механики
+   ========================================================= */
+
+/* Время, дата и баланс: сверху по центру */
+#global-hud .hud-top-bar {
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: calc(100vw - 24px);
+}
+.hud-pill { white-space: nowrap; }
+
+/* Телефоны: индикаторы потребностей во втором ряду, чтобы ничего не накладывалось */
+@media (max-width: 600px) {
+    #global-hud .hud-top-bar { gap: 6px; }
+    .player-stats-hud {
+        top: calc(max(12px, env(safe-area-inset-top)) + 44px);
+        right: 54px;
+        gap: 6px;
+    }
+    .xj-room-title { top: calc(100px + env(safe-area-inset-top, 0px)); }
+    .cashier-ui-container { padding-top: calc(100px + env(safe-area-inset-top, 0px)); }
+    .btn-road-cancel { top: calc(56px + env(safe-area-inset-top, 0px)); }
+    .xj-game-body { padding-top: calc(100px + env(safe-area-inset-top, 0px)); }
+}
+
+/* Комната дома: кровать слева, на телефоне картинка целиком */
+.room-frame {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+.room-frame .room-bg-img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.bed-clickable-area {
+    left: 6%;
+    right: auto;
+    bottom: 20%;
+}
+@media (max-aspect-ratio: 1/1) {
+    #apartment-screen { background: #05080f; }
+    .room-frame {
+        top: 50%;
+        bottom: auto;
+        transform: translateY(-50%);
+    }
+    .room-frame .room-bg-img {
+        height: auto;
+        object-fit: contain;
+    }
+    .room-frame .bed-clickable-area {
+        left: 5%;
+        bottom: 12%;
+        width: 24%;
+        max-width: 110px;
+        height: auto;
+    }
+}
+
+/* Телефон: заметная кнопка закрытия и равномерные иконки */
+.phone-modal-overlay .iphone-close-btn {
+    position: fixed;
+    top: calc(10px + env(safe-area-inset-top, 0px));
+    right: 12px;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: #ef4444;
+    border: 2px solid #ffffff;
+    color: #ffffff;
+    font-size: 1.2rem;
+    font-weight: 900;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+@media (min-width: 700px) {
+    .phone-modal-overlay .iphone-close-btn {
+        top: calc(50% - min(46vh, 390px));
+        right: calc(50% - 252px);
+    }
+}
+.iphone-apps-grid {
+    grid-auto-rows: 1fr;
+    align-items: center;
+    align-content: stretch;
+}
+.app-item {
+    justify-content: center;
+}
+
+/* Игровые механики полицейского и доктора */
+.xj-game-screen {
+    z-index: 45;
+    background: linear-gradient(160deg, #0f172a 0%, #1e293b 100%);
+    overflow-y: auto;
+}
+.xj-game-body {
+    width: 100%;
+    min-height: 100%;
+    display: flex;
+    justify-content: center;
+    padding: calc(64px + env(safe-area-inset-top, 0px)) 14px 28px;
+}
+.xjg-wrap {
+    width: 100%;
+    max-width: 560px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    color: #ffffff;
+}
+.xjg-wrap:has(.xjg-suspects) { max-width: 1000px; }
+.xjg-title { font-size: 1.25rem; font-weight: 900; text-align: center; }
+.xjg-sub { font-size: 0.8rem; color: #94a3b8; text-align: center; line-height: 1.4; }
+.xjg-note { font-size: 0.7rem; color: #94a3b8; text-align: center; line-height: 1.4; }
+.xjg-timer { width: 100%; height: 10px; background: rgba(255, 255, 255, 0.12); border-radius: 6px; overflow: hidden; }
+.xjg-timer-inner { height: 100%; width: 100%; background: linear-gradient(90deg, #22c55e, #eab308, #ef4444); transition: width 0.25s linear; }
+
+.xjg-suspects { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; width: 100%; }
+.xjg-suspect {
+    position: relative;
+    background: rgba(15, 23, 42, 0.92);
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    border-radius: 16px;
+    padding: 8px;
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    cursor: pointer;
+    text-align: center;
+    font-family: inherit;
+}
+.xjg-suspect:hover, .xjg-suspect:active { border-color: #60a5fa; }
+.xjg-suspect-num {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 2;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #2563eb;
+    font-weight: 900;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.xjg-suspect-photo {
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #1e293b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.xjg-suspect-photo img { width: 100%; height: 100%; object-fit: cover; }
+.xjg-suspect-emoji { display: none; font-size: 4rem; align-items: center; justify-content: center; width: 100%; height: 100%; }
+.xjg-suspect-text { font-size: 0.74rem; font-weight: 700; line-height: 1.3; }
+
+.xjg-chase { touch-action: none; user-select: none; }
+.xjg-tug {
+    position: relative;
+    display: flex;
+    width: 100%;
+    height: 48px;
+    border-radius: 24px;
+    overflow: hidden;
+    border: 3px solid #ffffff;
+    background: #334155;
+}
+.xjg-tug-blue { background: #2563eb; transition: width 0.08s linear; }
+.xjg-tug-red { background: #ef4444; transition: width 0.08s linear; }
+.xjg-tug-mid { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: rgba(255, 255, 255, 0.35); }
+.xjg-tug-labels { display: flex; justify-content: space-between; width: 100%; font-size: 0.85rem; font-weight: 700; }
+.xjg-blue-label b { color: #60a5fa; }
+.xjg-red-label b { color: #f87171; }
+.xjg-tap-zone {
+    width: 100%;
+    min-height: 200px;
+    border: 3px dashed rgba(255, 255, 255, 0.35);
+    border-radius: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.05);
+}
+.xjg-tap-icon { font-size: 3.4rem; }
+.xjg-tap-text { font-size: 1.1rem; font-weight: 900; }
+
+.xjg-radar { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+.xjg-radar-sign {
+    width: 92px;
+    height: 92px;
+    border-radius: 50%;
+    border: 8px solid #ef4444;
+    background: #ffffff;
+    color: #0f172a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+.xjg-radar-sign small { font-size: 0.5rem; font-weight: 800; }
+.xjg-radar-sign b { font-size: 2rem; line-height: 1; }
+.xjg-radar-car { font-size: 4.5rem; line-height: 1; }
+.xjg-radar-speed { font-size: 2.2rem; font-weight: 900; }
+.xjg-radar-buttons { display: flex; gap: 10px; width: 100%; }
+.xjg-radar-buttons .btn { flex: 1; padding: 14px 8px; }
+.xjg-radar-feedback { min-height: 26px; font-size: 1rem; font-weight: 900; text-align: center; }
+.xjg-radar-feedback.ok { color: #22c55e; }
+.xjg-radar-feedback.bad { color: #ef4444; }
+
+.xjg-card-box {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    background: rgba(15, 23, 42, 0.92);
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    border-radius: 18px;
+    padding: 14px;
+    width: 100%;
+}
+.xjg-patient { font-size: 3.4rem; }
+.xjg-symptoms { margin: 0; padding-left: 18px; font-size: 0.9rem; font-weight: 700; line-height: 1.6; }
+.xjg-answers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
+
+.xjg-heart { font-size: 4.5rem; line-height: 1; }
+.xjg-heart.beat { animation: xjgBeat 0.35s ease; }
+@keyframes xjgBeat { 0% { transform: scale(1); } 40% { transform: scale(1.35); } 100% { transform: scale(1); } }
+.xjg-cpr-track {
+    position: relative;
+    width: 100%;
+    height: 48px;
+    background: #334155;
+    border-radius: 24px;
+    overflow: hidden;
+    border: 3px solid #ffffff;
+}
+.xjg-cpr-zone { position: absolute; top: 0; bottom: 0; background: #22c55e; opacity: 0.85; }
+.xjg-cpr-marker { position: absolute; top: 0; bottom: 0; width: 8px; margin-left: -4px; background: #ffffff; border-radius: 4px; box-shadow: 0 0 8px rgba(255, 255, 255, 0.9); }
+.xjg-big-btn { width: 100%; padding: 18px; font-size: 1.1rem; touch-action: manipulation; }
+
+.xjg-surg-seq { display: flex; gap: 8px; min-height: 18px; }
+.xjg-surg-dot { width: 16px; height: 16px; border-radius: 50%; background: #475569; }
+.xjg-surg-dot.done { background: #22c55e; }
+.xjg-tools { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; }
+.xjg-tool {
+    background: rgba(15, 23, 42, 0.92);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    padding: 12px 6px;
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: transform 0.15s, background 0.15s;
+}
+.xjg-tool span { font-size: 2rem; line-height: 1; }
+.xjg-tool small { font-size: 0.65rem; font-weight: 700; }
+.xjg-tool.lit { background: #2563eb; border-color: #93c5fd; transform: scale(1.08); }
+
+.xjg-result {
+    margin: auto;
+    width: 100%;
+    max-width: 420px;
+    background: rgba(15, 23, 42, 0.96);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 24px;
+    padding: 26px 20px;
+    text-align: center;
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+}
+.xjg-result-icon { font-size: 3.6rem; line-height: 1; }
+.xjg-result p { font-size: 0.85rem; line-height: 1.45; color: #cbd5e1; }
+.xjg-reward { color: #22c55e; font-weight: 900; font-size: 1.2rem; }
+.xjg-fine { color: #ef4444; font-weight: 900; font-size: 1.1rem; }
+
+/* Приложение «Компания» */
+.co-wrap { padding: 10px 12px 18px; display: flex; flex-direction: column; gap: 10px; }
+.co-tabs { display: flex; gap: 6px; background: #e2e8f0; border-radius: 14px; padding: 4px; position: sticky; top: 0; z-index: 2; }
+.co-tab { flex: 1; border: none; background: transparent; border-radius: 10px; padding: 9px 4px; font-size: 0.72rem; font-weight: 800; color: #475569; font-family: inherit; cursor: pointer; }
+.co-tab.active { background: #ffffff; color: #0f172a; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12); }
+.co-content { display: flex; flex-direction: column; gap: 8px; }
+.co-card { display: flex; align-items: center; gap: 10px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 10px; }
+.co-card.owned { border-color: #22c55e; background: #f0fdf4; }
+.co-card-icon { font-size: 1.9rem; width: 44px; text-align: center; flex-shrink: 0; }
+.co-card-info { flex: 1; min-width: 0; }
+.co-card-name { font-size: 0.82rem; font-weight: 900; color: #0f172a; }
+.co-card-sector { font-size: 0.62rem; font-weight: 700; color: #64748b; }
+.co-card-income { font-size: 0.66rem; font-weight: 800; color: #16a34a; margin-top: 2px; }
+.co-card-buy { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
+.co-card-price { font-size: 0.72rem; font-weight: 900; color: #0f172a; }
+.co-buy-btn { border: none; background: #2563eb; color: #ffffff; border-radius: 10px; padding: 7px 12px; font-size: 0.7rem; font-weight: 800; font-family: inherit; cursor: pointer; }
+.co-buy-btn:disabled { background: #94a3b8; cursor: default; }
+.co-empty { text-align: center; color: #64748b; font-size: 0.8rem; font-weight: 700; padding: 30px 10px; line-height: 1.5; }
+.co-profit-card { background: linear-gradient(135deg, #1d4ed8, #7c3aed); color: #ffffff; border-radius: 20px; padding: 18px 16px; text-align: center; display: flex; flex-direction: column; gap: 6px; }
+.co-profit-label { font-size: 0.72rem; font-weight: 700; opacity: 0.85; }
+.co-profit-value { font-size: 1.7rem; font-weight: 900; }
+.co-profit-rate { font-size: 0.72rem; font-weight: 700; opacity: 0.9; }
+.co-withdraw-btn { margin-top: 6px; border: none; background: #22c55e; color: #052e16; border-radius: 14px; padding: 12px; font-size: 0.85rem; font-weight: 900; font-family: inherit; cursor: pointer; }
+.co-note { font-size: 0.62rem; opacity: 0.85; line-height: 1.4; }
+.co-list-title { font-size: 0.72rem; font-weight: 900; color: #475569; margin-top: 4px; }
+.co-row { display: flex; align-items: center; gap: 8px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 8px 10px; }
+.co-row-icon { font-size: 1.2rem; }
+.co-row-name { flex: 1; font-size: 0.76rem; font-weight: 800; color: #0f172a; }
+.co-row-income { font-size: 0.7rem; font-weight: 800; color: #16a34a; }
+
+/* Уведомления ниже HUD, чтобы не перекрывать время и баланс */
+.toast-message { top: calc(60px + env(safe-area-inset-top, 0px)); }
+@media (max-width: 600px) {
+    .toast-message { top: calc(98px + env(safe-area-inset-top, 0px)); }
 }
