@@ -88,8 +88,10 @@
 
     <!-- КВАРТИРА -->
     <div id="apartment-screen" class="screen full-screen room-screen hidden">
-        <img src="house.png" class="room-bg-img" alt="Квартира" onerror="this.style.display='none'">
-        <img id="bed-img" src="bed.png" class="bed-clickable-area" alt="Кровать" onerror="this.style.display='none'">
+        <div class="room-frame">
+            <img src="house.png" class="room-bg-img" alt="Квартира" onerror="this.style.display='none'">
+            <img id="bed-img" src="bed.png" class="bed-clickable-area" alt="Кровать" onerror="this.style.display='none'">
+        </div>
         <button id="btn-exit-apartment" class="btn-room-exit">🚪 На улицу</button>
     </div>
 
@@ -234,7 +236,7 @@
                     <span class="travel-icon">🚶</span>
                     <div>
                         <strong>Пешком</strong>
-                        <small>150 кликов по экрану</small>
+                        <small>222 клика по экрану</small>
                     </div>
                 </button>
                 <button id="btn-travel-car" class="btn-travel-option">
@@ -242,6 +244,13 @@
                     <div>
                         <strong>На машине</strong>
                         <small id="travel-car-desc">Требуется личный автомобиль</small>
+                    </div>
+                </button>
+                <button id="btn-travel-bike" class="btn-travel-option">
+                    <span class="travel-icon">🚲</span>
+                    <div>
+                        <strong>На велосипеде</strong>
+                        <small id="travel-bike-desc">Требуется велосипед (Авто.ру)</small>
                     </div>
                 </button>
             </div>
@@ -670,6 +679,11 @@
                 <div id="xj-task-answers" class="pdd-answers-grid"></div>
             </div>
         </div>
+    </div>
+
+    <!-- ИГРОВЫЕ МЕХАНИКИ ПОЛИЦЕЙСКОГО И ДОКТОРА -->
+    <div id="xj-game-screen" class="screen full-screen xj-game-screen hidden">
+        <div id="xj-game-body" class="xj-game-body"></div>
     </div>
 
     <!-- ГЛОБАЛЬНЫЙ HUD: время, баланс, голод, энергия, сон, телефон (виден везде) -->
