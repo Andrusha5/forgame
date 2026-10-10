@@ -79,7 +79,9 @@ document.addEventListener('DOMContentLoaded', function () {
     let governmentRewardYearKey = null;
 
     let targetLocationSelected = null;
-    let walkClicksLeft = 150;
+    let walkClicksLeft = 222;
+    let walkClicksTotal = 222;
+    let travelMode = 'walk';
 
     let jobState = {
         activeJobId: null,
@@ -217,13 +219,13 @@ document.addEventListener('DOMContentLoaded', function () {
     ];
 
     const MAP_POINTS = {
-        home: { x: 0.38, y: 0.47 },
+        home: { x: 0.38, y: 0.48 },
         firestation: { x: 0.66, y: 0.55 },
-        truckstation: { x: 0.36, y: 0.57 },
+        truckstation: { x: 0.36, y: 0.56 },
         market: { x: 0.50, y: 0.52 },
         police: { x: 0.66, y: 0.46 },
-        hospital: { x: 0.50, y: 0.43 },
-        taxipark: { x: 0.57, y: 0.585 }
+        hospital: { x: 0.50, y: 0.44 },
+        taxipark: { x: 0.57, y: 0.565 }
     };
 
     const TAXI_ROUTE_PRICES = {
@@ -374,6 +376,7 @@ document.addEventListener('DOMContentLoaded', function () {
     ];
 
     const CARS = [
+        { id: 'bike', title: 'Велосипед', price: 15000, year: 2024, power: 0, color: 'Синий', accel: 'Плавный', maxSpeed: '25 км/ч', imgPrefix: 'bike', desc: 'Городской велосипед. Добираться на нём быстрее, чем пешком: всего 167 кликов вместо 222.' },
         { id: 'vaz2107', title: 'ВАЗ 2107', price: 150000, year: 2008, power: 74, color: 'Чёрная', accel: '14.5 сек', maxSpeed: '150 км/ч', imgPrefix: 'vaz_2107', desc: 'Классический заднеприводный седан.' },
         { id: 'priora', title: 'Лада Приора', price: 380000, year: 2015, power: 106, color: 'Белая', accel: '11.5 сек', maxSpeed: '183 км/ч', imgPrefix: 'lada_priora', desc: 'Популярная отечественная модель.' },
         { id: 'niva', title: 'Лада Нива', price: 450000, year: 2018, power: 83, color: 'Чёрная', accel: '17.0 сек', maxSpeed: '142 км/ч', imgPrefix: 'lada_niva', desc: 'Надёжный внедорожник.' },
@@ -578,6 +581,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const btnTravelBack = document.getElementById('btn-travel-back');
     const btnTravelWalk = document.getElementById('btn-travel-walk');
     const btnTravelCar = document.getElementById('btn-travel-car');
+    const btnTravelBike = document.getElementById('btn-travel-bike');
+    const travelBikeDesc = document.getElementById('travel-bike-desc');
     const travelCarDesc = document.getElementById('travel-car-desc');
 
     const walkFullscreen = document.getElementById('walk-fullscreen');
@@ -1436,7 +1441,7 @@ document.addEventListener('DOMContentLoaded', function () {
         FOOD_ITEMS.forEach(function (food) {
             const card = document.createElement('div');
             card.className = 'food-card';
-            card.innerHTML = '<img src="' + food.image + '" alt="' + food.name + '" onerror="this.src=\'https://via.placeholder.com/60\'"><div class="food-name">' + food.name + '</div><div class="food-info">+' + food.hunger + '% сытости</div><div class="food-price">' + food.price + ' ₽</div><button class="food-buy-btn">В корзину</button>';
+            card.innerHTML = '<img src="' + food.image + '" alt="' + food.name + '" onerror="this.style.visibility=\'hidden\'"><div class="food-name">' + food.name + '</div><div class="food-info">+' + food.hunger + '% сытости</div><div class="food-price">' + food.price + ' ₽</div><button class="food-buy-btn">В корзину</button>';
             card.querySelector('button').addEventListener('click', function () {
                 foodCart.push(food);
                 saveGameData();
@@ -1718,7 +1723,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function orderTaxi(fromKey, toKey, price, fromTitle, toTitle) {
-        if (cashierShiftState.active || (xjTask && xjTask.active)) {
+        if (cashierShiftState.active || (xjTask && xjTask.active) || xjGameActive) {
             showToast('Сначала завершите смену или задание');
             return;
         }
@@ -1805,16 +1810,22 @@ document.addEventListener('DOMContentLoaded', function () {
     function openTravelChoiceModal(targetKey) {
         targetLocationSelected = targetKey;
         travelChoiceTitle.textContent = targetKey === 'home' ? 'Едем домой' : (targetKey === 'firestation' ? 'Едем в Пожарную часть' : (targetKey === 'truckstation' ? 'Едем на Автобазу' : (targetKey === 'market' ? 'Едем в Магазин' : xjTravelTitle(targetKey, 'choice'))));
-        const hasCar = ownedCars.length > 0;
+        const realCar = ownedCars.find(function (item) { return item.id !== 'bike'; });
+        const hasCar = Boolean(realCar);
+        const hasBike = ownedCars.some(function (item) { return item.id === 'bike'; });
         btnTravelCar.classList.toggle('disabled-card', !hasCar);
-        travelCarDesc.textContent = hasCar ? 'На личном авто (' + ownedCars[0].title + ')' : 'Требуется личное авто';
+        travelCarDesc.textContent = hasCar ? 'На личном авто (' + realCar.title + ')' : 'Требуется личное авто';
+        if (btnTravelBike) btnTravelBike.classList.toggle('disabled-card', !hasBike);
+        if (travelBikeDesc) travelBikeDesc.textContent = hasBike ? '167 кликов по экрану' : 'Требуется велосипед (Авто.ру)';
         travelChoiceModal.classList.remove('hidden');
         /* HUD всегда виден */
     }
 
     function startWalkTravel() {
         travelChoiceModal.classList.add('hidden');
-        walkClicksLeft = 150;
+        travelMode = 'walk';
+        walkClicksTotal = 222;
+        walkClicksLeft = 222;
         walkFullscreen.classList.remove('hidden');
         const title = targetLocationSelected === 'home' ? 'Дом' : (targetLocationSelected === 'firestation' ? 'Пожарную часть' : (targetLocationSelected === 'truckstation' ? 'Автобазу' : (targetLocationSelected === 'market' ? 'Магазин' : xjTravelTitle(targetLocationSelected, 'walk'))));
         walkTitleText.textContent = 'Идём пешком в ' + title;
@@ -1826,9 +1837,9 @@ document.addEventListener('DOMContentLoaded', function () {
         event.preventDefault();
         if (walkClicksLeft <= 0) return;
         walkClicksLeft -= 1;
-        gameMinutes += 0.22;
+        gameMinutes += (travelMode === 'bike' ? 0.11 : 0.22);
         advanceCalendar();
-        const progress = Math.round(((150 - walkClicksLeft) / 150) * 100);
+        const progress = Math.round(((walkClicksTotal - walkClicksLeft) / walkClicksTotal) * 100);
         walkProgressInner.style.width = progress + '%';
         walkPercentText.textContent = progress + '%';
         updateClockUI();
@@ -1862,15 +1873,32 @@ document.addEventListener('DOMContentLoaded', function () {
             xjShowScreen(targetLocationSelected);
         }
 
-        playerEnergy = clamp(playerEnergy - 8, 0, 100);
-        playerHunger = clamp(playerHunger - 5, 0, 100);
+        const byBike = travelMode === 'bike';
+        playerEnergy = clamp(playerEnergy - (byBike ? 5 : 8), 0, 100);
+        playerHunger = clamp(playerHunger - (byBike ? 3 : 5), 0, 100);
         saveGameData();
         updateStatsHUD();
-        showToast('Вы пришли пешком');
+        showToast(byBike ? 'Вы приехали на велосипеде' : 'Вы пришли пешком');
+    }
+
+    function startBikeTravel() {
+        if (!ownedCars.some(function (item) { return item.id === 'bike'; })) {
+            showToast('У вас нет велосипеда');
+            return;
+        }
+        travelChoiceModal.classList.add('hidden');
+        travelMode = 'bike';
+        walkClicksTotal = 167;
+        walkClicksLeft = 167;
+        walkFullscreen.classList.remove('hidden');
+        const placeNames = { home: 'Дом', firestation: 'Пожарную часть', truckstation: 'Автобазу', market: 'Магазин', police: 'Полицейский участок', hospital: 'Больницу', taxipark: 'Таксопарк' };
+        walkTitleText.textContent = 'Едем на велосипеде в ' + (placeNames[targetLocationSelected] || 'место назначения');
+        walkProgressInner.style.width = '0%';
+        walkPercentText.textContent = '0%';
     }
 
     function startCarTravel() {
-        if (!ownedCars.length) {
+        if (!ownedCars.some(function (item) { return item.id !== 'bike'; })) {
             showToast('У вас нет автомобиля');
             return;
         }
@@ -2938,7 +2966,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const owned = ownedCars.some(function (item) { return item.id === car.id; });
             const card = document.createElement('div');
             card.className = 'car-card-new';
-            card.innerHTML = '<div class="car-card-top"><img class="car-thumb-new" src="cars/' + car.imgPrefix + '_1.png" alt="' + car.title + '" onerror="this.src=\'https://via.placeholder.com/110x75\'"><div class="car-info-new"><div class="car-title-new">' + car.title + '</div><div class="car-sub-new">' + car.year + ' г. • ' + car.color + '</div></div></div><div class="car-card-bottom"><div class="car-price-badge">' + car.price.toLocaleString('ru-RU') + ' ₽</div><button class="car-buy-btn-new">' + (owned ? 'Куплена' : 'Купить') + '</button></div>';
+            card.innerHTML = '<div class="car-card-top"><img class="car-thumb-new" src="cars/' + car.imgPrefix + '_1.png" alt="' + car.title + '" onerror="this.style.visibility=\'hidden\'"><div class="car-info-new"><div class="car-title-new">' + car.title + '</div><div class="car-sub-new">' + car.year + ' г. • ' + car.color + '</div></div></div><div class="car-card-bottom"><div class="car-price-badge">' + car.price.toLocaleString('ru-RU') + ' ₽</div><button class="car-buy-btn-new">' + (owned ? 'Куплена' : 'Купить') + '</button></div>';
             card.addEventListener('click', function (event) {
                 if (!event.target.closest('.car-buy-btn-new')) renderCarDetail(car);
             });
@@ -2956,7 +2984,7 @@ document.addEventListener('DOMContentLoaded', function () {
         phoneView = 'car-detail';
         const page = document.createElement('div');
         page.className = 'car-detail-page';
-        page.innerHTML = '<div class="car-carousel-container"><div class="car-slider-viewport"><div class="car-slider-track"><div class="car-slide-item"><img src="cars/' + car.imgPrefix + '_1.png" alt="' + car.title + '"></div><div class="car-slide-item"><img src="cars/' + car.imgPrefix + '_2.png" alt="' + car.title + '"></div><div class="car-slide-item"><img src="cars/' + car.imgPrefix + '_3.png" alt="' + car.title + '"></div></div></div><button class="carousel-arrow car-arrow-left">‹</button><button class="carousel-arrow car-arrow-right">›</button><div class="carousel-dots"><div class="carousel-dot active"></div><div class="carousel-dot"></div><div class="carousel-dot"></div></div></div><div class="car-detail-main"><div><div class="car-detail-title">' + car.title + '</div><div style="font-size:.68rem;color:#64748b;font-weight:700;">' + car.year + ' г. • ' + car.color + '</div></div><div class="car-detail-price">' + car.price.toLocaleString('ru-RU') + ' ₽</div></div><div class="car-specs-grid"><div class="car-spec-item"><span class="car-spec-label">Год выпуска</span><span class="car-spec-value">' + car.year + '</span></div><div class="car-spec-item"><span class="car-spec-label">Мощность</span><span class="car-spec-value">' + car.power + ' л.с.</span></div><div class="car-spec-item"><span class="car-spec-label">Разгон 0–100</span><span class="car-spec-value">' + car.accel + '</span></div><div class="car-spec-item"><span class="car-spec-label">Макс. скорость</span><span class="car-spec-value">' + car.maxSpeed + '</span></div></div><div class="car-desc-box">' + car.desc + '</div>';
+        page.innerHTML = '<div class="car-carousel-container"><div class="car-slider-viewport"><div class="car-slider-track"><div class="car-slide-item"><img src="cars/' + car.imgPrefix + '_1.png" alt="' + car.title + '"></div><div class="car-slide-item"><img src="cars/' + car.imgPrefix + '_2.png" alt="' + car.title + '"></div><div class="car-slide-item"><img src="cars/' + car.imgPrefix + '_3.png" alt="' + car.title + '"></div></div></div><button class="carousel-arrow car-arrow-left">‹</button><button class="carousel-arrow car-arrow-right">›</button><div class="carousel-dots"><div class="carousel-dot active"></div><div class="carousel-dot"></div><div class="carousel-dot"></div></div></div><div class="car-detail-main"><div><div class="car-detail-title">' + car.title + '</div><div style="font-size:.68rem;color:#64748b;font-weight:700;">' + car.year + ' г. • ' + car.color + '</div></div><div class="car-detail-price">' + car.price.toLocaleString('ru-RU') + ' ₽</div></div><div class="car-specs-grid"><div class="car-spec-item"><span class="car-spec-label">Год выпуска</span><span class="car-spec-value">' + car.year + '</span></div><div class="car-spec-item"><span class="car-spec-label">Мощность</span><span class="car-spec-value">' + (car.id === 'bike' ? 'Мускульная' : car.power + ' л.с.') + '</span></div><div class="car-spec-item"><span class="car-spec-label">Разгон 0–100</span><span class="car-spec-value">' + car.accel + '</span></div><div class="car-spec-item"><span class="car-spec-label">Макс. скорость</span><span class="car-spec-value">' + car.maxSpeed + '</span></div></div><div class="car-desc-box">' + car.desc + '</div>';
 
         const buyButton = document.createElement('button');
         buyButton.className = 'car-buy-btn-large';
@@ -2992,10 +3020,10 @@ document.addEventListener('DOMContentLoaded', function () {
         playerMoney = Math.max(0, playerMoney - car.price);
         ownedCars.push(car);
         addBankTransaction('Покупка ' + car.title, car.price, false);
-        createTax('car', car.price * CAR_TAX_RATE, 'Налог на автомобиль 5%');
+        if (car.id !== 'bike') createTax('car', car.price * CAR_TAX_RATE, 'Налог на автомобиль 5%');
         saveGameData();
         updateClockUI();
-        showToast('Автомобиль успешно куплен');
+        showToast(car.id === 'bike' ? 'Велосипед успешно куплен' : 'Автомобиль успешно куплен');
         renderAutoApp();
     }
 
@@ -3097,11 +3125,12 @@ document.addEventListener('DOMContentLoaded', function () {
     function fitAndCenterMap() {
         const map = getMapDimensions();
         const fit = Math.max(innerWidth / map.rawW, innerHeight / map.rawH);
-        camera.minZoom = fit * 1.2;
+        camera.minZoom = fit * 1.55;
         camera.maxZoom = fit * 4.5;
         camera.zoom = camera.minZoom;
         camera.x = innerWidth / 2;
-        camera.y = innerHeight / 2;
+        const centeredMap = getMapDimensions();
+        camera.y = innerHeight / 2 + (0.5 - 0.505) * centeredMap.h;
         clampCamera();
     }
 
@@ -3454,6 +3483,7 @@ document.addEventListener('DOMContentLoaded', function () {
         else if (name === 'imushka') renderPropertyApp();
         else if (name === 'shtraf') renderFinesApp();
         else if (name === 'taxi') renderTaxiApp();
+        else if (name === 'compania') renderCompanyApp();
         else if (name === 'casino') {
             lottoState.step = 'select_tier';
             renderLottoApp();
@@ -3632,6 +3662,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (btnTravelBack) btnTravelBack.addEventListener('click', function () { travelChoiceModal.classList.add('hidden'); btnOpenSettingsGame.classList.remove('hidden'); });
     if (btnTravelWalk) btnTravelWalk.addEventListener('click', startWalkTravel);
     if (btnTravelCar) btnTravelCar.addEventListener('click', startCarTravel);
+    if (btnTravelBike) btnTravelBike.addEventListener('click', startBikeTravel);
     if (walkClickBox) walkClickBox.addEventListener('pointerdown', handleWalkClick, { passive: false });
     if (btnWalkBack) btnWalkBack.addEventListener('click', function () { walkFullscreen.classList.add('hidden'); travelChoiceModal.classList.remove('hidden'); });
 
@@ -4398,6 +4429,10 @@ document.addEventListener('DOMContentLoaded', function () {
     /* ---------- Задания ---------- */
 
     function xjRenderOrders(jobId) {
+        if (XJ_SPECIAL_MODES[jobId]) {
+            xjRenderSpecialOrders(jobId);
+            return;
+        }
         const config = XJ_JOBS[jobId];
         if (!xjOrdersModal || !xjOrdersList) return;
         if (xjOrdersHeading) xjOrdersHeading.textContent = config.ordersTitle;
@@ -4580,7 +4615,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     '</span></div><div class="collective-stat-item"><span class="collective-stat-title">Всего заданий</span><span class="collective-stat-value">' + state.total + '</span></div></div>' +
                     '<button type="button" class="job-decline-btn">Уволиться</button>';
                 card.querySelector('.job-decline-btn').addEventListener('click', function () {
-                    if (xjTask && xjTask.active && xjTask.jobId === jobId) {
+                    if ((xjTask && xjTask.active && xjTask.jobId === jobId) || xjGameActive) {
                         showToast('Сначала завершите задание!');
                         return;
                     }
@@ -4630,6 +4665,891 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     if (exitMarket) exitMarket.addEventListener('click', function () { if (xjDialogueOverlay) xjDialogueOverlay.classList.add('hidden'); });
+
+        /* =========================================================
+       ПОЛИЦЕЙСКИЙ И ДОКТОР: УНИКАЛЬНЫЕ МЕХАНИКИ РАБОТЫ
+       Полицейский: поиск преступника, погоня, дорожный патруль
+       Доктор: диагностика, реанимация, операция
+       ========================================================= */
+
+    const XJ_SPECIAL_MODES = {
+        police: [
+            { id: 'suspects', title: '🔎 Найти преступника', desc: 'Среди 5 подозреваемых только один нарушил закон. Найдите его по описанию.', reward: '1 100 – 1 800 ₽' },
+            { id: 'chase', title: '🚓 Погоня', desc: 'Кликайте как можно быстрее, чтобы догнать преступника, пока он не скрылся.', reward: '1 800 ₽' },
+            { id: 'chase_hard', title: '🔥 Погоня за грабителем', desc: 'Грабитель быстрее и хитрее. Награда выше, а штраф за побег тот же.', reward: '2 600 ₽' },
+            { id: 'radar', title: '📡 Дорожный патруль', desc: 'Проверяйте скорость машин и штрафуйте только тех, кто превысил.', reward: 'до 1 000 ₽' }
+        ],
+        doctor: [
+            { id: 'diagnosis', title: '🩺 Диагностика', desc: 'Три пациента. Изучите симптомы и поставьте правильный диагноз.', reward: 'до 1 200 ₽' },
+            { id: 'cpr', title: '❤️ Реанимация', desc: 'Нажимайте в зелёной зоне, чтобы запустить сердце пациента.', reward: '1 500 ₽' },
+            { id: 'surgery', title: '🔪 Операция', desc: 'Запомните порядок инструментов и повторите его без ошибок.', reward: 'до 1 800 ₽' }
+        ]
+    };
+
+    const XJ_SUSPECT_COUNT = 30;
+    const XJ_SUSPECT_EMOJI = ['👨', '👩', '🧔', '👱‍♂️', '👱‍♀️', '👴', '👵', '🧑', '👨‍🦰', '👩‍🦰', '👨‍🦱', '👩‍🦱', '👨‍🦳', '👩‍🦳', '👨‍🦲', '🧑‍🦰', '🧑‍🦱', '🧑‍🦳', '🧓', '👦', '👧', '🧒', '🧑‍🎤', '🧑‍🔧', '🧑‍🍳', '🧑‍🎓', '👷', '🕵️', '🧑‍🌾', '🧑‍💼'];
+
+    const XJ_CRIMES = [
+        { t: 'Украл пачку чипсов в магазине', sev: 'fine' },
+        { t: 'Перебежал дорогу на красный свет прямо перед полицейской машиной', sev: 'fine' },
+        { t: 'Выбросил мусор мимо урны и отказался его убрать', sev: 'fine' },
+        { t: 'Припарковал машину на тротуаре у школы', sev: 'fine' },
+        { t: 'Включил музыку на полную громкость в три часа ночи', sev: 'fine' },
+        { t: 'Проехал в автобусе без билета и нагрубил контролёру', sev: 'fine' },
+        { t: 'Нарисовал граффити на стене чужого подъезда', sev: 'fine' },
+        { t: 'Сорвал цветы с городской клумбы', sev: 'fine' },
+        { t: 'Закрыл номер машины тряпкой, чтобы не платить за парковку', sev: 'fine' },
+        { t: 'Гулял с большой собакой без поводка и намордника в детской зоне', sev: 'fine' },
+        { t: 'Курил в запрещённом месте и бросил окурок в фонтан', sev: 'fine' },
+        { t: 'Съел яблоко на рынке и ушёл, не заплатив', sev: 'fine' },
+        { t: 'Сломал скамейку в парке, катаясь на ней', sev: 'fine' },
+        { t: 'Запустил фейерверк во дворе жилого дома', sev: 'fine' },
+        { t: 'Ограбил ювелирный магазин', sev: 'prison' },
+        { t: 'Угнал чужую машину со двора', sev: 'prison' },
+        { t: 'Вломился в квартиру соседа, пока тот был в отпуске', sev: 'prison' },
+        { t: 'Обманул пенсионеров, продавая «чудо-фильтры» для воды', sev: 'prison' },
+        { t: 'Украл кошелёк из сумки в метро', sev: 'prison' },
+        { t: 'Взломал банкомат и снял чужие деньги', sev: 'prison' },
+        { t: 'Поджёг мусорный бак возле школы', sev: 'prison' },
+        { t: 'Напал на прохожего и отобрал у него телефон', sev: 'prison' },
+        { t: 'Продавал поддельные билеты на концерт', sev: 'prison' },
+        { t: 'Перекусил трос замка и украл чужой велосипед', sev: 'prison' },
+        { t: 'Подделал документы на чужую квартиру', sev: 'prison' },
+        { t: 'Разбил витрину магазина и унёс технику', sev: 'prison' },
+        { t: 'Шантажировал знакомого и требовал деньги', sev: 'prison' },
+        { t: 'Угрожал продавцу ножом и забрал выручку', sev: 'prison' }
+    ];
+
+    const XJ_INNOCENT = [
+        'Забрал свою машинку у друга',
+        'Не проводил бабушку до дома',
+        'Опоздал на работу на десять минут',
+        'Громко смеялся в кафе днём',
+        'Купил билет и поделился им с другом',
+        'Помог соседке донести сумки до квартиры',
+        'Забыл поздороваться с соседом',
+        'Сыграл на гитаре во дворе днём',
+        'Нашёл кошелёк и сразу отнёс его в полицию',
+        'Не уступил место в автобусе, потому что у него болит нога',
+        'Покормил голубей в парке',
+        'Поставил машину на платной парковке и оплатил её',
+        'Ел мороженое на улице в жаркий день',
+        'Не ответил на звонок, потому что спал',
+        'Взял книгу в библиотеке и вернул вовремя',
+        'Громко поспорил с другом о футболе',
+        'Съел пирожок у ларька и заплатил',
+        'Перешёл дорогу на зелёный свет',
+        'Снимал видео для блога в парке',
+        'Занял у друга деньги и вернул в срок',
+        'Дал деньги в долг и потом вежливо напомнил о возврате',
+        'Вернул продавцу лишнюю сдачу',
+        'Покатался на самокате по велодорожке',
+        'Забрал посылку на почте по паспорту',
+        'Погулял с собакой на поводке и убрал за ней',
+        'Починил соседу кран и не взял денег',
+        'Сфотографировал красивое здание',
+        'Забыл дома зонтик и промок под дождём'
+    ];
+
+    const XJ_DISEASES = [
+        { name: 'Грипп', unique: ['Температура 39 °C', 'Ломота во всём теле', 'Озноб'], common: ['Кашель', 'Головная боль', 'Слабость'] },
+        { name: 'Простуда', unique: ['Насморк', 'Першение в горле', 'Частое чихание'], common: ['Кашель', 'Слабость', 'Небольшая температура'] },
+        { name: 'Ангина', unique: ['Сильная боль при глотании', 'Белый налёт на миндалинах', 'Увеличенные лимфоузлы на шее'], common: ['Температура', 'Слабость', 'Головная боль'] },
+        { name: 'Аппендицит', unique: ['Боль внизу живота справа', 'Боль усиливается при движении', 'Напряжённый живот'], common: ['Тошнота', 'Температура', 'Слабость'] },
+        { name: 'Пневмония', unique: ['Одышка', 'Боль в груди при вдохе', 'Хрипы в лёгких'], common: ['Кашель', 'Высокая температура', 'Слабость'] },
+        { name: 'Гастрит', unique: ['Боль в верхней части живота', 'Изжога', 'Тяжесть после еды'], common: ['Тошнота', 'Слабость', 'Вздутие живота'] },
+        { name: 'Аллергия', unique: ['Зуд и красные пятна на коже', 'Слезотечение', 'Отёк слизистой'], common: ['Чихание', 'Насморк', 'Кашель'] },
+        { name: 'Мигрень', unique: ['Пульсирующая боль с одной стороны головы', 'Боязнь яркого света', 'Мерцание перед глазами'], common: ['Тошнота', 'Слабость', 'Головная боль'] },
+        { name: 'Перелом', unique: ['Сильная боль после падения', 'Отёк и деформация конечности', 'Невозможно опереться на ногу'], common: ['Синяк', 'Слабость', 'Боль'] },
+        { name: 'Гипертония', unique: ['Давление 180 на 110', 'Шум в ушах', 'Мушки перед глазами'], common: ['Головная боль', 'Слабость', 'Тошнота'] },
+        { name: 'Отравление', unique: ['Рвота после еды', 'Диарея', 'Спазмы в животе'], common: ['Тошнота', 'Слабость', 'Температура'] },
+        { name: 'Бронхит', unique: ['Мокрота при кашле', 'Свист при дыхании', 'Кашель дольше недели'], common: ['Слабость', 'Температура', 'Головная боль'] }
+    ];
+
+    const XJ_TOOLS = [
+        { e: '🔪', n: 'Скальпель' },
+        { e: '🗜️', n: 'Зажим' },
+        { e: '💉', n: 'Шприц' },
+        { e: '🧵', n: 'Нить' },
+        { e: '🩹', n: 'Бинт' },
+        { e: '🧪', n: 'Антисептик' }
+    ];
+
+    const xjGameScreen = document.getElementById('xj-game-screen');
+    const xjGameBody = document.getElementById('xj-game-body');
+    let xjGameActive = false;
+    let xjGameCtx = null;
+
+    function xjShuf(list) {
+        const copy = list.slice();
+        for (let index = copy.length - 1; index > 0; index -= 1) {
+            const randomIndex = Math.floor(Math.random() * (index + 1));
+            const temporary = copy[index];
+            copy[index] = copy[randomIndex];
+            copy[randomIndex] = temporary;
+        }
+        return copy;
+    }
+
+    function xjPick(list) {
+        return list[Math.floor(Math.random() * list.length)];
+    }
+
+    function xjMoney(value) {
+        return Number(value).toLocaleString('ru-RU') + ' ₽';
+    }
+
+    function xjGameClear() {
+        if (!xjGameCtx) return;
+        xjGameCtx.timers.forEach(clearTimeout);
+        xjGameCtx.intervals.forEach(clearInterval);
+        if (xjGameCtx.raf) cancelAnimationFrame(xjGameCtx.raf);
+        xjGameCtx.timers = [];
+        xjGameCtx.intervals = [];
+        xjGameCtx.raf = 0;
+    }
+
+    function xjGameTimeout(callback, delay) {
+        const id = setTimeout(callback, delay);
+        xjGameCtx.timers.push(id);
+        return id;
+    }
+
+    function xjGameInterval(callback, delay) {
+        const id = setInterval(callback, delay);
+        xjGameCtx.intervals.push(id);
+        return id;
+    }
+
+    function xjRenderSpecialOrders(jobId) {
+        const config = XJ_JOBS[jobId];
+        if (!xjOrdersModal || !xjOrdersList) return;
+        if (xjOrdersHeading) xjOrdersHeading.textContent = config.ordersTitle;
+        xjOrdersList.innerHTML = '';
+        XJ_SPECIAL_MODES[jobId].forEach(function (mode) {
+            const card = document.createElement('div');
+            card.className = 'order-item-card';
+            card.innerHTML = '<div class="order-item-header">' + mode.title + '</div>' +
+                '<div class="order-item-reward">' + mode.reward + '</div>' +
+                '<div class="order-item-desc">' + mode.desc + '</div>' +
+                '<button type="button" class="btn btn-primary btn-select-order">Начать</button>';
+            card.querySelector('button').addEventListener('click', function () { xjGameOpen(jobId, mode.id); });
+            xjOrdersList.appendChild(card);
+        });
+        xjOrdersModal.classList.remove('hidden');
+    }
+
+    function xjGameOpen(jobId, modeId) {
+        const config = XJ_JOBS[jobId];
+        if (xjGameActive) return;
+        if (!xjIsWorkTime(config)) {
+            showToast('Рабочее время закончилось');
+            return;
+        }
+        if (!hasEnoughEnergyOrSleep()) {
+            showToast('Недостаточно энергии или сна');
+            return;
+        }
+        xjGameActive = true;
+        xjGameCtx = { jobId: jobId, modeId: modeId, timers: [], intervals: [], raf: 0, over: false };
+        if (xjOrdersModal) xjOrdersModal.classList.add('hidden');
+        xjGameBody.innerHTML = '';
+        xjGameScreen.classList.remove('hidden');
+        const starters = {
+            suspects: xjStartSuspects,
+            chase: function () { xjStartChase(false); },
+            chase_hard: function () { xjStartChase(true); },
+            radar: xjStartRadar,
+            diagnosis: xjStartDiagnosis,
+            cpr: xjStartCpr,
+            surgery: xjStartSurgery
+        };
+        starters[modeId]();
+    }
+
+    function xjGameFinish(options) {
+        if (!xjGameCtx || xjGameCtx.over) return;
+        xjGameCtx.over = true;
+        xjGameClear();
+        const reward = Math.max(0, Math.round(options.reward || 0));
+        const fine = Math.max(0, Math.round(options.fine || 0));
+        xjPaySpecial(xjGameCtx.jobId, reward, options.label || 'смена');
+        if (fine > 0) createFine(fine, options.fineReason || 'Штраф');
+        const lines = (options.lines || []).map(function (line) { return '<p>' + line + '</p>'; }).join('');
+        xjGameBody.innerHTML = '<div class="xjg-result">' +
+            '<div class="xjg-result-icon">' + (options.icon || '✅') + '</div>' +
+            '<h2>' + options.title + '</h2>' + lines +
+            (reward > 0 ? '<div class="xjg-reward">Зарплата +' + xjMoney(reward) + '</div>' : '') +
+            (fine > 0 ? '<div class="xjg-fine">Штраф −' + xjMoney(fine) + '</div>' : '') +
+            '<button type="button" id="xjg-done" class="btn btn-primary">Продолжить</button></div>';
+        document.getElementById('xjg-done').addEventListener('click', xjGameClose);
+    }
+
+    function xjGameClose() {
+        if (!xjGameCtx) return;
+        const jobId = xjGameCtx.jobId;
+        xjGameClear();
+        xjGameActive = false;
+        xjGameCtx = null;
+        xjGameScreen.classList.add('hidden');
+        xjGameBody.innerHTML = '';
+        xjReturnToLocation(jobId);
+        updateClockUI();
+        updateStatsHUD();
+    }
+
+    function xjPaySpecial(jobId, reward, label) {
+        const config = XJ_JOBS[jobId];
+        const state = xjState[jobId];
+        if (reward > 0) {
+            playerMoney += reward;
+            addBankTransaction('Зарплата: ' + config.title + ' (' + label + ')', reward, true);
+            createTax('salary', reward * SALARY_TAX_RATE, 'Налог: ' + config.title + ' 3%');
+            xjCheckDayReset(state);
+            state.today += 1;
+            state.total += 1;
+        }
+        playerEnergy = clamp(playerEnergy - 6, 0, 100);
+        playerHunger = clamp(playerHunger - 3, 0, 100);
+        xjSave();
+        saveGameData();
+        updateClockUI();
+        updateStatsHUD();
+    }
+
+    /* ---------- Полицейский: найти преступника ---------- */
+
+    function xjStartSuspects() {
+        const ids = xjShuf(Array.from({ length: XJ_SUSPECT_COUNT }, function (_, index) { return index + 1; })).slice(0, 5);
+        const culpritIndex = Math.floor(Math.random() * 5);
+        const crime = xjPick(XJ_CRIMES);
+        const innocents = xjShuf(XJ_INNOCENT).slice(0, 4);
+        const suspects = ids.map(function (id, index) {
+            return { id: id, guilty: index === culpritIndex, text: index === culpritIndex ? crime.t : innocents.pop() };
+        });
+        const total = 30;
+        let left = total;
+        xjGameBody.innerHTML = '<div class="xjg-wrap">' +
+            '<h2 class="xjg-title">🔎 Найдите преступника</h2>' +
+            '<p class="xjg-sub">Только один из подозреваемых действительно нарушил закон. Нажмите на него.</p>' +
+            '<div class="xjg-timer"><div id="xjg-timer-inner" class="xjg-timer-inner"></div></div>' +
+            '<div class="xjg-suspects">' + suspects.map(function (suspect, index) {
+                return '<button type="button" class="xjg-suspect" data-index="' + index + '">' +
+                    '<span class="xjg-suspect-num">' + (index + 1) + '</span>' +
+                    '<div class="xjg-suspect-photo"><img src="suspects/suspect_' + suspect.id + '.png" alt="Подозреваемый ' + (index + 1) + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' +
+                    '<span class="xjg-suspect-emoji">' + XJ_SUSPECT_EMOJI[(suspect.id - 1) % XJ_SUSPECT_EMOJI.length] + '</span></div>' +
+                    '<div class="xjg-suspect-text">' + suspect.text + '</div></button>';
+            }).join('') + '</div></div>';
+
+        const timerInner = document.getElementById('xjg-timer-inner');
+        xjGameInterval(function () {
+            left -= 0.25;
+            if (timerInner) timerInner.style.width = Math.max(0, (left / total) * 100) + '%';
+            if (left <= 0 && !xjGameCtx.over) {
+                xjGameFinish({
+                    icon: '🏃',
+                    title: 'Преступник скрылся',
+                    lines: ['Вы не успели вычислить преступника.', 'Настоящий преступник: подозреваемый №' + (culpritIndex + 1) + ' — ' + crime.t + '.'],
+                    fine: 1000,
+                    fineReason: 'Преступник скрылся (время вышло)',
+                    label: 'поиск преступника'
+                });
+            }
+        }, 250);
+
+        xjGameBody.querySelectorAll('.xjg-suspect').forEach(function (button) {
+            button.addEventListener('click', function () {
+                if (xjGameCtx.over) return;
+                const index = Number(button.dataset.index);
+                playClick();
+                if (index === culpritIndex) {
+                    const prison = crime.sev === 'prison';
+                    xjGameFinish({
+                        icon: prison ? '🔒' : '📄',
+                        title: 'Преступник найден!',
+                        lines: ['Подозреваемый №' + (index + 1) + ': ' + crime.t + '.', prison ? 'Тяжкое нарушение: преступник отправлен в тюрьму.' : 'Лёгкое нарушение: преступнику выписан штраф.'],
+                        reward: prison ? 1800 : 1100,
+                        label: 'поиск преступника'
+                    });
+                } else {
+                    xjGameFinish({
+                        icon: '❌',
+                        title: 'Задержан невиновный',
+                        lines: ['Подозреваемый №' + (index + 1) + ' ничего не нарушил.', 'Настоящий преступник: №' + (culpritIndex + 1) + ' — ' + crime.t + '.'],
+                        fine: 1500,
+                        fineReason: 'Ошибочное задержание',
+                        label: 'поиск преступника'
+                    });
+                }
+            });
+        });
+    }
+
+    /* ---------- Полицейский: погоня ---------- */
+
+    function xjStartChase(hard) {
+        const difficulty = hard ? 1.35 : 1;
+        const reward = hard ? 2600 : 1800;
+        let player = 50;
+        let started = false;
+        let surge = 0;
+        xjGameBody.innerHTML = '<div id="xjg-chase-area" class="xjg-wrap xjg-chase">' +
+            '<h2 class="xjg-title">' + (hard ? '🔥 Погоня за грабителем' : '🚓 Погоня за преступником') + '</h2>' +
+            '<p id="xjg-chase-hint" class="xjg-sub">Приготовьтесь...</p>' +
+            '<div class="xjg-tug"><div id="xjg-tug-blue" class="xjg-tug-blue" style="width:50%"></div><div id="xjg-tug-red" class="xjg-tug-red" style="width:50%"></div><div class="xjg-tug-mid"></div></div>' +
+            '<div class="xjg-tug-labels"><span class="xjg-blue-label">👮 Вы: <b id="xjg-blue-pct">50%</b></span><span class="xjg-red-label">🏃 Преступник: <b id="xjg-red-pct">50%</b></span></div>' +
+            '<div class="xjg-tap-zone"><div class="xjg-tap-icon">👆</div><div id="xjg-tap-text" class="xjg-tap-text">Кликайте быстрее!</div></div>' +
+            '<p class="xjg-note">Если красная шкала заполнится полностью, преступник скроется и вы получите штраф 3 000 ₽.</p></div>';
+        const area = document.getElementById('xjg-chase-area');
+        const blue = document.getElementById('xjg-tug-blue');
+        const red = document.getElementById('xjg-tug-red');
+        const bluePct = document.getElementById('xjg-blue-pct');
+        const redPct = document.getElementById('xjg-red-pct');
+        const hint = document.getElementById('xjg-chase-hint');
+
+        function paint() {
+            const value = Math.max(0, Math.min(100, player));
+            blue.style.width = value + '%';
+            red.style.width = (100 - value) + '%';
+            bluePct.textContent = Math.round(value) + '%';
+            redPct.textContent = Math.round(100 - value) + '%';
+        }
+
+        function check() {
+            if (xjGameCtx.over) return;
+            if (player >= 100) {
+                xjGameFinish({
+                    icon: '🚔',
+                    title: 'Преступник пойман!',
+                    lines: ['Вы догнали преступника и надели на него наручники.'],
+                    reward: reward,
+                    label: hard ? 'погоня за грабителем' : 'погоня'
+                });
+            } else if (player <= 0) {
+                xjGameFinish({
+                    icon: '🏃',
+                    title: 'Преступник скрылся',
+                    lines: ['Преступник сумел оторваться от погони.'],
+                    fine: 3000,
+                    fineReason: 'Преступник скрылся',
+                    label: hard ? 'погоня за грабителем' : 'погоня'
+                });
+            }
+        }
+
+        area.addEventListener('pointerdown', function (event) {
+            event.preventDefault();
+            if (!started || xjGameCtx.over) return;
+            player += 1.9;
+            paint();
+            playClick();
+            check();
+        }, { passive: false });
+
+        let count = 3;
+        hint.textContent = 'Старт через ' + count + '...';
+        xjGameInterval(function () {
+            if (started || xjGameCtx.over) return;
+            count -= 1;
+            if (count > 0) {
+                hint.textContent = 'Старт через ' + count + '...';
+            } else {
+                started = true;
+                hint.textContent = 'Жмите! Не дайте ему уйти!';
+            }
+        }, 800);
+
+        xjGameInterval(function () {
+            if (!started || xjGameCtx.over) return;
+            if (Math.random() < 0.04) surge = 3;
+            const push = (0.45 + Math.random() * 0.5) * difficulty + (surge > 0 ? 1.2 : 0);
+            if (surge > 0) surge -= 1;
+            player -= push;
+            paint();
+            check();
+        }, 100);
+    }
+
+    /* ---------- Полицейский: дорожный патруль ---------- */
+
+    function xjStartRadar() {
+        const totalCars = 8;
+        let index = 0;
+        let score = 0;
+        const carEmoji = ['🚗', '🚕', '🚙', '🏎️', '🚌', '🚓'];
+        xjGameBody.innerHTML = '<div class="xjg-wrap"><h2 class="xjg-title">📡 Дорожный патруль</h2>' +
+            '<p class="xjg-sub">Штрафуйте только тех, кто едет быстрее разрешённой скорости.</p>' +
+            '<div id="xjg-radar-progress" class="xjg-sub"></div><div id="xjg-radar-card"></div></div>';
+
+        function nextCar() {
+            if (xjGameCtx.over) return;
+            if (index >= totalCars) {
+                const reward = score >= 3 ? Math.round((1000 * score / totalCars) / 50) * 50 : 0;
+                xjGameFinish({
+                    icon: score >= 6 ? '🏅' : '📋',
+                    title: 'Смена патруля завершена',
+                    lines: ['Правильных решений: ' + score + ' из ' + totalCars + '.', reward > 0 ? 'Начальник доволен вашей работой.' : 'Слишком много ошибок, премии нет.'],
+                    reward: reward,
+                    label: 'дорожный патруль'
+                });
+                return;
+            }
+            index += 1;
+            const limit = xjPick([40, 60, 80]);
+            const violator = Math.random() < 0.5;
+            const speed = violator ? limit + 6 + Math.floor(Math.random() * 35) : Math.max(20, limit - 5 - Math.floor(Math.random() * 20));
+            document.getElementById('xjg-radar-progress').textContent = 'Машина ' + index + ' из ' + totalCars + '. Верно: ' + score;
+            const card = document.getElementById('xjg-radar-card');
+            card.innerHTML = '<div class="xjg-radar">' +
+                '<div class="xjg-radar-sign"><small>Ограничение</small><b>' + limit + '</b></div>' +
+                '<div class="xjg-radar-car">' + xjPick(carEmoji) + '</div>' +
+                '<div class="xjg-radar-speed">' + speed + ' км/ч</div>' +
+                '<div class="xjg-timer"><div id="xjg-radar-timer" class="xjg-timer-inner" style="width:100%;transition:width 3.2s linear"></div></div>' +
+                '<div class="xjg-radar-buttons"><button type="button" id="xjg-fine-btn" class="btn btn-primary">📸 Оштрафовать</button>' +
+                '<button type="button" id="xjg-pass-btn" class="btn btn-secondary">✅ Пропустить</button></div>' +
+                '<div id="xjg-radar-feedback" class="xjg-radar-feedback"></div></div>';
+            let answered = false;
+            const timer = document.getElementById('xjg-radar-timer');
+            xjGameTimeout(function () { if (timer) timer.style.width = '0%'; }, 30);
+
+            function answer(wantFine, timedOut) {
+                if (answered || xjGameCtx.over) return;
+                answered = true;
+                const correct = wantFine === violator;
+                if (correct) score += 1;
+                const feedback = document.getElementById('xjg-radar-feedback');
+                if (feedback) {
+                    feedback.textContent = timedOut ? '⏱ Время вышло' : (correct ? '✅ Верно' : '❌ Ошибка');
+                    feedback.className = 'xjg-radar-feedback ' + (correct ? 'ok' : 'bad');
+                }
+                xjGameTimeout(nextCar, 650);
+            }
+
+            document.getElementById('xjg-fine-btn').addEventListener('click', function () { playClick(); answer(true, false); });
+            document.getElementById('xjg-pass-btn').addEventListener('click', function () { playClick(); answer(false, false); });
+            xjGameTimeout(function () { answer(false, true); }, 3300);
+        }
+
+        nextCar();
+    }
+
+    /* ---------- Доктор: диагностика ---------- */
+
+    function xjStartDiagnosis() {
+        const patients = 3;
+        let current = 0;
+        let correctCount = 0;
+
+        function nextPatient() {
+            if (xjGameCtx.over) return;
+            if (current >= patients) {
+                const reward = correctCount * 400;
+                xjGameFinish({
+                    icon: correctCount === patients ? '🏆' : '🩺',
+                    title: 'Приём окончен',
+                    lines: ['Правильных диагнозов: ' + correctCount + ' из ' + patients + '.'],
+                    reward: reward,
+                    label: 'диагностика'
+                });
+                return;
+            }
+            current += 1;
+            const disease = xjPick(XJ_DISEASES);
+            const symptoms = xjShuf(disease.unique).slice(0, 2).concat(xjShuf(disease.common).slice(0, 1));
+            const others = xjShuf(XJ_DISEASES.filter(function (item) { return item.name !== disease.name; })).slice(0, 3);
+            const options = xjShuf([disease].concat(others));
+            xjGameBody.innerHTML = '<div class="xjg-wrap"><h2 class="xjg-title">🩺 Пациент ' + current + ' из ' + patients + '</h2>' +
+                '<p class="xjg-sub">Изучите жалобы и поставьте диагноз.</p>' +
+                '<div class="xjg-card-box"><div class="xjg-patient">🤒</div><ul class="xjg-symptoms">' + xjShuf(symptoms).map(function (symptom) { return '<li>' + symptom + '</li>'; }).join('') + '</ul></div>' +
+                '<div class="xjg-answers">' + options.map(function (option) { return '<button type="button" class="pdd-answer-btn" data-name="' + option.name + '">' + option.name + '</button>'; }).join('') + '</div>' +
+                '<div id="xjg-diag-feedback" class="xjg-radar-feedback"></div></div>';
+            let answered = false;
+            xjGameBody.querySelectorAll('.pdd-answer-btn').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    if (answered) return;
+                    answered = true;
+                    playClick();
+                    const right = button.dataset.name === disease.name;
+                    if (right) correctCount += 1;
+                    const feedback = document.getElementById('xjg-diag-feedback');
+                    feedback.textContent = right ? '✅ Верно: ' + disease.name : '❌ Ошибка. Правильный диагноз: ' + disease.name;
+                    feedback.className = 'xjg-radar-feedback ' + (right ? 'ok' : 'bad');
+                    xjGameTimeout(nextPatient, 1300);
+                });
+            });
+        }
+
+        nextPatient();
+    }
+
+    /* ---------- Доктор: реанимация ---------- */
+
+    function xjStartCpr() {
+        const needHits = 10;
+        const maxMisses = 3;
+        let hits = 0;
+        let misses = 0;
+        let position = 0;
+        let direction = 1;
+        let speed = 70;
+        let zoneWidth = 24;
+        let zoneCenter = 50;
+        let lastTime = 0;
+        xjGameBody.innerHTML = '<div id="xjg-cpr-area" class="xjg-wrap"><h2 class="xjg-title">❤️ Реанимация</h2>' +
+            '<p class="xjg-sub">Нажимайте, когда маркер находится в зелёной зоне. Нужно ' + needHits + ' попаданий, ошибаться можно не больше ' + (maxMisses - 1) + ' раз.</p>' +
+            '<div class="xjg-heart" id="xjg-heart">💓</div>' +
+            '<div class="xjg-cpr-track"><div id="xjg-cpr-zone" class="xjg-cpr-zone"></div><div id="xjg-cpr-marker" class="xjg-cpr-marker"></div></div>' +
+            '<div class="xjg-tug-labels"><span>Стабильность: <b id="xjg-cpr-hits">0</b>/' + needHits + '</span><span>Ошибки: <b id="xjg-cpr-miss">0</b>/' + maxMisses + '</span></div>' +
+            '<button type="button" id="xjg-cpr-btn" class="btn btn-primary xjg-big-btn">💓 Массаж сердца!</button></div>';
+        const zone = document.getElementById('xjg-cpr-zone');
+        const marker = document.getElementById('xjg-cpr-marker');
+        const heart = document.getElementById('xjg-heart');
+        const hitsLabel = document.getElementById('xjg-cpr-hits');
+        const missLabel = document.getElementById('xjg-cpr-miss');
+
+        function paintZone() {
+            zone.style.left = (zoneCenter - zoneWidth / 2) + '%';
+            zone.style.width = zoneWidth + '%';
+        }
+
+        function frame(time) {
+            if (xjGameCtx.over) return;
+            if (!lastTime) lastTime = time;
+            const delta = Math.min(50, time - lastTime) / 1000;
+            lastTime = time;
+            position += direction * speed * delta;
+            if (position >= 100) { position = 100; direction = -1; }
+            if (position <= 0) { position = 0; direction = 1; }
+            marker.style.left = position + '%';
+            xjGameCtx.raf = requestAnimationFrame(frame);
+        }
+
+        function press(event) {
+            if (event) event.preventDefault();
+            if (xjGameCtx.over) return;
+            playClick();
+            const inside = Math.abs(position - zoneCenter) <= zoneWidth / 2;
+            heart.classList.remove('beat');
+            void heart.offsetWidth;
+            heart.classList.add('beat');
+            if (inside) {
+                hits += 1;
+                speed *= 1.07;
+                zoneWidth = Math.max(11, zoneWidth - 1.2);
+                zoneCenter = 25 + Math.random() * 50;
+                paintZone();
+            } else {
+                misses += 1;
+            }
+            hitsLabel.textContent = hits;
+            missLabel.textContent = misses;
+            if (hits >= needHits) {
+                xjGameFinish({ icon: '💖', title: 'Сердце запущено!', lines: ['Пациент стабилен. Вы спасли ему жизнь.'], reward: 1500, label: 'реанимация' });
+            } else if (misses >= maxMisses) {
+                xjGameFinish({ icon: '💔', title: 'Не удалось спасти пациента', lines: ['Слишком много ошибок. Врачи продолжат реанимацию без вас.'], label: 'реанимация' });
+            }
+        }
+
+        document.getElementById('xjg-cpr-btn').addEventListener('pointerdown', press, { passive: false });
+        document.getElementById('xjg-cpr-area').addEventListener('keydown', function () {});
+        paintZone();
+        xjGameCtx.raf = requestAnimationFrame(frame);
+    }
+
+    /* ---------- Доктор: операция ---------- */
+
+    function xjStartSurgery() {
+        const stageLengths = [3, 4, 5];
+        const stageRewards = [500, 600, 700];
+        const maxMistakes = 2;
+        let stage = 0;
+        let mistakes = 0;
+        let earned = 0;
+
+        function makeSequence(length) {
+            const sequence = [];
+            while (sequence.length < length) {
+                const tool = Math.floor(Math.random() * XJ_TOOLS.length);
+                if (sequence.length === 0 || sequence[sequence.length - 1] !== tool) sequence.push(tool);
+            }
+            return sequence;
+        }
+
+        function finishAll(success) {
+            xjGameFinish({
+                icon: success ? '🏥' : '😰',
+                title: success ? 'Операция прошла успешно!' : 'Операция прервана',
+                lines: success ? ['Пациент в порядке. Отличная работа, доктор.'] : ['Вы допустили слишком много ошибок.', earned > 0 ? 'Оплачены завершённые этапы операции.' : 'Ни один этап не был завершён.'],
+                reward: earned,
+                label: 'операция'
+            });
+        }
+
+        function startStage() {
+            if (xjGameCtx.over) return;
+            if (stage >= stageLengths.length) {
+                finishAll(true);
+                return;
+            }
+            const sequence = makeSequence(stageLengths[stage]);
+            xjGameBody.innerHTML = '<div class="xjg-wrap"><h2 class="xjg-title">🔪 Операция: этап ' + (stage + 1) + ' из ' + stageLengths.length + '</h2>' +
+                '<p id="xjg-surg-sub" class="xjg-sub">Запомните порядок инструментов...</p>' +
+                '<div id="xjg-surg-seq" class="xjg-surg-seq">' + sequence.map(function () { return '<span class="xjg-surg-dot"></span>'; }).join('') + '</div>' +
+                '<div class="xjg-tools">' + XJ_TOOLS.map(function (tool, index) {
+                    return '<button type="button" class="xjg-tool" data-tool="' + index + '" disabled><span>' + tool.e + '</span><small>' + tool.n + '</small></button>';
+                }).join('') + '</div>' +
+                '<div class="xjg-tug-labels"><span>Ошибки: <b id="xjg-surg-miss">' + mistakes + '</b>/' + maxMistakes + '</span><span>Заработано: <b>' + xjMoney(earned) + '</b></span></div></div>';
+            const toolButtons = xjGameBody.querySelectorAll('.xjg-tool');
+            const dots = xjGameBody.querySelectorAll('.xjg-surg-dot');
+            const sub = document.getElementById('xjg-surg-sub');
+            let showIndex = 0;
+
+            function showNext() {
+                if (xjGameCtx.over) return;
+                toolButtons.forEach(function (button) { button.classList.remove('lit'); });
+                if (showIndex > 0 && showIndex <= sequence.length) { /* пауза между подсветками */ }
+                if (showIndex >= sequence.length) {
+                    sub.textContent = 'Повторите порядок!';
+                    toolButtons.forEach(function (button) { button.disabled = false; });
+                    listen();
+                    return;
+                }
+                const button = toolButtons[sequence[showIndex]];
+                button.classList.add('lit');
+                showIndex += 1;
+                xjGameTimeout(function () {
+                    button.classList.remove('lit');
+                    xjGameTimeout(showNext, 220);
+                }, 650);
+            }
+
+            function listen() {
+                let step = 0;
+                toolButtons.forEach(function (button) {
+                    button.onclick = function () {
+                        if (xjGameCtx.over) return;
+                        playClick();
+                        const index = Number(button.dataset.tool);
+                        if (index === sequence[step]) {
+                            dots[step].classList.add('done');
+                            step += 1;
+                            if (step >= sequence.length) {
+                                earned += stageRewards[stage];
+                                stage += 1;
+                                showToast('✅ Этап завершён');
+                                xjGameTimeout(startStage, 600);
+                            }
+                        } else {
+                            mistakes += 1;
+                            document.getElementById('xjg-surg-miss').textContent = mistakes;
+                            if (mistakes >= maxMistakes) {
+                                finishAll(false);
+                            } else {
+                                showToast('❌ Ошибка! Смотрите ещё раз');
+                                xjGameTimeout(startStage, 700);
+                            }
+                        }
+                    };
+                });
+            }
+
+            xjGameTimeout(showNext, 700);
+        }
+
+        startStage();
+    }
+
+    /* =========================================================
+       ПРИЛОЖЕНИЕ «КОМПАНИЯ»: покупка мировых компаний и прибыль
+       Прибыль копится отдельно и не попадает на баланс,
+       пока вы не выведете её во вкладке «Прибыль».
+       ========================================================= */
+    const CO_STORAGE_KEY = 'bestlife_companies_v1';
+
+    const COMPANIES = [
+        { id: 'apple', name: 'Apple', icon: '🍎', sector: 'Технологии', price: 120000000000, income: 14000000 },
+        { id: 'microsoft', name: 'Microsoft', icon: '🪟', sector: 'Технологии', price: 110000000000, income: 12800000 },
+        { id: 'google', name: 'Google', icon: '🔍', sector: 'Интернет', price: 85000000000, income: 10000000 },
+        { id: 'amazon', name: 'Amazon', icon: '📦', sector: 'Торговля', price: 70000000000, income: 8200000 },
+        { id: 'nvidia', name: 'NVIDIA', icon: '🟩', sector: 'Микросхемы', price: 65000000000, income: 7700000 },
+        { id: 'meta', name: 'Meta', icon: '👥', sector: 'Соцсети', price: 52000000000, income: 6200000 },
+        { id: 'tesla', name: 'Tesla', icon: '⚡', sector: 'Автомобили', price: 40000000000, income: 4800000 },
+        { id: 'samsung', name: 'Samsung', icon: '📱', sector: 'Электроника', price: 33000000000, income: 4000000 },
+        { id: 'toyota', name: 'Toyota', icon: '🚙', sector: 'Автомобили', price: 28000000000, income: 3400000 },
+        { id: 'cocacola', name: 'Coca-Cola', icon: '🥤', sector: 'Напитки', price: 24000000000, income: 2900000 },
+        { id: 'visa', name: 'Visa', icon: '💳', sector: 'Финансы', price: 22000000000, income: 2700000 },
+        { id: 'nike', name: 'Nike', icon: '👟', sector: 'Одежда', price: 18000000000, income: 2200000 },
+        { id: 'mcdonalds', name: 'McDonald’s', icon: '🍔', sector: 'Рестораны', price: 16000000000, income: 2000000 },
+        { id: 'disney', name: 'Disney', icon: '🏰', sector: 'Развлечения', price: 14000000000, income: 1750000 },
+        { id: 'netflix', name: 'Netflix', icon: '🎬', sector: 'Стриминг', price: 12000000000, income: 1500000 },
+        { id: 'sony', name: 'Sony', icon: '🎮', sector: 'Электроника', price: 10000000000, income: 1250000 },
+        { id: 'yandex', name: 'Яндекс', icon: '🔎', sector: 'Интернет', price: 9000000000, income: 1150000 },
+        { id: 'adidas', name: 'Adidas', icon: '👕', sector: 'Одежда', price: 7500000000, income: 950000 },
+        { id: 'starbucks', name: 'Starbucks', icon: '☕', sector: 'Кофейни', price: 6200000000, income: 800000 },
+        { id: 'spotify', name: 'Spotify', icon: '🎧', sector: 'Музыка', price: 5000000000, income: 650000 },
+        { id: 'uber', name: 'Uber', icon: '🚕', sector: 'Транспорт', price: 4200000000, income: 540000 },
+        { id: 'lego', name: 'LEGO', icon: '🧱', sector: 'Игрушки', price: 3400000000, income: 450000 },
+        { id: 'ikea', name: 'IKEA', icon: '🛋️', sector: 'Мебель', price: 2800000000, income: 380000 },
+        { id: 'kfc', name: 'KFC', icon: '🍗', sector: 'Рестораны', price: 2200000000, income: 300000 },
+        { id: 'sber', name: 'Сбер', icon: '🏦', sector: 'Банки', price: 1800000000, income: 250000 },
+        { id: 'burgerking', name: 'Burger King', icon: '👑', sector: 'Рестораны', price: 1400000000, income: 200000 },
+        { id: 'dominos', name: 'Domino’s Pizza', icon: '🍕', sector: 'Рестораны', price: 900000000, income: 130000 },
+        { id: 'redbull', name: 'Red Bull', icon: '🐂', sector: 'Напитки', price: 600000000, income: 90000 },
+        { id: 'zara', name: 'Zara', icon: '👗', sector: 'Одежда', price: 350000000, income: 55000 },
+        { id: 'vkusnotochka', name: 'Вкусно — и точка', icon: '🍟', sector: 'Рестораны', price: 150000000, income: 25000 }
+    ];
+
+    let coState = { owned: {}, profit: 0 };
+    let coTab = 'market';
+    let coLastTick = Date.now();
+    let coSaveCounter = 0;
+
+    function coLoad() {
+        try {
+            const raw = localStorage.getItem(CO_STORAGE_KEY);
+            if (!raw) return;
+            const data = JSON.parse(raw);
+            if (data && typeof data === 'object') {
+                coState.owned = data.owned && typeof data.owned === 'object' ? data.owned : {};
+                coState.profit = Number(data.profit) || 0;
+            }
+        } catch (error) {
+            console.warn('Не удалось загрузить компании:', error);
+        }
+    }
+
+    function coSave() {
+        try {
+            localStorage.setItem(CO_STORAGE_KEY, JSON.stringify(coState));
+        } catch (error) {
+            console.warn('Не удалось сохранить компании:', error);
+        }
+    }
+
+    coLoad();
+
+    function coFormat(value) {
+        const abs = Math.abs(value);
+        const trim = function (number) { return String(Math.round(number * 100) / 100).replace('.', ','); };
+        if (abs >= 1000000000) return trim(value / 1000000000) + ' млрд ₽';
+        if (abs >= 1000000) return trim(value / 1000000) + ' млн ₽';
+        if (abs >= 1000) return trim(value / 1000) + ' тыс. ₽';
+        return Math.round(value).toLocaleString('ru-RU') + ' ₽';
+    }
+
+    function coIncomePerMinute() {
+        return COMPANIES.reduce(function (sum, company) { return sum + (coState.owned[company.id] ? company.income : 0); }, 0);
+    }
+
+    function coOwnedCount() {
+        return COMPANIES.filter(function (company) { return coState.owned[company.id]; }).length;
+    }
+
+    function coBuy(company) {
+        if (coState.owned[company.id]) {
+            showToast('Эта компания уже принадлежит вам');
+            return;
+        }
+        if (playerMoney < company.price) {
+            showToast('Недостаточно денег на балансе');
+            return;
+        }
+        playerMoney -= company.price;
+        coState.owned[company.id] = true;
+        addBankTransaction('Покупка компании ' + company.name, company.price, false);
+        coSave();
+        saveGameData();
+        updateClockUI();
+        showToast('Вы купили компанию ' + company.name);
+        renderCompanyApp();
+    }
+
+    function coWithdraw() {
+        const amount = Math.floor(coState.profit);
+        if (amount <= 0) {
+            showToast('Прибыли для вывода пока нет');
+            return;
+        }
+        coState.profit -= amount;
+        playerMoney += amount;
+        addBankTransaction('Вывод прибыли компаний', amount, true);
+        coSave();
+        saveGameData();
+        updateClockUI();
+        showToast('На баланс выведено ' + coFormat(amount));
+        renderCompanyApp();
+    }
+
+    function renderCompanyApp() {
+        appScrollableBody.innerHTML = '';
+        const wrapper = document.createElement('div');
+        wrapper.className = 'co-wrap';
+        const tabs = [['market', 'Рынок'], ['mine', 'Мои (' + coOwnedCount() + ')'], ['profit', 'Прибыль']];
+        wrapper.innerHTML = '<div class="co-tabs">' + tabs.map(function (tab) {
+            return '<button type="button" class="co-tab' + (coTab === tab[0] ? ' active' : '') + '" data-tab="' + tab[0] + '">' + tab[1] + '</button>';
+        }).join('') + '</div><div id="co-content" class="co-content"></div>';
+        appScrollableBody.appendChild(wrapper);
+        wrapper.querySelectorAll('.co-tab').forEach(function (button) {
+            button.addEventListener('click', function () {
+                coTab = button.dataset.tab;
+                renderCompanyApp();
+            });
+        });
+        const content = wrapper.querySelector('#co-content');
+
+        if (coTab === 'profit') {
+            content.innerHTML = '<div class="co-profit-card"><div class="co-profit-label">Доступно к выводу</div>' +
+                '<div id="co-profit-value" class="co-profit-value">' + coFormat(Math.floor(coState.profit)) + '</div>' +
+                '<div class="co-profit-rate">Доход: ' + coFormat(coIncomePerMinute()) + ' в минуту</div>' +
+                '<button type="button" id="co-withdraw" class="co-withdraw-btn">Вывести на баланс</button>' +
+                '<p class="co-note">Деньги компаний не попадают на баланс сами. Пока вы их не выведете, потратить их нельзя.</p></div>' +
+                '<div class="co-list-title">Источники дохода</div>' +
+                (coOwnedCount() === 0 ? '<div class="co-empty">У вас пока нет компаний. Купите первую во вкладке «Рынок».</div>' :
+                    COMPANIES.filter(function (company) { return coState.owned[company.id]; }).map(function (company) {
+                        return '<div class="co-row"><span class="co-row-icon">' + company.icon + '</span><span class="co-row-name">' + company.name + '</span><span class="co-row-income">+' + coFormat(company.income) + '/мин</span></div>';
+                    }).join(''));
+            content.querySelector('#co-withdraw').addEventListener('click', coWithdraw);
+            return;
+        }
+
+        const list = coTab === 'mine' ? COMPANIES.filter(function (company) { return coState.owned[company.id]; }) : COMPANIES;
+        if (list.length === 0) {
+            content.innerHTML = '<div class="co-empty">У вас пока нет компаний.<br>Накопите деньги и купите первую!</div>';
+            return;
+        }
+        list.forEach(function (company) {
+            const owned = Boolean(coState.owned[company.id]);
+            const card = document.createElement('div');
+            card.className = 'co-card' + (owned ? ' owned' : '');
+            card.innerHTML = '<div class="co-card-icon">' + company.icon + '</div>' +
+                '<div class="co-card-info"><div class="co-card-name">' + company.name + '</div>' +
+                '<div class="co-card-sector">' + company.sector + '</div>' +
+                '<div class="co-card-income">+' + coFormat(company.income) + ' в минуту</div></div>' +
+                '<div class="co-card-buy"><div class="co-card-price">' + coFormat(company.price) + '</div>' +
+                '<button type="button" class="co-buy-btn"' + (owned ? ' disabled' : '') + '>' + (owned ? 'Куплено' : 'Купить') + '</button></div>';
+            card.querySelector('.co-buy-btn').addEventListener('click', function () { coBuy(company); });
+            content.appendChild(card);
+        });
+    }
+
+    setInterval(function () {
+        const now = Date.now();
+        const delta = Math.min(5000, now - coLastTick) / 1000;
+        coLastTick = now;
+        if (!isClockRunning) return;
+        const perMinute = coIncomePerMinute();
+        if (perMinute <= 0) return;
+        coState.profit += perMinute * (delta / 60);
+        coSaveCounter += 1;
+        if (coSaveCounter >= 10) {
+            coSaveCounter = 0;
+            coSave();
+        }
+        if (currentPhoneApp === 'compania' && coTab === 'profit') {
+            const value = document.getElementById('co-profit-value');
+            if (value) value.textContent = coFormat(Math.floor(coState.profit));
+        }
+    }, 1000);
 
     /* =========================================================
        ИНИЦИАЛИЗАЦИЯ
