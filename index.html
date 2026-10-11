@@ -24,6 +24,7 @@
             <h1 class="game-logo">BestLife</h1>
             <p class="game-sublogo">2D Life Simulator</p>
             <div class="loader-bar"><div class="loader-progress"></div></div>
+<p id="intro-load-text" class="intro-load-text">Загрузка ресурсов: 0%</p>
         </div>
     </div>
 
@@ -231,28 +232,14 @@
     <div id="travel-choice-modal" class="modal-overlay hidden">
         <div class="modal-card">
             <h2 id="travel-choice-title">Как отправимся?</h2>
-            <div class="travel-options-grid">
-                <button id="btn-travel-walk" class="btn-travel-option">
-                    <span class="travel-icon">🚶</span>
-                    <div>
-                        <strong>Пешком</strong>
-                        <small>222 клика по экрану</small>
-                    </div>
-                </button>
-                <button id="btn-travel-car" class="btn-travel-option">
-                    <span class="travel-icon">🚗</span>
-                    <div>
-                        <strong>На машине</strong>
-                        <small id="travel-car-desc">Требуется личный автомобиль</small>
-                    </div>
-                </button>
-                <button id="btn-travel-bike" class="btn-travel-option">
-                    <span class="travel-icon">🚲</span>
-                    <div>
-                        <strong>На велосипеде</strong>
-                        <small id="travel-bike-desc">Требуется велосипед (Авто.ру)</small>
-                    </div>
-                </button>
+            <div id="travel-step-main" class="gender-options travel-square-row">
+                <button id="btn-travel-walk" class="btn-gender btn-travel-square"><span class="gender-icon">🚶</span><span>Пешком</span><small>222 клика</small></button>
+                <button id="btn-travel-personal" class="btn-gender btn-travel-square"><span class="gender-icon">🚲</span><span>Личный транспорт</span><small id="travel-personal-desc">Нет транспорта</small></button>
+                <button id="btn-travel-taxi" class="btn-gender btn-travel-square"><span class="gender-icon">🚕</span><span>Такси</span><small id="travel-taxi-desc">0 ₽</small></button>
+            </div>
+            <div id="travel-step-personal" class="gender-options travel-square-row hidden">
+                <button id="btn-travel-bike" class="btn-gender btn-travel-square"><span class="gender-icon">🚲</span><span>Велосипед</span><small id="travel-bike-desc">Нет велосипеда</small></button>
+                <button id="btn-travel-car" class="btn-gender btn-travel-square"><span class="gender-icon">🚗</span><span>Машина</span><small id="travel-car-desc">Нет машины</small></button>
             </div>
             <button id="btn-travel-back" class="btn btn-secondary" style="width:100%;margin-top:12px;">Отмена</button>
         </div>
