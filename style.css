@@ -3027,3 +3027,98 @@ body:has(:is(#walk-fullscreen, #road-fullscreen, #fire-fullscreen, #trucker-road
 @media (max-width: 600px) {
     .toast-message { top: calc(98px + env(safe-area-inset-top, 0px)); }
 }
+
+
+/* =========================================================
+   ОБНОВЛЕНИЕ 4: выход в левом углу, выбор транспорта, СМС, компании
+   ========================================================= */
+
+/* Кнопка «На улицу» в левом верхнем углу */
+.btn-room-exit {
+    top: calc(12px + env(safe-area-inset-top, 0px));
+    left: 12px;
+    bottom: auto;
+    right: auto;
+    transform: none;
+}
+@media (max-width: 600px) {
+    .btn-room-exit { top: calc(56px + env(safe-area-inset-top, 0px)); padding: 10px 16px; }
+}
+@media (max-height: 500px) {
+    .btn-room-exit { top: 8px; bottom: auto; }
+}
+
+/* Выбор способа передвижения: квадратные кнопки, как при выборе пола */
+.travel-square-row { gap: 10px; }
+.btn-travel-square {
+    min-width: 0;
+    padding: 16px 6px;
+    text-align: center;
+    font-family: inherit;
+    font-weight: 800;
+    font-size: 0.82rem;
+    line-height: 1.2;
+}
+.btn-travel-square small {
+    font-size: 0.64rem;
+    font-weight: 700;
+    color: #94a3b8;
+    line-height: 1.2;
+}
+.btn-travel-square.disabled-card { opacity: 0.45; }
+.btn-travel-square:not(.disabled-card):hover { background: rgba(255, 255, 255, 0.12); border-color: #60a5fa; }
+
+/* СМС: кнопка «Прочитать все» */
+.messages-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: #f8fafc;
+    padding: 10px 14px 8px;
+}
+.messages-readall-btn {
+    width: 100%;
+    border: none;
+    background: #2563eb;
+    color: #ffffff;
+    border-radius: 12px;
+    padding: 11px;
+    font-size: 0.78rem;
+    font-weight: 800;
+    font-family: inherit;
+    cursor: pointer;
+}
+.messages-readall-btn:disabled { background: #cbd5e1; color: #64748b; cursor: default; }
+
+/* Компании: вкладки не просвечивают при прокрутке */
+.co-wrap { padding-top: 0; }
+.co-tabs {
+    margin-top: 10px;
+    top: 10px;
+    box-shadow: 0 -10px 0 #f8fafc;
+}
+
+/* Загрузочный экран */
+.intro-load-text {
+    margin-top: 14px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #94a3b8;
+}
+
+/* Рентген доктора */
+.xjg-xray-grid { display: grid; gap: 6px; width: 100%; }
+.xjg-xray-cell {
+    aspect-ratio: 1 / 1;
+    background: rgba(15, 23, 42, 0.92);
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    font-size: clamp(1.3rem, 6vw, 2.2rem);
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    font-family: inherit;
+}
+.xjg-xray-cell:active { background: #1e3a8a; }
+.xjg-xray-cell.right { background: #166534; border-color: #22c55e; }
+.xjg-xray-cell.wrong { background: #7f1d1d; border-color: #ef4444; }
