@@ -582,6 +582,12 @@ document.addEventListener('DOMContentLoaded', function () {
     const btnTravelWalk = document.getElementById('btn-travel-walk');
     const btnTravelCar = document.getElementById('btn-travel-car');
     const btnTravelBike = document.getElementById('btn-travel-bike');
+    const btnTravelPersonal = document.getElementById('btn-travel-personal');
+    const btnTravelTaxi = document.getElementById('btn-travel-taxi');
+    const travelStepMain = document.getElementById('travel-step-main');
+    const travelStepPersonal = document.getElementById('travel-step-personal');
+    const travelPersonalDesc = document.getElementById('travel-personal-desc');
+    const travelTaxiDesc = document.getElementById('travel-taxi-desc');
     const travelBikeDesc = document.getElementById('travel-bike-desc');
     const travelCarDesc = document.getElementById('travel-car-desc');
 
@@ -701,7 +707,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function normalizeMoney() {
-        if (!Number.isFinite(playerMoney) || playerMoney < 0) {
+        if (!Number.isFinite(playerMoney)) {
             playerMoney = 0;
         }
     }
@@ -797,7 +803,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (data.minutes !== undefined) gameMinutes = Number(data.minutes) || 360;
             if (data.day !== undefined) currentDay = Number(data.day) || 1;
             if (data.monthIdx !== undefined) currentMonthIdx = Number(data.monthIdx) || 4;
-            if (data.money !== undefined) playerMoney = Math.max(0, Number(data.money) || 0);
+            if (data.money !== undefined) playerMoney = Number(data.money) || 0;
             if (data.hunger !== undefined) playerHunger = clamp(Number(data.hunger), 0, 100);
             if (data.sleep !== undefined) playerSleep = clamp(Number(data.sleep), 0, 100);
             if (data.energy !== undefined) playerEnergy = clamp(Number(data.energy), 0, 100);
@@ -1034,6 +1040,8 @@ document.addEventListener('DOMContentLoaded', function () {
         setText('hud-clock-text', timeString);
         setText('hud-date-text', dateString);
         setText('hud-money-text', moneyString);
+        const moneyTextElement = document.getElementById('hud-money-text');
+        if (moneyTextElement) moneyTextElement.style.color = playerMoney < 0 ? '#f87171' : '';
         setText('phone-clock-text', timeString);
         setText('phone-date-text', dateString);
         setText('walk-clock-text', timeString);
@@ -1197,7 +1205,19 @@ document.addEventListener('DOMContentLoaded', function () {
             if (tax.status !== 'unpaid') return;
             if (tax.dueAt - now > 0 && tax.dueAt - now <= 1440 && !taxReminderDaysSent[tax.id]) {
                 taxReminderDaysSent[tax.id] = true;
-                addMessage('Оплата', '🧾', 'Налог «' + tax.title + '» не оплачен. Остался 1 день, иначе будет начислен штраф.');
+                addMessage('Оплата', '🧾', 'Время на исходе! Налог «' + tax.title + '» (' + tax.amount.toLocaleString('ru-RU') + ' ₽) нужно оплатить в течение дня. Иначе налог спишется автоматически, а сверху придёт штраф в 2 раза больше.');
+            }
+        });
+    }
+
+    function processFineOneDayReminders() {
+        const now = getTotalAbsoluteMinutes();
+        finesList.forEach(function (fine) {
+            if (fine.status !== 'unpaid' || fine.reminderSent) return;
+            const left = fine.dueMinutes - now;
+            if (left > 0 && left <= 1440) {
+                fine.reminderSent = true;
+                addMessage('Штрафы', '⏰', 'Время на исходе! Штраф «' + fine.reason + '» (' + fine.amount.toLocaleString('ru-RU') + ' ₽) нужно оплатить в течение дня. Иначе с баланса спишется в 3 раза больше.');
             }
         });
     }
@@ -1206,17 +1226,17 @@ document.addEventListener('DOMContentLoaded', function () {
         const now = getTotalAbsoluteMinutes();
         taxes.forEach(function (tax) {
             if (tax.status !== 'unpaid' || now < tax.dueAt) return;
-            const penalty = Math.round(tax.amount * 1.5);
-            const totalCharge = tax.amount + penalty;
-            playerMoney = Math.max(0, playerMoney - totalCharge);
+            const penalty = Math.round(tax.amount * 2);
+            playerMoney -= tax.amount;
             tax.status = 'overdue';
             tax.overdueAmount = penalty;
             tax.paidDate = getDateString();
             tax.paidTime = getTimeString();
-            addBankTransaction('Налог и просрочка', totalCharge, false);
-            createFine(penalty, 'Просрочка оплаты налога: ' + tax.title);
-            addMessage('Оплата', '⚠️', 'Налог «' + tax.title + '» просрочен. Списан налог и штраф.');
+            addBankTransaction('Автосписание налога', tax.amount, false);
+            addMessage('Оплата', '⚠️', 'Налог «' + tax.title + '» не оплачен за неделю. Он списан с баланса автоматически (' + tax.amount.toLocaleString('ru-RU') + ' ₽). Вам выписан штраф ' + penalty.toLocaleString('ru-RU') + ' ₽ за неуплату: на оплату даётся 3 дня.');
+            createFine(penalty, 'Штраф за неуплату налога: ' + tax.title);
         });
+        updateClockUI();
         saveGameData();
     }
 
@@ -1225,13 +1245,14 @@ document.addEventListener('DOMContentLoaded', function () {
         finesList.forEach(function (fine) {
             if (fine.status !== 'unpaid' || now < fine.dueMinutes) return;
             const penaltyAmount = fine.amount * 3;
-            playerMoney = Math.max(0, playerMoney - penaltyAmount);
+            playerMoney -= penaltyAmount;
             fine.status = 'expired_penalty';
             fine.paidDate = getDateString();
             fine.paidTime = getTimeString();
-            addBankTransaction('Просрочка штрафа', penaltyAmount, false);
-            addMessage('Штрафы', '❌', 'Штраф «' + fine.reason + '» просрочен. Списано ' + penaltyAmount + ' ₽.');
+            addBankTransaction('Просрочка штрафа (x3)', penaltyAmount, false);
+            addMessage('Штрафы', '❌', 'Штраф «' + fine.reason + '» просрочен. С баланса списано ' + penaltyAmount.toLocaleString('ru-RU') + ' ₽ (в 3 раза больше штрафа).');
         });
+        updateClockUI();
         saveGameData();
     }
 
@@ -1426,6 +1447,17 @@ document.addEventListener('DOMContentLoaded', function () {
             });
             list.appendChild(row);
         });
+        const unreadTotal = messages.filter(function (item) { return !item.read; }).length;
+        const toolbar = document.createElement('div');
+        toolbar.className = 'messages-toolbar';
+        toolbar.innerHTML = '<button type="button" class="messages-readall-btn"' + (unreadTotal === 0 ? ' disabled' : '') + '>✓ Прочитать все' + (unreadTotal > 0 ? ' (' + unreadTotal + ')' : '') + '</button>';
+        toolbar.querySelector('button').addEventListener('click', function () {
+            messages.forEach(function (item) { item.read = true; });
+            updatePhoneBadge();
+            saveGameData();
+            renderMessagesApp();
+        });
+        appScrollableBody.appendChild(toolbar);
         appScrollableBody.appendChild(list);
     }
 
@@ -1784,27 +1816,12 @@ document.addEventListener('DOMContentLoaded', function () {
         xjHideScreens();
         lastExitedLocation = toKey;
 
-        if (toKey === 'home') {
-            currentScreen = 'apartment';
-            apartmentScreen.classList.remove('hidden');
-        } else if (toKey === 'firestation') {
-            currentScreen = 'firestation';
-            firestationScreen.classList.remove('hidden');
-        } else if (toKey === 'truckstation') {
-            currentScreen = 'truckstation';
-            truckstationScreen.classList.remove('hidden');
-        } else if (toKey === 'market') {
-            currentScreen = 'market';
-            marketScreen.classList.remove('hidden');
-        } else if (XJ_LOCATIONS[toKey]) {
-            currentScreen = toKey;
-            xjShowScreen(toKey);
-        }
+        currentScreen = 'city';
 
         playerEnergy = clamp(playerEnergy - 3, 0, 100);
         saveGameData();
         updateStatsHUD();
-        showToast('Вы приехали в ' + toTitle);
+        showToast('Вы приехали: ' + toTitle + '. Нажмите на метку, чтобы войти');
     }
 
     function openTravelChoiceModal(targetKey) {
@@ -1813,14 +1830,56 @@ document.addEventListener('DOMContentLoaded', function () {
         const realCar = ownedCars.find(function (item) { return item.id !== 'bike'; });
         const hasCar = Boolean(realCar);
         const hasBike = ownedCars.some(function (item) { return item.id === 'bike'; });
+        const hasPersonal = hasCar || hasBike;
         btnTravelCar.classList.toggle('disabled-card', !hasCar);
-        travelCarDesc.textContent = hasCar ? 'На личном авто (' + realCar.title + ')' : 'Требуется личное авто';
+        travelCarDesc.textContent = hasCar ? realCar.title : 'Нет машины';
         if (btnTravelBike) btnTravelBike.classList.toggle('disabled-card', !hasBike);
-        if (travelBikeDesc) travelBikeDesc.textContent = hasBike ? '167 кликов по экрану' : 'Требуется велосипед (Авто.ру)';
+        if (travelBikeDesc) travelBikeDesc.textContent = hasBike ? '167 кликов' : 'Нет велосипеда';
+        if (btnTravelPersonal) btnTravelPersonal.classList.toggle('disabled-card', !hasPersonal);
+        if (travelPersonalDesc) travelPersonalDesc.textContent = hasPersonal ? (hasBike && hasCar ? 'Велосипед или авто' : (hasBike ? 'Велосипед' : 'Автомобиль')) : 'Нет транспорта';
+        const fromKey = getLocationKey();
+        const taxiPrice = getTaxiRoutePrice(fromKey, targetKey);
+        if (travelTaxiDesc) travelTaxiDesc.textContent = taxiPrice.toLocaleString('ru-RU') + ' ₽';
+        if (btnTravelTaxi) btnTravelTaxi.classList.toggle('disabled-card', fromKey === targetKey);
+        if (travelStepMain) travelStepMain.classList.remove('hidden');
+        if (travelStepPersonal) travelStepPersonal.classList.add('hidden');
         travelChoiceModal.classList.remove('hidden');
-        /* HUD всегда виден */
     }
 
+    function startTaxiFromMap() {
+        const fromKey = getLocationKey();
+        const toKey = targetLocationSelected;
+        if (fromKey === toKey) {
+            showToast('Вы уже здесь');
+            return;
+        }
+        const price = getTaxiRoutePrice(fromKey, toKey);
+        if (playerMoney < price) {
+            showToast('Недостаточно денег для такси');
+            return;
+        }
+        travelChoiceModal.classList.add('hidden');
+        orderTaxi(fromKey, toKey, price, getLocationTitle(fromKey), getLocationTitle(toKey));
+    }
+
+    function showPersonalTravelStep() {
+        const hasAny = ownedCars.length > 0;
+        if (!hasAny) {
+            showToast('У вас нет личного транспорта. Купите его в приложении «Авто.ру»');
+            return;
+        }
+        if (travelStepMain) travelStepMain.classList.add('hidden');
+        if (travelStepPersonal) travelStepPersonal.classList.remove('hidden');
+    }
+
+    function travelChoiceBack() {
+        if (travelStepPersonal && !travelStepPersonal.classList.contains('hidden')) {
+            travelStepPersonal.classList.add('hidden');
+            if (travelStepMain) travelStepMain.classList.remove('hidden');
+            return;
+        }
+        travelChoiceModal.classList.add('hidden');
+    }
     function startWalkTravel() {
         travelChoiceModal.classList.add('hidden');
         travelMode = 'walk';
@@ -1856,29 +1915,14 @@ document.addEventListener('DOMContentLoaded', function () {
         xjHideScreens();
         lastExitedLocation = targetLocationSelected;
 
-        if (targetLocationSelected === 'home') {
-            currentScreen = 'apartment';
-            apartmentScreen.classList.remove('hidden');
-        } else if (targetLocationSelected === 'firestation') {
-            currentScreen = 'firestation';
-            firestationScreen.classList.remove('hidden');
-        } else if (targetLocationSelected === 'truckstation') {
-            currentScreen = 'truckstation';
-            truckstationScreen.classList.remove('hidden');
-        } else if (targetLocationSelected === 'market') {
-            currentScreen = 'market';
-            marketScreen.classList.remove('hidden');
-        } else if (XJ_LOCATIONS[targetLocationSelected]) {
-            currentScreen = targetLocationSelected;
-            xjShowScreen(targetLocationSelected);
-        }
+        currentScreen = 'city';
 
         const byBike = travelMode === 'bike';
         playerEnergy = clamp(playerEnergy - (byBike ? 5 : 8), 0, 100);
         playerHunger = clamp(playerHunger - (byBike ? 3 : 5), 0, 100);
         saveGameData();
         updateStatsHUD();
-        showToast(byBike ? 'Вы приехали на велосипеде' : 'Вы пришли пешком');
+        showToast((byBike ? 'Вы приехали на велосипеде' : 'Вы пришли пешком') + '. Нажмите на метку, чтобы войти');
     }
 
     function startBikeTravel() {
@@ -1912,26 +1956,11 @@ document.addEventListener('DOMContentLoaded', function () {
         xjHideScreens();
         lastExitedLocation = targetLocationSelected;
 
-        if (targetLocationSelected === 'home') {
-            currentScreen = 'apartment';
-            apartmentScreen.classList.remove('hidden');
-        } else if (targetLocationSelected === 'firestation') {
-            currentScreen = 'firestation';
-            firestationScreen.classList.remove('hidden');
-        } else if (targetLocationSelected === 'truckstation') {
-            currentScreen = 'truckstation';
-            truckstationScreen.classList.remove('hidden');
-        } else if (targetLocationSelected === 'market') {
-            currentScreen = 'market';
-            marketScreen.classList.remove('hidden');
-        } else if (XJ_LOCATIONS[targetLocationSelected]) {
-            currentScreen = targetLocationSelected;
-            xjShowScreen(targetLocationSelected);
-        }
+        currentScreen = 'city';
 
         saveGameData();
         updateStatsHUD();
-        showToast('Вы приехали на автомобиле');
+        showToast('Вы приехали на автомобиле. Нажмите на метку, чтобы войти');
     }
 
     /* =========================================================
@@ -2486,8 +2515,6 @@ document.addEventListener('DOMContentLoaded', function () {
         const hour = getCurrentHour();
         if (hour > CASHIER_SHIFT_START_HOUR) {
             const fine = CASHIER_LATE_FINE;
-            playerMoney = Math.max(0, playerMoney - fine);
-            addBankTransaction('Штраф за опоздание', fine, false);
             createFine(fine, 'Опоздание на смену кассира');
             showToast('Штраф за опоздание: ' + fine + ' ₽');
         }
@@ -2717,8 +2744,6 @@ document.addEventListener('DOMContentLoaded', function () {
         const hour = getCurrentHour();
         if (hour < CASHIER_SHIFT_END_HOUR) {
             const fine = CASHIER_EARLY_END_FINE;
-            playerMoney = Math.max(0, playerMoney - fine);
-            addBankTransaction('Штраф за завершение смены', fine, false);
             createFine(fine, 'Досрочное завершение смены кассира');
             showToast('Штраф за досрочное завершение: ' + fine + ' ₽');
         } else {
@@ -3098,6 +3123,7 @@ document.addEventListener('DOMContentLoaded', function () {
         processInterviewDeadline();
         xjProcessDeadlines();
         processTaxOneDayReminders();
+        processFineOneDayReminders();
         processTaxesExpiration();
         processFinesExpiration();
         processFoodDeliveries();
@@ -3659,7 +3685,9 @@ document.addEventListener('DOMContentLoaded', function () {
     if (btnCashierBreak) btnCashierBreak.addEventListener('click', handleCashierBreak);
     if (btnCashierGiveChange) btnCashierGiveChange.addEventListener('click', giveChange);
 
-    if (btnTravelBack) btnTravelBack.addEventListener('click', function () { travelChoiceModal.classList.add('hidden'); btnOpenSettingsGame.classList.remove('hidden'); });
+    if (btnTravelBack) btnTravelBack.addEventListener('click', travelChoiceBack);
+    if (btnTravelPersonal) btnTravelPersonal.addEventListener('click', showPersonalTravelStep);
+    if (btnTravelTaxi) btnTravelTaxi.addEventListener('click', startTaxiFromMap);
     if (btnTravelWalk) btnTravelWalk.addEventListener('click', startWalkTravel);
     if (btnTravelCar) btnTravelCar.addEventListener('click', startCarTravel);
     if (btnTravelBike) btnTravelBike.addEventListener('click', startBikeTravel);
@@ -4680,7 +4708,7 @@ document.addEventListener('DOMContentLoaded', function () {
             { id: 'radar', title: '📡 Дорожный патруль', desc: 'Проверяйте скорость машин и штрафуйте только тех, кто превысил.', reward: 'до 1 000 ₽' }
         ],
         doctor: [
-            { id: 'diagnosis', title: '🩺 Диагностика', desc: 'Три пациента. Изучите симптомы и поставьте правильный диагноз.', reward: 'до 1 200 ₽' },
+            { id: 'xray', title: '🩻 Рентген', desc: 'Найдите повреждённое место на трёх снимках. Чем дальше, тем больше клеток.', reward: 'до 1 200 ₽' },
             { id: 'cpr', title: '❤️ Реанимация', desc: 'Нажимайте в зелёной зоне, чтобы запустить сердце пациента.', reward: '1 500 ₽' },
             { id: 'surgery', title: '🔪 Операция', desc: 'Запомните порядок инструментов и повторите его без ошибок.', reward: 'до 1 800 ₽' }
         ]
@@ -4751,20 +4779,6 @@ document.addEventListener('DOMContentLoaded', function () {
         'Забыл дома зонтик и промок под дождём'
     ];
 
-    const XJ_DISEASES = [
-        { name: 'Грипп', unique: ['Температура 39 °C', 'Ломота во всём теле', 'Озноб'], common: ['Кашель', 'Головная боль', 'Слабость'] },
-        { name: 'Простуда', unique: ['Насморк', 'Першение в горле', 'Частое чихание'], common: ['Кашель', 'Слабость', 'Небольшая температура'] },
-        { name: 'Ангина', unique: ['Сильная боль при глотании', 'Белый налёт на миндалинах', 'Увеличенные лимфоузлы на шее'], common: ['Температура', 'Слабость', 'Головная боль'] },
-        { name: 'Аппендицит', unique: ['Боль внизу живота справа', 'Боль усиливается при движении', 'Напряжённый живот'], common: ['Тошнота', 'Температура', 'Слабость'] },
-        { name: 'Пневмония', unique: ['Одышка', 'Боль в груди при вдохе', 'Хрипы в лёгких'], common: ['Кашель', 'Высокая температура', 'Слабость'] },
-        { name: 'Гастрит', unique: ['Боль в верхней части живота', 'Изжога', 'Тяжесть после еды'], common: ['Тошнота', 'Слабость', 'Вздутие живота'] },
-        { name: 'Аллергия', unique: ['Зуд и красные пятна на коже', 'Слезотечение', 'Отёк слизистой'], common: ['Чихание', 'Насморк', 'Кашель'] },
-        { name: 'Мигрень', unique: ['Пульсирующая боль с одной стороны головы', 'Боязнь яркого света', 'Мерцание перед глазами'], common: ['Тошнота', 'Слабость', 'Головная боль'] },
-        { name: 'Перелом', unique: ['Сильная боль после падения', 'Отёк и деформация конечности', 'Невозможно опереться на ногу'], common: ['Синяк', 'Слабость', 'Боль'] },
-        { name: 'Гипертония', unique: ['Давление 180 на 110', 'Шум в ушах', 'Мушки перед глазами'], common: ['Головная боль', 'Слабость', 'Тошнота'] },
-        { name: 'Отравление', unique: ['Рвота после еды', 'Диарея', 'Спазмы в животе'], common: ['Тошнота', 'Слабость', 'Температура'] },
-        { name: 'Бронхит', unique: ['Мокрота при кашле', 'Свист при дыхании', 'Кашель дольше недели'], common: ['Слабость', 'Температура', 'Головная боль'] }
-    ];
 
     const XJ_TOOLS = [
         { e: '🔪', n: 'Скальпель' },
@@ -4860,7 +4874,7 @@ document.addEventListener('DOMContentLoaded', function () {
             chase: function () { xjStartChase(false); },
             chase_hard: function () { xjStartChase(true); },
             radar: xjStartRadar,
-            diagnosis: xjStartDiagnosis,
+            xray: xjStartXray,
             cpr: xjStartCpr,
             surgery: xjStartSurgery
         };
@@ -4988,15 +5002,15 @@ document.addEventListener('DOMContentLoaded', function () {
     /* ---------- Полицейский: погоня ---------- */
 
     function xjStartChase(hard) {
-        const difficulty = hard ? 1.35 : 1;
+        const difficulty = hard ? 1.25 : 1;
         const reward = hard ? 2600 : 1800;
-        let player = 50;
+        let player = 55;
         let started = false;
         let surge = 0;
         xjGameBody.innerHTML = '<div id="xjg-chase-area" class="xjg-wrap xjg-chase">' +
             '<h2 class="xjg-title">' + (hard ? '🔥 Погоня за грабителем' : '🚓 Погоня за преступником') + '</h2>' +
             '<p id="xjg-chase-hint" class="xjg-sub">Приготовьтесь...</p>' +
-            '<div class="xjg-tug"><div id="xjg-tug-blue" class="xjg-tug-blue" style="width:50%"></div><div id="xjg-tug-red" class="xjg-tug-red" style="width:50%"></div><div class="xjg-tug-mid"></div></div>' +
+            '<div class="xjg-tug"><div id="xjg-tug-blue" class="xjg-tug-blue" style="width:55%"></div><div id="xjg-tug-red" class="xjg-tug-red" style="width:45%"></div><div class="xjg-tug-mid"></div></div>' +
             '<div class="xjg-tug-labels"><span class="xjg-blue-label">👮 Вы: <b id="xjg-blue-pct">50%</b></span><span class="xjg-red-label">🏃 Преступник: <b id="xjg-red-pct">50%</b></span></div>' +
             '<div class="xjg-tap-zone"><div class="xjg-tap-icon">👆</div><div id="xjg-tap-text" class="xjg-tap-text">Кликайте быстрее!</div></div>' +
             '<p class="xjg-note">Если красная шкала заполнится полностью, преступник скроется и вы получите штраф 3 000 ₽.</p></div>';
@@ -5040,7 +5054,7 @@ document.addEventListener('DOMContentLoaded', function () {
         area.addEventListener('pointerdown', function (event) {
             event.preventDefault();
             if (!started || xjGameCtx.over) return;
-            player += 1.9;
+            player += 2.4;
             paint();
             playClick();
             check();
@@ -5061,8 +5075,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
         xjGameInterval(function () {
             if (!started || xjGameCtx.over) return;
-            if (Math.random() < 0.04) surge = 3;
-            const push = (0.45 + Math.random() * 0.5) * difficulty + (surge > 0 ? 1.2 : 0);
+            if (Math.random() < 0.03) surge = 3;
+            const push = (0.26 + Math.random() * 0.28) * difficulty + (surge > 0 ? 0.5 : 0);
             if (surge > 0) surge -= 1;
             player -= push;
             paint();
@@ -5133,53 +5147,78 @@ document.addEventListener('DOMContentLoaded', function () {
         nextCar();
     }
 
-    /* ---------- Доктор: диагностика ---------- */
+    /* ---------- Доктор: рентген ---------- */
 
-    function xjStartDiagnosis() {
-        const patients = 3;
-        let current = 0;
-        let correctCount = 0;
+    function xjStartXray() {
+        const stages = [
+            { cells: 16, cols: 4, time: 14 },
+            { cells: 25, cols: 5, time: 16 },
+            { cells: 36, cols: 6, time: 18 }
+        ];
+        const pairs = [['🫁', '🫀'], ['🦷', '🦴'], ['🧠', '🫀'], ['🦵', '🦶'], ['👁️', '👂']];
+        let stage = 0;
+        let found = 0;
 
-        function nextPatient() {
+        function nextStage() {
             if (xjGameCtx.over) return;
-            if (current >= patients) {
-                const reward = correctCount * 400;
+            if (stage >= stages.length) {
                 xjGameFinish({
-                    icon: correctCount === patients ? '🏆' : '🩺',
-                    title: 'Приём окончен',
-                    lines: ['Правильных диагнозов: ' + correctCount + ' из ' + patients + '.'],
-                    reward: reward,
-                    label: 'диагностика'
+                    icon: found === stages.length ? '🏆' : '🩻',
+                    title: 'Снимки изучены',
+                    lines: ['Найдено повреждений: ' + found + ' из ' + stages.length + '.'],
+                    reward: found * 400,
+                    label: 'рентген'
                 });
                 return;
             }
-            current += 1;
-            const disease = xjPick(XJ_DISEASES);
-            const symptoms = xjShuf(disease.unique).slice(0, 2).concat(xjShuf(disease.common).slice(0, 1));
-            const others = xjShuf(XJ_DISEASES.filter(function (item) { return item.name !== disease.name; })).slice(0, 3);
-            const options = xjShuf([disease].concat(others));
-            xjGameBody.innerHTML = '<div class="xjg-wrap"><h2 class="xjg-title">🩺 Пациент ' + current + ' из ' + patients + '</h2>' +
-                '<p class="xjg-sub">Изучите жалобы и поставьте диагноз.</p>' +
-                '<div class="xjg-card-box"><div class="xjg-patient">🤒</div><ul class="xjg-symptoms">' + xjShuf(symptoms).map(function (symptom) { return '<li>' + symptom + '</li>'; }).join('') + '</ul></div>' +
-                '<div class="xjg-answers">' + options.map(function (option) { return '<button type="button" class="pdd-answer-btn" data-name="' + option.name + '">' + option.name + '</button>'; }).join('') + '</div>' +
-                '<div id="xjg-diag-feedback" class="xjg-radar-feedback"></div></div>';
-            let answered = false;
-            xjGameBody.querySelectorAll('.pdd-answer-btn').forEach(function (button) {
-                button.addEventListener('click', function () {
-                    if (answered) return;
-                    answered = true;
+            const config = stages[stage];
+            const pair = xjPick(pairs);
+            const oddIndex = Math.floor(Math.random() * config.cells);
+            let timeLeft = config.time;
+            xjGameBody.innerHTML = '<div class="xjg-wrap"><h2 class="xjg-title">🩻 Снимок ' + (stage + 1) + ' из ' + stages.length + '</h2>' +
+                '<p class="xjg-sub">Одна клетка отличается от остальных. Найдите её. Ошибка отнимает 2 секунды.</p>' +
+                '<div class="xjg-timer"><div id="xjg-xray-timer" class="xjg-timer-inner" style="width:100%"></div></div>' +
+                '<div class="xjg-xray-grid" style="grid-template-columns:repeat(' + config.cols + ',1fr)">' +
+                Array.from({ length: config.cells }, function (_, index) {
+                    return '<button type="button" class="xjg-xray-cell" data-index="' + index + '">' + (index === oddIndex ? pair[1] : pair[0]) + '</button>';
+                }).join('') + '</div><div id="xjg-xray-feedback" class="xjg-radar-feedback"></div></div>';
+            const timerBar = document.getElementById('xjg-xray-timer');
+            const feedback = document.getElementById('xjg-xray-feedback');
+            let finished = false;
+
+            function endStage(success) {
+                if (finished || xjGameCtx.over) return;
+                finished = true;
+                if (success) found += 1;
+                feedback.textContent = success ? '✅ Повреждение найдено' : '⏱ Время вышло';
+                feedback.className = 'xjg-radar-feedback ' + (success ? 'ok' : 'bad');
+                stage += 1;
+                xjGameTimeout(nextStage, 900);
+            }
+
+            xjGameInterval(function () {
+                if (finished) return;
+                timeLeft -= 0.1;
+                timerBar.style.width = Math.max(0, (timeLeft / config.time) * 100) + '%';
+                if (timeLeft <= 0) endStage(false);
+            }, 100);
+
+            xjGameBody.querySelectorAll('.xjg-xray-cell').forEach(function (cell) {
+                cell.addEventListener('click', function () {
+                    if (finished || xjGameCtx.over) return;
                     playClick();
-                    const right = button.dataset.name === disease.name;
-                    if (right) correctCount += 1;
-                    const feedback = document.getElementById('xjg-diag-feedback');
-                    feedback.textContent = right ? '✅ Верно: ' + disease.name : '❌ Ошибка. Правильный диагноз: ' + disease.name;
-                    feedback.className = 'xjg-radar-feedback ' + (right ? 'ok' : 'bad');
-                    xjGameTimeout(nextPatient, 1300);
+                    if (Number(cell.dataset.index) === oddIndex) {
+                        cell.classList.add('right');
+                        endStage(true);
+                    } else {
+                        cell.classList.add('wrong');
+                        timeLeft -= 2;
+                    }
                 });
             });
         }
 
-        nextPatient();
+        nextStage();
     }
 
     /* ---------- Доктор: реанимация ---------- */
@@ -5399,6 +5438,8 @@ document.addEventListener('DOMContentLoaded', function () {
         { id: 'vkusnotochka', name: 'Вкусно — и точка', icon: '🍟', sector: 'Рестораны', price: 150000000, income: 25000 }
     ];
 
+    COMPANIES.sort(function (a, b) { return a.price - b.price; });
+
     let coState = { owned: {}, profit: 0 };
     let coTab = 'market';
     let coLastTick = Date.now();
@@ -5560,8 +5601,63 @@ document.addEventListener('DOMContentLoaded', function () {
     updateStatsHUD();
     updatePhoneBadge();
 
-    setTimeout(function () {
-        if (introScreen) introScreen.classList.add('hidden');
-        if (mainMenu) mainMenu.classList.remove('hidden');
-    }, 4400);
+    /* Загрузочный экран: пока показывается интро, все картинки игры подгружаются заранее */
+    const introStartedAt = Date.now();
+    const introLoadText = document.getElementById('intro-load-text');
+    const preloadedImages = [];
+
+    function buildPreloadList() {
+        const list = [
+            'city_map.png', 'house.png', 'bed.png', 'men.png', 'phone.png', 'phone_btn.png', 'settings_btn.png',
+            'fire_station.png', 'firefighter_npc.png', 'truck_station.png', 'trucker_npc.png',
+            'market_room.png', 'cashier_manager.png', 'police_station.png', 'police_npc.png',
+            'hospital.png', 'doctor_npc.png', 'taxi_park.png', 'taxi_npc.png',
+            'pdd_brick.png', 'pdd_main_road.png', 'burning_house.png', 'customers/customer_1.png', 'customers/customer_2.png', 'customers/customer_3.png'
+        ];
+        ['taxi', 'work', 'shtraf', 'plat', 'business', 'karta', 'avto', 'casino', 'sms', 'eda', 'poisk', 'zakaz', 'kollectiv', 'imushka', 'compania', 'music'].forEach(function (name) { list.push('logo/' + name + '.png'); });
+        CASHIER_DENOMINATIONS.forEach(function (item) { list.push(item.image); });
+        FOOD_ITEMS.forEach(function (item) { list.push(item.image); });
+        MUSIC_TRACKS.forEach(function (track) { if (track.image) list.push(track.image); });
+        CARS.forEach(function (car) { for (let n = 1; n <= 3; n += 1) list.push('cars/' + car.imgPrefix + '_' + n + '.png'); });
+        for (let n = 1; n <= XJ_SUSPECT_COUNT; n += 1) list.push('suspects/suspect_' + n + '.png');
+        return Array.from(new Set(list));
+    }
+
+    function preloadImages(urls, onProgress) {
+        return new Promise(function (resolve) {
+            let done = 0;
+            if (!urls.length) { resolve(); return; }
+            urls.forEach(function (url) {
+                const image = new Image();
+                preloadedImages.push(image);
+                const finish = function () {
+                    done += 1;
+                    onProgress(done, urls.length);
+                    if (done >= urls.length) resolve();
+                };
+                image.onload = finish;
+                image.onerror = finish;
+                image.src = url;
+            });
+        });
+    }
+
+    function leaveIntro() {
+        const wait = Math.max(0, 4400 - (Date.now() - introStartedAt));
+        setTimeout(function () {
+            if (introScreen) introScreen.classList.add('hidden');
+            if (mainMenu) mainMenu.classList.remove('hidden');
+        }, wait);
+    }
+
+    Promise.race([
+        preloadImages(buildPreloadList(), function (done, total) {
+            if (introLoadText) introLoadText.textContent = 'Загрузка ресурсов: ' + Math.round((done / total) * 100) + '%';
+        }),
+        new Promise(function (resolve) { setTimeout(resolve, 20000); })
+    ]).then(leaveIntro);
+
+    if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+        navigator.serviceWorker.register('sw.js').catch(function () {});
+    }
 });
