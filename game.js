@@ -192,7 +192,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const LOTTERY_TAX_RATE = 0.015;
     const TAX_PAYMENT_DAYS = 7;
     const FINE_PAYMENT_DAYS = 3;
-    const NEW_YEAR_REWARD = 3000;
+    const NEW_YEAR_REWARD = 7000;
+    const DEFENDER_DAY_REWARD = 10000;
+    const WOMEN_DAY_REWARD = 10000;
+    const BIRTHDAY_REWARD = 12000;
+    const BIRTHDAY_STORAGE_KEY = 'bestlife_birthday';
 
     const CASHIER_SHIFT_START_HOUR = 9;
     const CASHIER_SHIFT_END_HOUR = 21;
@@ -525,6 +529,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const cashierPaidDisplay = document.getElementById('cashier-paid-display');
     const cashierChangeDueDisplay = document.getElementById('cashier-change-due-display');
     const cashierSelectedDisplay = document.getElementById('cashier-selected-display');
+    const cashierServedDisplay = document.getElementById('cashier-served-display');
+    const cashierServedBar = document.getElementById('cashier-served-bar');
+    const cashierDiffDisplay = document.getElementById('cashier-diff-display');
+    const cashierCustomerEmoji = document.getElementById('cashier-customer-emoji');
     const cashierSelectedItemsTray = document.getElementById('cashier-selected-items-tray');
     const cashierDenominationsGrid = document.getElementById('cashier-denominations-grid');
     const btnCashierGiveChange = document.getElementById('btn-cashier-give-change');
@@ -1057,7 +1065,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (cashierShiftState.active && cashierShiftTimer) {
             const elapsed = Math.floor((gameMinutes - cashierShiftState.startedAtMinutes) / 60);
-            cashierShiftTimer.textContent = '⏱ Смена: ' + elapsed + ' ч';
+            cashierShiftTimer.textContent = '⏱ Начало: ' + getTimeString(cashierShiftState.startedAtMinutes);
         }
     }
 
@@ -1300,19 +1308,40 @@ document.addEventListener('DOMContentLoaded', function () {
        НОВОГОДНЕЕ ПОЩРЕНИЕ
        ========================================================= */
 
-    function processNewYearReward(previousDay, previousMonth, nextDay, nextMonth) {
-        const crossedNewYear = previousDay === 31 && previousMonth === 11 && nextDay === 1 && nextMonth === 0;
-        if (!crossedNewYear) return;
+    function getPlayerBirthday() {
+        try {
+            const raw = localStorage.getItem(BIRTHDAY_STORAGE_KEY);
+            if (!raw) return null;
+            const data = JSON.parse(raw);
+            if (data && Number.isInteger(data.day) && Number.isInteger(data.month)) return data;
+        } catch (error) {
+            return null;
+        }
+        return null;
+    }
 
-        const yearKey = String(absoluteDay());
-        if (governmentRewardYearKey === yearKey) return;
+    function giveGovernmentReward(amount, icon, title, text) {
+        playerMoney += amount;
+        addBankTransaction(title, amount, true);
+        addMessage('Государство', icon, text);
+        showToast(icon + ' ' + title + ': +' + amount.toLocaleString('ru-RU') + ' ₽');
+    }
 
-        governmentRewardYearKey = yearKey;
-        governmentNewYearRewardClaimed = true;
-        playerMoney += NEW_YEAR_REWARD;
-        addBankTransaction('Премия от государства', NEW_YEAR_REWARD, true);
-        addMessage('Государство', '🎄', 'Поздравляем с Новым годом! Вам начислено государственное поощрение — 3 000 ₽.');
-        showToast('🎄 С Новым годом! Вам начислено 3 000 ₽');
+    function processHolidayRewards(day, monthIndex) {
+        const gender = localStorage.getItem('bestlife_gender');
+        const birthday = getPlayerBirthday();
+        if (day === 1 && monthIndex === 0) {
+            giveGovernmentReward(NEW_YEAR_REWARD, '🎄', 'Новогодняя премия от государства', 'Поздравляем с Новым годом! Государство начислило вам ' + NEW_YEAR_REWARD.toLocaleString('ru-RU') + ' ₽.');
+        }
+        if (gender === 'boy' && day === 23 && monthIndex === 1) {
+            giveGovernmentReward(DEFENDER_DAY_REWARD, '🎖️', 'Выплата к 23 февраля', 'С Днём защитника Отечества! Государство начислило вам ' + DEFENDER_DAY_REWARD.toLocaleString('ru-RU') + ' ₽.');
+        }
+        if (gender === 'girl' && day === 8 && monthIndex === 2) {
+            giveGovernmentReward(WOMEN_DAY_REWARD, '🌷', 'Выплата к 8 марта', 'С 8 Марта! Государство начислило вам ' + WOMEN_DAY_REWARD.toLocaleString('ru-RU') + ' ₽.');
+        }
+        if (birthday && birthday.day === day && birthday.month === monthIndex) {
+            giveGovernmentReward(BIRTHDAY_REWARD, '🎂', 'Подарок ко дню рождения', 'С днём рождения! Государство дарит вам ' + BIRTHDAY_REWARD.toLocaleString('ru-RU') + ' ₽.');
+        }
         saveGameData();
     }
 
@@ -1329,7 +1358,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 currentMonthIdx = (currentMonthIdx + 1) % 12;
             }
 
-            processNewYearReward(previousDay, previousMonth, currentDay, currentMonthIdx);
+            processHolidayRewards(currentDay, currentMonthIdx);
             checkResetDailyOrdersCounter();
             checkResetDailyTruckerCounter();
         }
@@ -2494,7 +2523,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function handleMarketAboutButton() {
-        showMarketDialogue('Рабочее время кассира: 09:00–21:00. Перерыв с 13:00 до 14:30. Зарплата 11 500 ₽ за смену.');
+        showMarketDialogue('Рабочее время кассира: 09:00–21:00. Перерыв с 13:00 до 14:30. Зарплата 11 500 ₽ за смену, если смена начата не позже 09:00, закончена не раньше 21:00 и обслужено не меньше 15 клиентов. Иначе зарплата будет меньше, а за опоздание и ранний уход ещё и штраф.');
     }
 
     function handleMarketWorkButton() {
@@ -2512,14 +2541,17 @@ document.addEventListener('DOMContentLoaded', function () {
             showMarketDialogue('У вас недостаточно энергии или сна для работы.');
             return;
         }
-        const hour = getCurrentHour();
-        if (hour > CASHIER_SHIFT_START_HOUR) {
+        const startedLateNow = gameMinutes > CASHIER_SHIFT_START_HOUR * 60;
+        if (startedLateNow) {
             const fine = CASHIER_LATE_FINE;
             createFine(fine, 'Опоздание на смену кассира');
             showToast('Штраф за опоздание: ' + fine + ' ₽');
         }
         cashierShiftState.active = true;
         cashierShiftState.startedAtMinutes = gameMinutes;
+        cashierShiftState.startedLate = startedLateNow;
+        cashierShiftState.startDayKey = currentDay + '_' + currentMonthIdx;
+        cashierShiftState.servedThisShift = 0;
         cashierShiftState.shiftCompleted = false;
         cashierShiftState.salaryEarned = 0;
         cashierShiftState.onBreak = false;
@@ -2538,28 +2570,32 @@ document.addEventListener('DOMContentLoaded', function () {
         showToast('Смена началась!');
     }
 
+    const CASHIER_MIN_CLIENTS = 15;
+    const CASHIER_CUSTOMER_EMOJI = ['👨', '👩', '👴', '👵', '👦', '👧', '👱', '👲', '👳', '👷'];
+    let cashierLastImageIndex = 0;
+
     function generateCashierCustomers() {
         cashierCustomers = [];
-        const count = Math.floor(Math.random() * 10) + 15;
-        for (let i = 0; i < count; i++) {
-            const checkAmount = Math.floor(Math.random() * (CASHIER_CHECK_MAX - CASHIER_CHECK_MIN + 1)) + CASHIER_CHECK_MIN;
-            const possibleAdditions = [50, 100, 200, 500, 1000];
-            const paidExtra = possibleAdditions[Math.floor(Math.random() * possibleAdditions.length)];
-            const paid = checkAmount + paidExtra;
-            const customerIndex = (i % 3) + 1;
-            cashierCustomers.push({
-                checkAmount: checkAmount,
-                paid: paid,
-                customerImage: 'customers/customer_' + customerIndex + '.png'
-            });
-        }
+    }
+
+    function makeCashierCustomer() {
+        const change = 1 + Math.floor(Math.random() * 1234);
+        const check = 30 + Math.floor(Math.random() * 1471);
+        let imageIndex = 1 + Math.floor(Math.random() * 10);
+        if (imageIndex === cashierLastImageIndex) imageIndex = (imageIndex % 10) + 1;
+        cashierLastImageIndex = imageIndex;
+        return {
+            checkAmount: check,
+            paid: check + change,
+            customerImage: 'customers/customer_' + imageIndex + '.png',
+            emoji: CASHIER_CUSTOMER_EMOJI[Math.floor(Math.random() * CASHIER_CUSTOMER_EMOJI.length)]
+        };
     }
 
     function showCashierWorkScreen() {
         marketScreen.classList.add('hidden');
         xjHideScreens();
         cashierWorkScreen.classList.remove('hidden');
-        /* HUD всегда виден */
         updateCashierUI();
         renderCashierDenominations();
     }
@@ -2570,7 +2606,6 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        const hour = getCurrentHour();
         if (isCashierBreakTime() && !cashierShiftState.onBreak) {
             cashierShiftState.onBreak = true;
             cashierShiftState.breakStartMinutes = gameMinutes;
@@ -2582,77 +2617,96 @@ document.addEventListener('DOMContentLoaded', function () {
             showToast('Перерыв окончен!');
         }
 
+        const served = cashierShiftState.servedThisShift || 0;
+        if (cashierServedDisplay) cashierServedDisplay.textContent = served;
+        if (cashierServedBar) cashierServedBar.style.width = Math.min(100, (served / CASHIER_MIN_CLIENTS) * 100) + '%';
+
         if (cashierShiftState.onBreak) {
             cashierShiftStatus.textContent = '🔴 ПЕРЕРЫВ (13:00–14:30)';
             btnCashierBreak.classList.add('hidden');
             btnCashierEndShift.classList.add('hidden');
             return;
-        } else {
-            btnCashierBreak.classList.remove('hidden');
-            btnCashierEndShift.classList.remove('hidden');
         }
+        btnCashierBreak.classList.remove('hidden');
+        btnCashierEndShift.classList.remove('hidden');
 
-        const elapsed = Math.floor((gameMinutes - cashierShiftState.startedAtMinutes) / 60);
+        const elapsed = Math.max(0, Math.floor((gameMinutes - cashierShiftState.startedAtMinutes) / 60));
         cashierShiftStatus.textContent = '🟢 Смена: ' + elapsed + ' ч';
 
-        if (cashierShiftState.customer === null && currentCustomerIndex < cashierCustomers.length) {
-            cashierShiftState.customer = cashierCustomers[currentCustomerIndex];
-            cashierShiftState.checkAmount = cashierShiftState.customer.checkAmount;
-            cashierShiftState.customerPaid = cashierShiftState.customer.paid;
-            cashierShiftState.changeDue = cashierShiftState.customer.paid - cashierShiftState.customer.checkAmount;
+        if (cashierShiftState.customer === null) {
+            const customer = makeCashierCustomer();
+            cashierShiftState.customer = customer;
+            cashierShiftState.checkAmount = customer.checkAmount;
+            cashierShiftState.customerPaid = customer.paid;
+            cashierShiftState.changeDue = customer.paid - customer.checkAmount;
             cashierShiftState.selectedChange = 0;
             cashierShiftState.selectedDenominations = [];
-            currentCustomerIndex++;
             renderCashierDenominations();
         }
 
-        if (cashierShiftState.customer) {
-            cashierCheckDisplay.textContent = cashierShiftState.customer.checkAmount + ' ₽';
-            cashierPaidDisplay.textContent = cashierShiftState.customer.paid + ' ₽';
-            cashierChangeDueDisplay.textContent = cashierShiftState.changeDue + ' ₽';
-            cashierSelectedDisplay.textContent = cashierShiftState.selectedChange + ' ₽';
-            cashierCustomerImage.style.visibility = 'visible';
-            cashierCustomerImage.src = cashierShiftState.customer.customerImage;
-            cashierCustomerImage.onerror = function () {
-                this.style.visibility = 'hidden';
-            };
+        const customer = cashierShiftState.customer;
+        cashierCheckDisplay.textContent = customer.checkAmount.toLocaleString('ru-RU') + ' ₽';
+        cashierPaidDisplay.textContent = customer.paid.toLocaleString('ru-RU') + ' ₽';
+        cashierChangeDueDisplay.textContent = cashierShiftState.changeDue.toLocaleString('ru-RU') + ' ₽';
+        cashierSelectedDisplay.textContent = cashierShiftState.selectedChange.toLocaleString('ru-RU') + ' ₽';
 
-            btnCashierGiveChange.disabled = cashierShiftState.selectedChange !== cashierShiftState.changeDue;
-            btnCashierGiveChange.textContent = cashierShiftState.selectedChange === cashierShiftState.changeDue 
-                ? 'Выдать сдачу (' + cashierShiftState.selectedChange + ' ₽)' 
-                : 'Выдать сдачу (' + cashierShiftState.selectedChange + ' / ' + cashierShiftState.changeDue + ' ₽)';
-        } else {
-            cashierCheckDisplay.textContent = '0 ₽';
-            cashierPaidDisplay.textContent = '0 ₽';
-            cashierChangeDueDisplay.textContent = '0 ₽';
-            cashierSelectedDisplay.textContent = '0 ₽';
-            btnCashierGiveChange.disabled = true;
-            btnCashierGiveChange.textContent = 'Нет покупателя';
+        if (cashierCustomerImage && cashierCustomerImage.dataset.shown !== customer.customerImage) {
+            cashierCustomerImage.dataset.shown = customer.customerImage;
+            if (cashierCustomerEmoji) cashierCustomerEmoji.textContent = customer.emoji || '🙂';
+            cashierCustomerImage.onload = function () {
+                cashierCustomerImage.style.display = 'block';
+                if (cashierCustomerEmoji) cashierCustomerEmoji.style.display = 'none';
+            };
+            cashierCustomerImage.onerror = function () {
+                cashierCustomerImage.style.display = 'none';
+                if (cashierCustomerEmoji) cashierCustomerEmoji.style.display = 'flex';
+            };
+            cashierCustomerImage.src = customer.customerImage;
         }
+
+        const difference = cashierShiftState.selectedChange - cashierShiftState.changeDue;
+        if (cashierDiffDisplay) {
+            if (difference === 0) {
+                cashierDiffDisplay.textContent = '✅ Сумма верная';
+                cashierDiffDisplay.className = 'cashier-diff ok';
+            } else if (difference < 0) {
+                cashierDiffDisplay.textContent = 'Ещё нужно: ' + Math.abs(difference).toLocaleString('ru-RU') + ' ₽';
+                cashierDiffDisplay.className = 'cashier-diff need';
+            } else {
+                cashierDiffDisplay.textContent = 'Лишнее: ' + difference.toLocaleString('ru-RU') + ' ₽';
+                cashierDiffDisplay.className = 'cashier-diff over';
+            }
+        }
+
+        btnCashierGiveChange.disabled = false;
+        btnCashierGiveChange.textContent = 'Выдать сдачу (' + cashierShiftState.selectedChange.toLocaleString('ru-RU') + ' ₽)';
 
         renderSelectedDenominationsTray();
 
-        const hourNow = getCurrentHour();
-        if (hourNow >= CASHIER_SHIFT_END_HOUR && cashierShiftState.active && !cashierShiftState.shiftCompleted) {
-            btnCashierEndShift.classList.remove('hidden');
-            btnCashierEndShift.textContent = 'Закончить смену (получить зарплату)';
+        if (getCurrentHour() >= CASHIER_SHIFT_END_HOUR) {
+            btnCashierEndShift.textContent = '🏁 Закончить смену (получить зарплату)';
+        } else {
+            btnCashierEndShift.textContent = '🏁 Завершить смену';
         }
     }
 
     function renderSelectedDenominationsTray() {
         if (!cashierSelectedItemsTray) return;
+        const signature = cashierShiftState.selectedDenominations.map(function (item) { return item.id; }).join(',');
+        if (cashierSelectedItemsTray.dataset.signature === signature) return;
+        cashierSelectedItemsTray.dataset.signature = signature;
         cashierSelectedItemsTray.innerHTML = '';
 
         if (!cashierShiftState.selectedDenominations.length) {
-            cashierSelectedItemsTray.innerHTML = '<span class="cashier-empty-tray-label">Нажимайте на купюры ниже, чтобы собрать сдачу</span>';
+            cashierSelectedItemsTray.innerHTML = '<span class="cashier-empty-tray-label">Нажимайте на деньги ниже, чтобы собрать сдачу. Нажатие на выданную купюру вернёт её обратно.</span>';
             return;
         }
 
         cashierShiftState.selectedDenominations.forEach(function (denom, index) {
             const chip = document.createElement('div');
             chip.className = 'cashier-selected-chip';
-            chip.title = 'Нажмите для возврата';
-            chip.innerHTML = '<span>' + denom.label + '</span><button type="button" class="cashier-chip-remove">✕</button>';
+            chip.title = 'Нажмите, чтобы вернуть';
+            chip.innerHTML = '<img src="' + denom.image + '" alt="' + denom.label + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'inline\'"><span style="display:none">' + denom.label + '</span>';
             chip.addEventListener('click', function (event) {
                 event.stopPropagation();
                 removeCashierDenomination(index);
@@ -2665,10 +2719,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!cashierShiftState.customer) return;
         if (cashierShiftState.onBreak) {
             showToast('Сейчас перерыв!');
-            return;
-        }
-        if (cashierShiftState.selectedChange + denom.value > cashierShiftState.changeDue) {
-            showToast('Слишком много! Сумма сдачи превышена.');
             return;
         }
         cashierShiftState.selectedChange += denom.value;
@@ -2694,7 +2744,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'cashier-denom-btn';
-            button.innerHTML = '<span class="denom-val-title">' + denom.label + '</span>';
+            button.innerHTML = '<img src="' + denom.image + '" alt="' + denom.label + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><span class="denom-fallback">' + denom.label + '</span><span class="denom-val-title">' + denom.label + '</span>';
             button.addEventListener('click', function () {
                 selectCashierDenomination(denom);
             });
@@ -2708,12 +2758,24 @@ document.addEventListener('DOMContentLoaded', function () {
             showToast('Сейчас перерыв!');
             return;
         }
-        if (cashierShiftState.selectedChange !== cashierShiftState.changeDue) {
-            showToast('Соберите точную сумму сдачи');
-            return;
+
+        const given = cashierShiftState.selectedChange;
+        const due = cashierShiftState.changeDue;
+        const difference = given - due;
+        if (difference === 0) {
+            showToast('✅ Сдача выдана верно');
+        } else if (difference > 0) {
+            const fine = difference * 5;
+            createFine(fine, 'Ошибка в сдаче: выдано больше на ' + difference + ' ₽ (×5)');
+            showToast('Выдано больше на ' + difference + ' ₽. Штраф ' + fine.toLocaleString('ru-RU') + ' ₽');
+        } else {
+            const fine = Math.abs(difference) * 7;
+            createFine(fine, 'Ошибка в сдаче: выдано меньше на ' + Math.abs(difference) + ' ₽ (×7)');
+            showToast('Выдано меньше на ' + Math.abs(difference) + ' ₽. Штраф ' + fine.toLocaleString('ru-RU') + ' ₽');
         }
 
         cashierCustomersServed += 1;
+        cashierShiftState.servedThisShift = (cashierShiftState.servedThisShift || 0) + 1;
         cashierShiftState.customer = null;
         cashierShiftState.checkAmount = 0;
         cashierShiftState.customerPaid = 0;
@@ -2722,12 +2784,7 @@ document.addEventListener('DOMContentLoaded', function () {
         cashierShiftState.selectedDenominations = [];
         updateCashierUI();
         playClick();
-
-        if (currentCustomerIndex >= cashierCustomers.length) {
-            showToast('Все покупатели обслужены! Все товары пробиты!');
-        } else {
-            showToast('Сдача выдана! Следующий покупатель');
-        }
+        saveGameData();
     }
 
     function endCashierShift() {
@@ -2737,23 +2794,28 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        if (cashierCustomers && currentCustomerIndex < cashierCustomers.length) {
-            cashierCustomersSkipped += (cashierCustomers.length - currentCustomerIndex);
-        }
+        const served = cashierShiftState.servedThisShift || 0;
+        const sameDay = cashierShiftState.startDayKey === currentDay + '_' + currentMonthIdx;
+        const endedEarly = sameDay && gameMinutes < CASHIER_SHIFT_END_HOUR * 60;
+        const startedLate = Boolean(cashierShiftState.startedLate);
+        const notEnoughClients = served < CASHIER_MIN_CLIENTS;
 
-        const hour = getCurrentHour();
-        if (hour < CASHIER_SHIFT_END_HOUR) {
-            const fine = CASHIER_EARLY_END_FINE;
-            createFine(fine, 'Досрочное завершение смены кассира');
-            showToast('Штраф за досрочное завершение: ' + fine + ' ₽');
-        } else {
-            const salary = CASHIER_SALARY;
-            playerMoney += salary;
-            addBankTransaction('Зарплата: Кассир', salary, true);
-            const tax = Math.round(salary * CASHIER_TAX_RATE);
-            createTax('salary', tax, 'Налог: Кассир 3%');
-            showToast('Зарплата +' + salary + ' ₽');
+        let salary = CASHIER_SALARY;
+        const notes = [];
+        if (startedLate) { salary /= 3; notes.push('поздний старт: зарплата ÷3'); }
+        if (endedEarly) {
+            salary /= 3.3;
+            notes.push('ранний уход: зарплата ÷3,3');
+            createFine(CASHIER_EARLY_END_FINE, 'Досрочное завершение смены кассира');
         }
+        if (notEnoughClients) { salary /= 2; notes.push('меньше ' + CASHIER_MIN_CLIENTS + ' клиентов: зарплата ÷2'); }
+        salary = Math.round(salary);
+
+        playerMoney += salary;
+        addBankTransaction('Зарплата: Кассир', salary, true);
+        createTax('salary', Math.round(salary * CASHIER_TAX_RATE), 'Налог: Кассир 3%');
+        addMessage('Магазин', '🛒', 'Смена завершена. Обслужено клиентов: ' + served + '. Зарплата: ' + salary.toLocaleString('ru-RU') + ' ₽' + (notes.length ? ' (' + notes.join('; ') + ')' : '') + '.');
+        showToast('Зарплата +' + salary.toLocaleString('ru-RU') + ' ₽' + (notes.length ? ' (' + notes.length + ' снижен.)' : ''));
 
         cashierTotalShiftsCompleted += 1;
         cashierShiftState.active = false;
@@ -2764,13 +2826,12 @@ document.addEventListener('DOMContentLoaded', function () {
         cashierShiftState.changeDue = 0;
         cashierShiftState.selectedChange = 0;
         cashierShiftState.selectedDenominations = [];
+        cashierShiftState.servedThisShift = 0;
         cashierWorkScreen.classList.add('hidden');
         currentScreen = 'market';
         marketScreen.classList.remove('hidden');
-        btnOpenSettingsGame.classList.remove('hidden');
         updateClockUI();
         saveGameData();
-        showToast('Смена завершена');
     }
 
     function handleCashierBreak() {
@@ -2991,7 +3052,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const owned = ownedCars.some(function (item) { return item.id === car.id; });
             const card = document.createElement('div');
             card.className = 'car-card-new';
-            card.innerHTML = '<div class="car-card-top"><img class="car-thumb-new" src="cars/' + car.imgPrefix + '_1.png" alt="' + car.title + '" onerror="this.style.visibility=\'hidden\'"><div class="car-info-new"><div class="car-title-new">' + car.title + '</div><div class="car-sub-new">' + car.year + ' г. • ' + car.color + '</div></div></div><div class="car-card-bottom"><div class="car-price-badge">' + car.price.toLocaleString('ru-RU') + ' ₽</div><button class="car-buy-btn-new">' + (owned ? 'Куплена' : 'Купить') + '</button></div>';
+            card.innerHTML = '<div class="car-card-top"><img class="car-thumb-new" src="cars/' + car.imgPrefix + '_1.png" alt="' + car.title + '" onerror="this.style.visibility=\'hidden\'"><div class="car-info-new"><div class="car-title-new">' + car.title + '</div><div class="car-sub-new">' + car.year + ' г. • ' + car.color + '</div></div></div><div class="car-card-bottom"><div class="car-price-badge">' + car.price.toLocaleString('ru-RU') + ' ₽</div><button class="car-buy-btn-new">' + (owned ? 'Уже есть' : 'Купить') + '</button></div>';
             card.addEventListener('click', function (event) {
                 if (!event.target.closest('.car-buy-btn-new')) renderCarDetail(car);
             });
@@ -3035,7 +3096,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function buyCar(car) {
         if (ownedCars.some(function (item) { return item.id === car.id; })) {
-            showToast('У вас уже есть этот автомобиль');
+            showToast(car.id === 'bike' ? 'У вас уже есть велосипед' : 'У вас уже есть этот автомобиль');
             return;
         }
         if (playerMoney < car.price) {
@@ -3044,7 +3105,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         playerMoney = Math.max(0, playerMoney - car.price);
         ownedCars.push(car);
-        addBankTransaction('Покупка ' + car.title, car.price, false);
+        addBankTransaction(car.id === 'bike' ? 'Покупка велосипеда' : 'Покупка автомобиля ' + car.title, car.price, false);
         if (car.id !== 'bike') createTax('car', car.price * CAR_TAX_RATE, 'Налог на автомобиль 5%');
         saveGameData();
         updateClockUI();
@@ -3707,17 +3768,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    const btnPlay = document.getElementById('btn-play');
-    if (btnPlay) btnPlay.addEventListener('click', function () {
-        startMusic();
-        if (localStorage.getItem('bestlife_gender')) launchGame();
-        else genderModal.classList.remove('hidden');
-    });
-
-    const genderBoy = document.getElementById('gender-boy');
-    if (genderBoy) genderBoy.addEventListener('click', function () { localStorage.setItem('bestlife_gender', 'boy'); genderModal.classList.add('hidden'); launchGame(); });
-    const genderGirl = document.getElementById('gender-girl');
-    if (genderGirl) genderGirl.addEventListener('click', function () { localStorage.setItem('bestlife_gender', 'girl'); genderModal.classList.add('hidden'); launchGame(); });
 
     window.addEventListener('resize', function () {
         if (gameScreen && !gameScreen.classList.contains('hidden')) {
@@ -4703,19 +4753,18 @@ document.addEventListener('DOMContentLoaded', function () {
     const XJ_SPECIAL_MODES = {
         police: [
             { id: 'suspects', title: '🔎 Найти преступника', desc: 'Среди 5 подозреваемых только один нарушил закон. Найдите его по описанию.', reward: '1 100 – 1 800 ₽' },
-            { id: 'chase', title: '🚓 Погоня', desc: 'Кликайте как можно быстрее, чтобы догнать преступника, пока он не скрылся.', reward: '1 800 ₽' },
-            { id: 'chase_hard', title: '🔥 Погоня за грабителем', desc: 'Грабитель быстрее и хитрее. Награда выше, а штраф за побег тот же.', reward: '2 600 ₽' },
+            { id: 'chase_hard', title: '🚓 Погоня за грабителем', desc: 'Кликайте как можно быстрее, чтобы догнать грабителя. Если он скроется, штраф 3 000 ₽.', reward: '1 850 ₽' },
             { id: 'radar', title: '📡 Дорожный патруль', desc: 'Проверяйте скорость машин и штрафуйте только тех, кто превысил.', reward: 'до 1 000 ₽' }
         ],
         doctor: [
-            { id: 'xray', title: '🩻 Рентген', desc: 'Найдите повреждённое место на трёх снимках. Чем дальше, тем больше клеток.', reward: 'до 1 200 ₽' },
+            { id: 'xray', title: '🔬 Рентген', desc: 'Найдите клетку, которая чуть отличается по цвету. Снимков три, чем дальше, тем сложнее.', reward: 'до 1 200 ₽' },
             { id: 'cpr', title: '❤️ Реанимация', desc: 'Нажимайте в зелёной зоне, чтобы запустить сердце пациента.', reward: '1 500 ₽' },
             { id: 'surgery', title: '🔪 Операция', desc: 'Запомните порядок инструментов и повторите его без ошибок.', reward: 'до 1 800 ₽' }
         ]
     };
 
     const XJ_SUSPECT_COUNT = 30;
-    const XJ_SUSPECT_EMOJI = ['👨', '👩', '🧔', '👱‍♂️', '👱‍♀️', '👴', '👵', '🧑', '👨‍🦰', '👩‍🦰', '👨‍🦱', '👩‍🦱', '👨‍🦳', '👩‍🦳', '👨‍🦲', '🧑‍🦰', '🧑‍🦱', '🧑‍🦳', '🧓', '👦', '👧', '🧒', '🧑‍🎤', '🧑‍🔧', '🧑‍🍳', '🧑‍🎓', '👷', '🕵️', '🧑‍🌾', '🧑‍💼'];
+    const XJ_SUSPECT_EMOJI = ['👨', '👩', '👴', '👵', '👦', '👧', '👱', '👲', '👳', '👷', '💂', '👸', '🎅', '👼', '🙍', '🙎', '💁', '🙋', '🙇', '👰', '🤵', '👮', '🕵', '👶', '🙅', '🙆', '💆', '💇', '🚶', '🏃'];
 
     const XJ_CRIMES = [
         { t: 'Украл пачку чипсов в магазине', sev: 'fine' },
@@ -4782,11 +4831,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const XJ_TOOLS = [
         { e: '🔪', n: 'Скальпель' },
-        { e: '🗜️', n: 'Зажим' },
+        { e: '✂️', n: 'Ножницы' },
         { e: '💉', n: 'Шприц' },
-        { e: '🧵', n: 'Нить' },
-        { e: '🩹', n: 'Бинт' },
-        { e: '🧪', n: 'Антисептик' }
+        { e: '📌', n: 'Зажим' },
+        { e: '➰', n: 'Нить' },
+        { e: '💊', n: 'Лекарство' }
     ];
 
     const xjGameScreen = document.getElementById('xj-game-screen');
@@ -5002,15 +5051,15 @@ document.addEventListener('DOMContentLoaded', function () {
     /* ---------- Полицейский: погоня ---------- */
 
     function xjStartChase(hard) {
-        const difficulty = hard ? 1.25 : 1;
-        const reward = hard ? 2600 : 1800;
-        let player = 55;
+        const difficulty = hard ? 1.65 : 1.3;
+        const reward = hard ? 1850 : 1500;
+        let player = 50;
         let started = false;
         let surge = 0;
         xjGameBody.innerHTML = '<div id="xjg-chase-area" class="xjg-wrap xjg-chase">' +
-            '<h2 class="xjg-title">' + (hard ? '🔥 Погоня за грабителем' : '🚓 Погоня за преступником') + '</h2>' +
+            '<h2 class="xjg-title">' + (hard ? '🚓 Погоня за грабителем' : '🚓 Погоня за преступником') + '</h2>' +
             '<p id="xjg-chase-hint" class="xjg-sub">Приготовьтесь...</p>' +
-            '<div class="xjg-tug"><div id="xjg-tug-blue" class="xjg-tug-blue" style="width:55%"></div><div id="xjg-tug-red" class="xjg-tug-red" style="width:45%"></div><div class="xjg-tug-mid"></div></div>' +
+            '<div class="xjg-tug"><div id="xjg-tug-blue" class="xjg-tug-blue" style="width:50%"></div><div id="xjg-tug-red" class="xjg-tug-red" style="width:50%"></div><div class="xjg-tug-mid"></div></div>' +
             '<div class="xjg-tug-labels"><span class="xjg-blue-label">👮 Вы: <b id="xjg-blue-pct">50%</b></span><span class="xjg-red-label">🏃 Преступник: <b id="xjg-red-pct">50%</b></span></div>' +
             '<div class="xjg-tap-zone"><div class="xjg-tap-icon">👆</div><div id="xjg-tap-text" class="xjg-tap-text">Кликайте быстрее!</div></div>' +
             '<p class="xjg-note">Если красная шкала заполнится полностью, преступник скроется и вы получите штраф 3 000 ₽.</p></div>';
@@ -5054,7 +5103,7 @@ document.addEventListener('DOMContentLoaded', function () {
         area.addEventListener('pointerdown', function (event) {
             event.preventDefault();
             if (!started || xjGameCtx.over) return;
-            player += 2.4;
+            player += 2.1;
             paint();
             playClick();
             check();
@@ -5076,7 +5125,7 @@ document.addEventListener('DOMContentLoaded', function () {
         xjGameInterval(function () {
             if (!started || xjGameCtx.over) return;
             if (Math.random() < 0.03) surge = 3;
-            const push = (0.26 + Math.random() * 0.28) * difficulty + (surge > 0 ? 0.5 : 0);
+            const push = (0.30 + Math.random() * 0.30) * difficulty + (surge > 0 ? 0.7 : 0);
             if (surge > 0) surge -= 1;
             player -= push;
             paint();
@@ -5151,11 +5200,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function xjStartXray() {
         const stages = [
-            { cells: 16, cols: 4, time: 14 },
-            { cells: 25, cols: 5, time: 16 },
-            { cells: 36, cols: 6, time: 18 }
+            { cells: 16, cols: 4, time: 14, diff: 16 },
+            { cells: 25, cols: 5, time: 16, diff: 12 },
+            { cells: 36, cols: 6, time: 18, diff: 9 }
         ];
-        const pairs = [['🫁', '🫀'], ['🦷', '🦴'], ['🧠', '🫀'], ['🦵', '🦶'], ['👁️', '👂']];
         let stage = 0;
         let found = 0;
 
@@ -5163,7 +5211,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (xjGameCtx.over) return;
             if (stage >= stages.length) {
                 xjGameFinish({
-                    icon: found === stages.length ? '🏆' : '🩻',
+                    icon: found === stages.length ? '🏆' : '📋',
                     title: 'Снимки изучены',
                     lines: ['Найдено повреждений: ' + found + ' из ' + stages.length + '.'],
                     reward: found * 400,
@@ -5172,15 +5220,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
             const config = stages[stage];
-            const pair = xjPick(pairs);
+            const hue = Math.floor(Math.random() * 360);
+            const baseLight = 42;
+            const oddLight = baseLight + (Math.random() < 0.5 ? config.diff : -config.diff);
             const oddIndex = Math.floor(Math.random() * config.cells);
             let timeLeft = config.time;
-            xjGameBody.innerHTML = '<div class="xjg-wrap"><h2 class="xjg-title">🩻 Снимок ' + (stage + 1) + ' из ' + stages.length + '</h2>' +
-                '<p class="xjg-sub">Одна клетка отличается от остальных. Найдите её. Ошибка отнимает 2 секунды.</p>' +
+            xjGameBody.innerHTML = '<div class="xjg-wrap"><h2 class="xjg-title">🔬 Снимок ' + (stage + 1) + ' из ' + stages.length + '</h2>' +
+                '<p class="xjg-sub">Одна клетка немного отличается по цвету. Найдите её. Ошибка отнимает 2 секунды.</p>' +
                 '<div class="xjg-timer"><div id="xjg-xray-timer" class="xjg-timer-inner" style="width:100%"></div></div>' +
                 '<div class="xjg-xray-grid" style="grid-template-columns:repeat(' + config.cols + ',1fr)">' +
                 Array.from({ length: config.cells }, function (_, index) {
-                    return '<button type="button" class="xjg-xray-cell" data-index="' + index + '">' + (index === oddIndex ? pair[1] : pair[0]) + '</button>';
+                    return '<button type="button" class="xjg-xray-cell" data-index="' + index + '" style="background:hsl(' + hue + ',62%,' + (index === oddIndex ? oddLight : baseLight) + '%)"></button>';
                 }).join('') + '</div><div id="xjg-xray-feedback" class="xjg-radar-feedback"></div></div>';
             const timerBar = document.getElementById('xjg-xray-timer');
             const feedback = document.getElementById('xjg-xray-feedback');
@@ -5407,10 +5457,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const COMPANIES = [
         { id: 'apple', name: 'Apple', icon: '🍎', sector: 'Технологии', price: 120000000000, income: 14000000 },
-        { id: 'microsoft', name: 'Microsoft', icon: '🪟', sector: 'Технологии', price: 110000000000, income: 12800000 },
+        { id: 'microsoft', name: 'Microsoft', icon: '💻', sector: 'Технологии', price: 110000000000, income: 12800000 },
         { id: 'google', name: 'Google', icon: '🔍', sector: 'Интернет', price: 85000000000, income: 10000000 },
         { id: 'amazon', name: 'Amazon', icon: '📦', sector: 'Торговля', price: 70000000000, income: 8200000 },
-        { id: 'nvidia', name: 'NVIDIA', icon: '🟩', sector: 'Микросхемы', price: 65000000000, income: 7700000 },
+        { id: 'nvidia', name: 'NVIDIA', icon: '🎮', sector: 'Микросхемы', price: 65000000000, income: 7700000 },
         { id: 'meta', name: 'Meta', icon: '👥', sector: 'Соцсети', price: 52000000000, income: 6200000 },
         { id: 'tesla', name: 'Tesla', icon: '⚡', sector: 'Автомобили', price: 40000000000, income: 4800000 },
         { id: 'samsung', name: 'Samsung', icon: '📱', sector: 'Электроника', price: 33000000000, income: 4000000 },
@@ -5601,10 +5651,18 @@ document.addEventListener('DOMContentLoaded', function () {
     updateStatsHUD();
     updatePhoneBadge();
 
-    /* Загрузочный экран: пока показывается интро, все картинки игры подгружаются заранее */
-    const introStartedAt = Date.now();
-    const introLoadText = document.getElementById('intro-load-text');
+    /* =========================================================
+       ИНТРО, ВЫБОР ПОЛА, ДАТА РОЖДЕНИЯ И ЗАГРУЗКА ДАННЫХ
+       ========================================================= */
+    const ASSET_FLAG_KEY = 'bestlife_assets_ready_v5';
+    const loadingScreen = document.getElementById('loading-screen');
+    const loadingFill = document.getElementById('loading-bar-fill');
+    const loadingPercent = document.getElementById('loading-percent');
+    const birthdayModal = document.getElementById('birthday-modal');
     const preloadedImages = [];
+    const preloadStatus = { done: 0, total: 0 };
+    let preloadPromise = null;
+    let loadingStarted = false;
 
     function buildPreloadList() {
         const list = [
@@ -5612,8 +5670,9 @@ document.addEventListener('DOMContentLoaded', function () {
             'fire_station.png', 'firefighter_npc.png', 'truck_station.png', 'trucker_npc.png',
             'market_room.png', 'cashier_manager.png', 'police_station.png', 'police_npc.png',
             'hospital.png', 'doctor_npc.png', 'taxi_park.png', 'taxi_npc.png',
-            'pdd_brick.png', 'pdd_main_road.png', 'burning_house.png', 'customers/customer_1.png', 'customers/customer_2.png', 'customers/customer_3.png'
+            'pdd_brick.png', 'pdd_main_road.png', 'burning_house.png'
         ];
+        for (let n = 1; n <= 10; n += 1) list.push('customers/customer_' + n + '.png');
         ['taxi', 'work', 'shtraf', 'plat', 'business', 'karta', 'avto', 'casino', 'sms', 'eda', 'poisk', 'zakaz', 'kollectiv', 'imushka', 'compania', 'music'].forEach(function (name) { list.push('logo/' + name + '.png'); });
         CASHIER_DENOMINATIONS.forEach(function (item) { list.push(item.image); });
         FOOD_ITEMS.forEach(function (item) { list.push(item.image); });
@@ -5623,39 +5682,145 @@ document.addEventListener('DOMContentLoaded', function () {
         return Array.from(new Set(list));
     }
 
-    function preloadImages(urls, onProgress) {
-        return new Promise(function (resolve) {
-            let done = 0;
-            if (!urls.length) { resolve(); return; }
+    function updateLoadingUI() {
+        const percent = preloadStatus.total ? Math.round((preloadStatus.done / preloadStatus.total) * 100) : 0;
+        if (loadingFill) loadingFill.style.width = percent + '%';
+        if (loadingPercent) loadingPercent.textContent = percent + '%';
+    }
+
+    function startPreload() {
+        if (preloadPromise) return preloadPromise;
+        const urls = buildPreloadList();
+        preloadStatus.total = urls.length;
+        preloadPromise = new Promise(function (resolve) {
             urls.forEach(function (url) {
                 const image = new Image();
                 preloadedImages.push(image);
                 const finish = function () {
-                    done += 1;
-                    onProgress(done, urls.length);
-                    if (done >= urls.length) resolve();
+                    preloadStatus.done += 1;
+                    updateLoadingUI();
+                    if (preloadStatus.done >= preloadStatus.total) {
+                        try { localStorage.setItem(ASSET_FLAG_KEY, '1'); } catch (error) { /* ignore */ }
+                        resolve();
+                    }
                 };
                 image.onload = finish;
                 image.onerror = finish;
                 image.src = url;
             });
         });
+        return preloadPromise;
     }
 
-    function leaveIntro() {
-        const wait = Math.max(0, 4400 - (Date.now() - introStartedAt));
-        setTimeout(function () {
-            if (introScreen) introScreen.classList.add('hidden');
-            if (mainMenu) mainMenu.classList.remove('hidden');
-        }, wait);
+    function startLoadingThenLaunch() {
+        if (loadingStarted) return;
+        loadingStarted = true;
+        if (loadingScreen) loadingScreen.classList.remove('hidden');
+        updateLoadingUI();
+        const returning = localStorage.getItem(ASSET_FLAG_KEY) === '1';
+        Promise.race([
+            startPreload(),
+            new Promise(function (resolve) { setTimeout(resolve, returning ? 1500 : 25000); })
+        ]).then(function () {
+            preloadStatus.done = preloadStatus.total;
+            updateLoadingUI();
+            setTimeout(function () {
+                if (loadingScreen) loadingScreen.classList.add('hidden');
+                launchGame();
+            }, 250);
+        });
     }
 
-    Promise.race([
-        preloadImages(buildPreloadList(), function (done, total) {
-            if (introLoadText) introLoadText.textContent = 'Загрузка ресурсов: ' + Math.round((done / total) * 100) + '%';
-        }),
-        new Promise(function (resolve) { setTimeout(resolve, 20000); })
-    ]).then(leaveIntro);
+    /* Выбор даты рождения */
+    const BD_MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+    const BD_MONTHS_GENITIVE = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+    let bdMonth = null;
+    let bdDay = null;
+
+    function renderBirthdayPicker() {
+        const monthsBox = document.getElementById('bd-months');
+        const daysBox = document.getElementById('bd-days');
+        const summary = document.getElementById('bd-summary');
+        const confirmButton = document.getElementById('btn-bd-confirm');
+        if (!monthsBox || !daysBox) return;
+        monthsBox.innerHTML = '';
+        BD_MONTHS.forEach(function (name, index) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'bd-btn' + (bdMonth === index ? ' selected' : '');
+            button.textContent = name;
+            button.addEventListener('click', function () {
+                bdMonth = index;
+                if (bdDay && bdDay > DAYS_IN_MONTHS[index]) bdDay = null;
+                renderBirthdayPicker();
+            });
+            monthsBox.appendChild(button);
+        });
+        daysBox.innerHTML = '';
+        if (bdMonth !== null) {
+            for (let day = 1; day <= DAYS_IN_MONTHS[bdMonth]; day += 1) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'bd-btn' + (bdDay === day ? ' selected' : '');
+                button.textContent = day;
+                button.addEventListener('click', function () {
+                    bdDay = day;
+                    renderBirthdayPicker();
+                });
+                daysBox.appendChild(button);
+            }
+        }
+        if (bdMonth !== null && bdDay !== null) {
+            summary.textContent = '🎂 Ваш день рождения: ' + bdDay + ' ' + BD_MONTHS_GENITIVE[bdMonth];
+            confirmButton.disabled = false;
+        } else {
+            summary.textContent = bdMonth === null ? 'Сначала выберите месяц' : 'Теперь выберите день';
+            confirmButton.disabled = true;
+        }
+    }
+
+    function openBirthdayModal() {
+        bdMonth = null;
+        bdDay = null;
+        renderBirthdayPicker();
+        if (birthdayModal) birthdayModal.classList.remove('hidden');
+    }
+
+    function proceedAfterPlay() {
+        if (!localStorage.getItem('bestlife_gender')) {
+            genderModal.classList.remove('hidden');
+            return;
+        }
+        if (!getPlayerBirthday()) {
+            openBirthdayModal();
+            return;
+        }
+        startLoadingThenLaunch();
+    }
+
+    const btnPlay = document.getElementById('btn-play');
+    if (btnPlay) btnPlay.addEventListener('click', function () {
+        startMusic();
+        startPreload();
+        proceedAfterPlay();
+    });
+    const genderBoy = document.getElementById('gender-boy');
+    if (genderBoy) genderBoy.addEventListener('click', function () { localStorage.setItem('bestlife_gender', 'boy'); genderModal.classList.add('hidden'); proceedAfterPlay(); });
+    const genderGirl = document.getElementById('gender-girl');
+    if (genderGirl) genderGirl.addEventListener('click', function () { localStorage.setItem('bestlife_gender', 'girl'); genderModal.classList.add('hidden'); proceedAfterPlay(); });
+    const btnBdConfirm = document.getElementById('btn-bd-confirm');
+    if (btnBdConfirm) btnBdConfirm.addEventListener('click', function () {
+        if (bdMonth === null || bdDay === null) return;
+        localStorage.setItem(BIRTHDAY_STORAGE_KEY, JSON.stringify({ day: bdDay, month: bdMonth }));
+        birthdayModal.classList.add('hidden');
+        proceedAfterPlay();
+    });
+
+    /* Интро: надпись BestLife пульсирует 3 раза, затем открывается меню */
+    setTimeout(function () {
+        if (introScreen) introScreen.classList.add('hidden');
+        if (mainMenu) mainMenu.classList.remove('hidden');
+    }, 3200);
 
     if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
         navigator.serviceWorker.register('sw.js').catch(function () {});
