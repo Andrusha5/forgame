@@ -20,12 +20,8 @@
 
     <!-- ИНТРО ЭКРАН -->
     <div id="intro-screen" class="screen full-screen intro-background">
-        <div class="intro-content">
-            <h1 class="game-logo">BestLife</h1>
-            <p class="game-sublogo">2D Life Simulator</p>
-            <div class="loader-bar"><div class="loader-progress"></div></div>
-<p id="intro-load-text" class="intro-load-text">Загрузка ресурсов: 0%</p>
-        </div>
+        <div class="intro-title-v2">BestLife</div>
+        <div class="intro-by-v2">by BEST</div>
     </div>
 
     <!-- ГЛАВНОЕ МЕНЮ -->
@@ -126,7 +122,6 @@
     <!-- ЭКРАН РАБОТЫ КАССИРА -->
     <div id="cashier-work-screen" class="screen full-screen cashier-screen hidden">
         <div class="cashier-ui-container">
-            <!-- Верхняя панель кассира -->
             <div class="cashier-header-bar">
                 <button id="btn-exit-cashier-work" class="btn-room-exit cashier-exit-btn">🚪 Покинуть кассу</button>
                 <div class="cashier-status-box">
@@ -135,52 +130,38 @@
                 </div>
             </div>
 
-            <!-- Зона работы (Покупатель + Касса) -->
+            <div class="cashier-counter-card">
+                <div class="cashier-counter-title">Клиентов обслужено за смену (для полной зарплаты нужно 15)</div>
+                <div class="cashier-counter-value"><span id="cashier-served-display">0</span><small> / 15</small></div>
+                <div class="cashier-counter-bar"><div id="cashier-served-bar"></div></div>
+            </div>
+
             <div class="cashier-workspace">
-                <!-- Окно покупателя -->
                 <div class="cashier-customer-box">
                     <div class="customer-avatar-wrapper">
-                        <img id="cashier-customer-image" src="customers/customer_1.png" alt="Покупатель" onerror="this.style.visibility='hidden'">
+                        <img id="cashier-customer-image" src="customers/customer_1.png" alt="Покупатель">
+                        <span id="cashier-customer-emoji" class="cashier-customer-emoji">🙂</span>
                     </div>
                 </div>
 
-                <!-- Дисплей кассового терминала -->
                 <div class="cashier-pos-terminal">
-                    <div class="pos-screen-header">
-                        <span>POS-ТЕРМИНАЛ #01</span>
-                    </div>
-                    <div class="pos-display-grid">
-                        <div class="pos-data-row">
-                            <span>Сумма чека:</span>
-                            <strong id="cashier-check-display">0 ₽</strong>
-                        </div>
-                        <div class="pos-data-row">
-                            <span>Получено:</span>
-                            <strong id="cashier-paid-display" class="color-income">0 ₽</strong>
-                        </div>
-                        <div class="pos-data-row pos-highlight-row">
-                            <span>Сдача клиент:</span>
-                            <strong id="cashier-change-due-display">0 ₽</strong>
-                        </div>
-                        <div class="pos-data-row pos-selected-row">
-                            <span>Выбрано сдачи:</span>
-                            <strong id="cashier-selected-display">0 ₽</strong>
-                        </div>
-                    </div>
+                    <div class="pos-screen-header"><span>КАССА</span></div>
+                    <div class="pos-data-row"><span>Сумма чека</span><strong id="cashier-check-display">0 ₽</strong></div>
+                    <div class="pos-data-row"><span>Клиент дал</span><strong id="cashier-paid-display" class="color-income">0 ₽</strong></div>
+                    <div class="pos-change-box"><span>ВЫДАТЬ СДАЧУ</span><strong id="cashier-change-due-display">0 ₽</strong></div>
                 </div>
             </div>
 
-            <!-- Лоток выбранной сдачи (Верхняя кассовая ячейка с возможностью возврата) -->
             <div class="cashier-selected-items-box">
                 <div class="cashier-tray-header">
-                    <span>Выданные купюры/монеты (нажмите для возврата обратно):</span>
+                    <span>Выдано: <b id="cashier-selected-display">0 ₽</b></span>
+                    <span id="cashier-diff-display" class="cashier-diff">Ещё нужно</span>
                 </div>
                 <div id="cashier-selected-items-tray" class="cashier-selected-items-tray">
-                    <span class="cashier-empty-tray-label">Нажимайте на купюры ниже, чтобы собрать сдачу</span>
+                    <span class="cashier-empty-tray-label">Нажимайте на деньги ниже, чтобы собрать сдачу</span>
                 </div>
             </div>
 
-            <!-- Нижняя панель с купюрами и кнопкой выдачи -->
             <div class="cashier-controls-panel">
                 <div id="cashier-denominations-grid" class="cashier-denominations-grid"></div>
 
@@ -665,6 +646,29 @@
                 <div id="xj-task-question" class="pdd-question-text">Вопрос...</div>
                 <div id="xj-task-answers" class="pdd-answers-grid"></div>
             </div>
+        </div>
+    </div>
+
+    <!-- ВЫБОР ДАТЫ РОЖДЕНИЯ -->
+    <div id="birthday-modal" class="modal-overlay hidden">
+        <div class="modal-card birthday-card">
+            <h2>🎂 Дата рождения</h2>
+            <p class="bd-hint">Выберите день и месяц. В этот день государство будет дарить вам 12 000 ₽.</p>
+            <div class="bd-label">Месяц</div>
+            <div id="bd-months" class="bd-months"></div>
+            <div class="bd-label">День</div>
+            <div id="bd-days" class="bd-days"></div>
+            <div id="bd-summary" class="bd-summary">Сначала выберите месяц</div>
+            <button id="btn-bd-confirm" class="btn btn-primary" style="width:100%;" disabled>Подтвердить</button>
+        </div>
+    </div>
+
+    <!-- ЭКРАН ЗАГРУЗКИ ДАННЫХ -->
+    <div id="loading-screen" class="screen full-screen loading-screen hidden">
+        <div class="loading-box">
+            <h2>Идёт загрузка данных</h2>
+            <div class="loading-bar"><div id="loading-bar-fill"></div></div>
+            <div id="loading-percent">0%</div>
         </div>
     </div>
 
