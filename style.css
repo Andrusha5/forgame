@@ -3323,3 +3323,166 @@ img[src*="cars/bike_"] { object-fit: contain !important; background: #ffffff; }
 .hidden { display: none !important; }
 
 .cashier-denom-btn .denom-fallback[style*="block"] + .denom-val-title { display: none; }
+
+
+/* =========================================================
+   ОБНОВЛЕНИЕ 6: вождение, бизнесы, заказ, имущество, сонливость
+   ========================================================= */
+
+/* ---------- Сонливость ---------- */
+.sleepy-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #000000;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 950;
+    transition: opacity 0.2s ease;
+}
+.sleepy-overlay.on { opacity: 1; }
+
+/* ---------- Вождение ---------- */
+body:has(#drive-screen:not(.hidden)) #phone-btn-wrapper,
+body:has(#drive-screen:not(.hidden)) #btn-open-settings-game { display: none; }
+.drive-screen {
+    z-index: 46;
+    background: radial-gradient(ellipse at 50% 0%, #1e3a8a 0%, #0b1220 60%);
+    overflow-y: auto;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: none;
+}
+.drive-wrap {
+    width: 100%;
+    max-width: 520px;
+    margin: 0 auto;
+    min-height: 100%;
+    padding: calc(104px + env(safe-area-inset-top, 0px)) 16px calc(22px + env(safe-area-inset-bottom, 0px));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    color: #ffffff;
+}
+.drive-car-name { font-size: 0.85rem; font-weight: 800; color: #93c5fd; letter-spacing: 1px; text-transform: uppercase; }
+.drive-speed-box { display: flex; align-items: baseline; gap: 8px; line-height: 1; }
+.drive-speed-box span { font-size: clamp(4.5rem, 20vw, 7rem); font-weight: 900; font-variant-numeric: tabular-nums; text-shadow: 0 0 24px rgba(96, 165, 250, 0.5); }
+.drive-speed-box small { font-size: 1.1rem; font-weight: 800; color: #94a3b8; }
+.drive-speed-box.over span { color: #fb923c; text-shadow: 0 0 24px rgba(251, 146, 60, 0.6); }
+.drive-limit-note { font-size: 0.74rem; font-weight: 700; color: #94a3b8; }
+.drive-track-wrap { width: 100%; margin-top: 4px; }
+.drive-cameras { position: relative; height: 38px; width: 100%; }
+.drive-camera { position: absolute; bottom: 0; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; }
+.drive-camera span { font-size: 1.5rem; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6)); }
+.drive-camera i { display: block; width: 3px; height: 9px; background: #fbbf24; border-radius: 2px; }
+.drive-camera.caught i { background: #ef4444; }
+.drive-camera.caught span { filter: drop-shadow(0 0 8px #ef4444); }
+.drive-camera.passed i { background: #22c55e; }
+.drive-track { width: 100%; height: 22px; background: rgba(255, 255, 255, 0.12); border: 3px solid #ffffff; border-radius: 14px; overflow: hidden; }
+.drive-progress { height: 100%; width: 0%; background: linear-gradient(90deg, #22c55e, #38bdf8); border-radius: 10px; }
+.drive-percent { margin-top: 6px; text-align: center; font-size: 1rem; font-weight: 900; color: #cbd5e1; }
+.drive-alert { min-height: 24px; text-align: center; font-size: 0.85rem; font-weight: 800; }
+.drive-alert.bad { color: #f87171; }
+.drive-alert.ok { color: #86efac; }
+.drive-pedals { display: flex; justify-content: center; gap: 14px; width: 100%; margin-top: auto; padding-top: 10px; }
+.pedal {
+    flex: 1;
+    max-width: 230px;
+    height: 150px;
+    border: 3px solid rgba(255, 255, 255, 0.5);
+    border-radius: 22px;
+    color: #ffffff;
+    font-family: inherit;
+    font-weight: 900;
+    font-size: 1.05rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    box-shadow: 0 8px 0 rgba(0, 0, 0, 0.45);
+    transition: transform 0.06s, box-shadow 0.06s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: none;
+    padding: 0;
+}
+.pedal-gas { background: linear-gradient(160deg, #22c55e, #15803d); }
+.pedal-brake { background: linear-gradient(160deg, #ef4444, #991b1b); }
+.pedal.pressed { transform: translateY(6px); box-shadow: 0 2px 0 rgba(0, 0, 0, 0.45); filter: brightness(1.15); }
+.pedal-art { width: 70%; flex: 1; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.pedal-art img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.pedal-art::before {
+    content: '';
+    display: block;
+    width: 64%;
+    height: 78%;
+    border-radius: 12px;
+    background: repeating-linear-gradient(180deg, #1f2937 0 8px, #374151 8px 12px);
+    border: 2px solid rgba(255, 255, 255, 0.35);
+}
+.pedal-art:has(img:not([style*="none"]))::before { display: none; }
+.pedal-label { pointer-events: none; padding-bottom: 12px; letter-spacing: 1px; }
+.drive-hint { font-size: 0.68rem; color: #64748b; text-align: center; line-height: 1.4; }
+
+/* ---------- Бизнес и заказ ---------- */
+.biz-content { display: flex; flex-direction: column; gap: 14px; }
+.biz-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 18px; overflow: hidden; display: flex; flex-direction: column; }
+.biz-card.owned { border-color: #86efac; }
+.biz-image { position: relative; width: 100%; aspect-ratio: 16 / 9; background: linear-gradient(135deg, #1e3a8a, #7c3aed); overflow: hidden; }
+.biz-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.biz-image-fallback { display: none; position: absolute; inset: 0; align-items: center; justify-content: center; font-size: 4rem; }
+.biz-card-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 8px; }
+.biz-card-title { font-size: 0.95rem; font-weight: 900; color: #0f172a; }
+.biz-card-price { font-size: 1.05rem; font-weight: 900; color: #2563eb; }
+.biz-stats { display: flex; flex-direction: column; gap: 4px; background: #f1f5f9; border-radius: 12px; padding: 8px 10px; }
+.biz-stats div, .biz-row { display: flex; justify-content: space-between; gap: 10px; font-size: 0.7rem; }
+.biz-stats span, .biz-row span { color: #64748b; font-weight: 700; }
+.biz-stats b, .biz-row b { color: #0f172a; font-weight: 800; text-align: right; }
+.biz-status { align-self: flex-start; font-size: 0.7rem; font-weight: 800; padding: 4px 10px; border-radius: 10px; }
+.biz-status.ok { background: #dcfce7; color: #166534; }
+.biz-status.bad { background: #fef3c7; color: #92400e; }
+.biz-btn { border: none; background: #e2e8f0; color: #0f172a; border-radius: 12px; padding: 10px 12px; font-size: 0.72rem; font-weight: 800; font-family: inherit; cursor: pointer; flex: 1; }
+.biz-btn:disabled { opacity: 0.55; cursor: default; }
+.biz-btn-primary { background: #2563eb; color: #ffffff; }
+.biz-btn-danger { background: #fee2e2; color: #b91c1c; }
+.biz-btn-row { display: flex; gap: 8px; }
+.biz-note { font-size: 0.68rem; color: #64748b; line-height: 1.45; }
+.biz-order-intro { background: #eff6ff; border-radius: 12px; padding: 10px 12px; margin-bottom: 4px; }
+.biz-worker-card, .biz-order-card { padding: 12px 14px; gap: 9px; }
+.biz-worker-head { display: flex; align-items: center; gap: 10px; }
+.biz-worker-icon { font-size: 1.8rem; }
+.biz-worker-sub { font-size: 0.65rem; color: #64748b; font-weight: 700; }
+.biz-stock-bar { height: 8px; background: #e2e8f0; border-radius: 5px; overflow: hidden; }
+.biz-stock-bar div { height: 100%; background: linear-gradient(90deg, #22c55e, #38bdf8); }
+.biz-qty-row { display: flex; align-items: center; gap: 6px; }
+.biz-qty-btn { flex: 1; border: none; background: #e2e8f0; border-radius: 10px; padding: 9px 0; font-size: 0.78rem; font-weight: 900; font-family: inherit; cursor: pointer; }
+.biz-qty-value { flex: 1.4; text-align: center; line-height: 1.1; }
+.biz-qty-value b { font-size: 1.2rem; color: #0f172a; }
+.biz-qty-value small { display: block; font-size: 0.6rem; color: #64748b; font-weight: 700; }
+.biz-order-total { font-size: 0.78rem; font-weight: 800; color: #475569; text-align: center; }
+.biz-order-total b { color: #0f172a; font-size: 0.95rem; }
+
+/* ---------- Имущество ---------- */
+.property-biz-card { padding: 0; overflow: hidden; flex-direction: column; align-items: stretch; }
+.property-biz-card .property-biz-image { aspect-ratio: 16 / 8; }
+.property-biz-card .property-details-col { padding: 10px 12px 12px; }
+.property-car-card { flex-direction: column; align-items: stretch; gap: 10px; }
+.property-car-card.selected { border-color: #22c55e; box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25); }
+.property-car-top { display: flex; gap: 12px; align-items: center; }
+.property-car-actions { display: flex; gap: 8px; }
+
+/* ---------- Логотипы компаний ---------- */
+.co-card-icon { display: flex; align-items: center; justify-content: center; }
+.co-logo { width: 46px; height: 46px; object-fit: contain; border-radius: 10px; }
+.co-emoji { font-size: 1.9rem; line-height: 1; }
+.co-row-icon .co-logo { width: 26px; height: 26px; border-radius: 6px; }
+.co-row-icon .co-emoji { font-size: 1.2rem; }
+
+@media (max-height: 700px) {
+    .pedal { height: 110px; }
+    .drive-speed-box span { font-size: 4rem; }
+}
