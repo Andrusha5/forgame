@@ -63,6 +63,7 @@
                 </div>
             </div>
             <button id="btn-open-music-modal" class="btn btn-secondary" style="width:100%;margin-top:10px;">🎵 Выбор музыки</button>
+            <button id="btn-cheat-money" class="btn btn-secondary" style="width:100%;margin-top:10px;">💰 +1 000 000 ₽ (временно)</button>
             <button id="btn-close-settings" class="btn btn-primary" style="margin-top:15px;width:100%;">Закрыть</button>
         </div>
     </div>
@@ -676,6 +677,29 @@
     <div id="xj-game-screen" class="screen full-screen xj-game-screen hidden">
         <div id="xj-game-body" class="xj-game-body"></div>
     </div>
+
+    <!-- ПОЕЗДКА НА МАШИНЕ -->
+    <div id="drive-screen" class="screen full-screen drive-screen hidden">
+        <button id="btn-drive-cancel" class="btn-road-cancel">✕ Отмена</button>
+        <div class="drive-wrap">
+            <div id="drive-car-name" class="drive-car-name">Автомобиль</div>
+            <div id="drive-speed-box" class="drive-speed-box"><span id="drive-speed-value">0</span><small>км/ч</small></div>
+            <div class="drive-limit-note">Камеры фиксируют скорость выше 80 км/ч</div>
+            <div class="drive-track-wrap">
+                <div id="drive-cameras" class="drive-cameras"></div>
+                <div class="drive-track"><div id="drive-progress" class="drive-progress"></div></div>
+                <div id="drive-percent-text" class="drive-percent">0%</div>
+            </div>
+            <div id="drive-alert" class="drive-alert"></div>
+            <div class="drive-pedals">
+                <button id="pedal-brake" class="pedal pedal-brake" type="button"><span class="pedal-art"><img src="pedals/brake.png" alt="" onerror="this.style.display='none'"></span><span class="pedal-label">ТОРМОЗ</span></button>
+                <button id="pedal-gas" class="pedal pedal-gas" type="button"><span class="pedal-art"><img src="pedals/gas.png" alt="" onerror="this.style.display='none'"></span><span class="pedal-label">ГАЗ</span></button>
+            </div>
+            <p class="drive-hint">Удерживайте ГАЗ, чтобы ехать, ТОРМОЗ снижает скорость. На ПК: стрелка вверх или пробел, стрелка вниз.</p>
+        </div>
+    </div>
+
+    <div id="sleepy-overlay" class="sleepy-overlay"></div>
 
     <!-- ГЛОБАЛЬНЫЙ HUD: время, баланс, голод, энергия, сон, телефон (виден везде) -->
     <div id="global-hud">
