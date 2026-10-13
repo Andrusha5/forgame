@@ -324,7 +324,7 @@ document.addEventListener('DOMContentLoaded', function () {
             title: 'Дальнобойщик',
             icon: '🚛',
             salary: 90000,
-            schedule: 'Рабочее время: 05:00–20:00',
+            schedule: 'Рабочее время: 06:00–22:00',
             description: 'Доставлять грузы по всей стране на большегрузном автомобиле.'
         },
         {
@@ -356,7 +356,7 @@ document.addEventListener('DOMContentLoaded', function () {
             title: 'Таксист',
             icon: '🚕',
             salary: 52000,
-            schedule: 'Рабочее время: 06:00–22:00',
+            schedule: 'Рабочее время: круглосуточно',
             description: 'Возить пассажиров по городу и получать оплату за каждую поездку.'
         }
     ];
@@ -624,15 +624,20 @@ document.addEventListener('DOMContentLoaded', function () {
         mapSourceIndex += 1;
     }
 
+    let mapRetryCount = 0;
+
     mapImg.onload = function () {
         isMapLoaded = true;
-        if (gameScreen && !gameScreen.classList.contains('hidden')) {
-            fitAndCenterMap();
-            render();
-        }
+        fitAndCenterMap();
+        if (gameScreen && !gameScreen.classList.contains('hidden')) render();
     };
 
     mapImg.onerror = function () {
+        if (mapSourceIndex === 1 && mapRetryCount < 6) {
+            mapRetryCount += 1;
+            setTimeout(function () { mapImg.src = possibleMapSources[0]; }, 600 * mapRetryCount);
+            return;
+        }
         tryLoadNextMapSource();
     };
 
@@ -729,7 +734,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function isTruckerWorkTime() {
-        return getCurrentHour() >= 5 && getCurrentHour() < 20;
+        return getCurrentHour() >= 6 && getCurrentHour() < 22;
     }
 
     function isCashierWorkTime() {
@@ -796,7 +801,16 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function hasEnoughEnergyOrSleep() {
-        return playerEnergy > 0 || playerSleep > 0;
+        return playerEnergy > 0 && playerSleep > 0;
+    }
+
+    function isPlayerWorking() {
+        if (cashierShiftState.active && !cashierShiftState.onBreak && !cashierShiftState.shiftCompleted) return true;
+        if (xjGameActive || (xjTask && xjTask.active)) return true;
+        return ['fire-fullscreen', 'road-fullscreen', 'trucker-road-fullscreen'].some(function (id) {
+            const element = document.getElementById(id);
+            return element && !element.classList.contains('hidden');
+        });
     }
 
     /* =========================================================
@@ -1702,7 +1716,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (truckerActive) {
             const card = document.createElement('div');
             card.className = 'collective-card';
-            card.innerHTML = '<div class="collective-header"><div class="collective-avatar">🚛</div><div><div class="collective-title">Дальнобойщик</div><div class="collective-sub" style="color:#d97706;">Служба активна</div></div></div><p style="font-size:.75rem;color:#475569;line-height:1.4;">Рабочее время: 05:00–20:00.<br>Доставляйте грузы по маршрутам.</p><div class="collective-stats-box"><div class="collective-stat-item"><span class="collective-stat-title">Заказов сегодня</span><span class="collective-stat-value" style="color:#d97706;">' + truckerOrdersCompletedToday + '</span></div><div class="collective-stat-item"><span class="collective-stat-title">Всего заказов</span><span class="collective-stat-value" style="color:#d97706;">' + truckerTotalOrdersCompleted + '</span></div></div><button id="resign-trucker" class="job-decline-btn">Уволиться с автобазы</button>';
+            card.innerHTML = '<div class="collective-header"><div class="collective-avatar">🚛</div><div><div class="collective-title">Дальнобойщик</div><div class="collective-sub" style="color:#d97706;">Служба активна</div></div></div><p style="font-size:.75rem;color:#475569;line-height:1.4;">Рабочее время: 06:00–22:00.<br>Доставляйте грузы по маршрутам.</p><div class="collective-stats-box"><div class="collective-stat-item"><span class="collective-stat-title">Заказов сегодня</span><span class="collective-stat-value" style="color:#d97706;">' + truckerOrdersCompletedToday + '</span></div><div class="collective-stat-item"><span class="collective-stat-title">Всего заказов</span><span class="collective-stat-value" style="color:#d97706;">' + truckerTotalOrdersCompleted + '</span></div></div><button id="resign-trucker" class="job-decline-btn">Уволиться с автобазы</button>';
             card.querySelector('#resign-trucker').addEventListener('click', function () {
                 truckerJobState.activeJobId = null;
                 saveGameData();
@@ -1975,21 +1989,7 @@ document.addEventListener('DOMContentLoaded', function () {
             showToast('У вас нет автомобиля');
             return;
         }
-        travelChoiceModal.classList.add('hidden');
-        gameMinutes += 15;
-        advanceCalendar();
-        apartmentScreen.classList.add('hidden');
-        firestationScreen.classList.add('hidden');
-        truckstationScreen.classList.add('hidden');
-        marketScreen.classList.add('hidden');
-        xjHideScreens();
-        lastExitedLocation = targetLocationSelected;
-
-        currentScreen = 'city';
-
-        saveGameData();
-        updateStatsHUD();
-        showToast('Вы приехали на автомобиле. Нажмите на метку, чтобы войти');
+        startDriveGame();
     }
 
     /* =========================================================
@@ -2282,7 +2282,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function handleTruckerAboutButton() {
-        showTruckerDialogue('Рабочее время дальнобойщика: 05:00–20:00. Каждый километр рейса требует одного нажатия.');
+        showTruckerDialogue('Рабочее время дальнобойщика: 06:00–22:00. Каждый километр рейса требует одного нажатия.');
     }
 
     function handleTruckerOrdersButton() {
@@ -2291,11 +2291,11 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         if (!isTruckerWorkTime()) {
-            showTruckerDialogue('Заказы доступны с 05:00 до 20:00.');
+            showTruckerDialogue('Заказы доступны с 06:00 до 22:00.');
             return;
         }
         if (!hasEnoughEnergyOrSleep()) {
-            showTruckerDialogue('У вас недостаточно энергии или сна для рейса.');
+            showTruckerDialogue('Для рейса нужны и энергия, и сон. Отдохните и поспите.');
             return;
         }
         if (truckerTripState.active) {
@@ -3113,20 +3113,6 @@ document.addEventListener('DOMContentLoaded', function () {
         renderAutoApp();
     }
 
-    function renderPropertyApp() {
-        appScrollableBody.innerHTML = '';
-        const wrapper = document.createElement('div');
-        wrapper.className = 'property-list';
-        wrapper.innerHTML = '<div class="property-card-item"><div class="property-thumb-box"><img src="house.png" class="property-thumb-img" alt="Квартира"></div><div class="property-details-col"><div class="property-details-title">Уютная квартира</div><div class="property-details-sub">Центральный район • Собственность</div><div class="property-status-badge">Основное жильё</div></div></div>';
-        ownedCars.forEach(function (car) {
-            const card = document.createElement('div');
-            card.className = 'property-card-item';
-            card.innerHTML = '<div class="property-thumb-box"><img src="cars/' + car.imgPrefix + '_1.png" class="property-thumb-img" alt="' + car.title + '"></div><div class="property-details-col"><div class="property-details-title">' + car.title + '</div><div class="property-details-sub">' + car.year + ' г. • ' + car.power + ' л.с.</div><div class="property-status-badge" style="color:#2563eb;background:#dbeafe;">В гараже</div></div>';
-            wrapper.appendChild(card);
-        });
-        appScrollableBody.appendChild(wrapper);
-    }
-
     /* =========================================================
        ОБНОВЛЕНИЕ ПОТРЕБНОСТЕЙ И ДОСТАВКИ
        ========================================================= */
@@ -3176,7 +3162,7 @@ document.addEventListener('DOMContentLoaded', function () {
         } else {
             playerHunger = clamp(playerHunger - (minutesPassed / (HUNGER_EMPTY_HOURS * 60)) * 100, 0, 100);
             playerSleep = clamp(playerSleep - (minutesPassed / (SLEEP_EMPTY_HOURS * 60)) * 100, 0, 100);
-            playerEnergy = clamp(playerEnergy - (minutesPassed / (ENERGY_EMPTY_HOURS * 60)) * 100, 0, 100);
+            playerEnergy = clamp(playerEnergy - (minutesPassed / (ENERGY_EMPTY_HOURS * 60)) * 100 * (isPlayerWorking() ? 1.11 : 1), 0, 100);
         }
 
         gameMinutes += minutesPassed;
@@ -3571,6 +3557,8 @@ document.addEventListener('DOMContentLoaded', function () {
         else if (name === 'shtraf') renderFinesApp();
         else if (name === 'taxi') renderTaxiApp();
         else if (name === 'compania') renderCompanyApp();
+        else if (name === 'business') renderBusinessApp();
+        else if (name === 'zakaz') renderOrderApp();
         else if (name === 'casino') {
             lottoState.step = 'select_tier';
             renderLottoApp();
@@ -4043,11 +4031,11 @@ document.addEventListener('DOMContentLoaded', function () {
             npcName: 'Диспетчер таксопарка',
             npcIcon: '🚕',
             greeting: 'Привет! Я диспетчер. Хочешь возить пассажиров?',
-            about: 'Рабочее время таксиста: 06:00–22:00. Принимайте заказы пассажиров, нажимайте на экран, чтобы ехать, и получайте оплату за каждую поездку.',
+            about: 'Таксист работает круглосуточно. Принимайте заказы пассажиров, нажимайте на экран, чтобы ехать, и получайте оплату за каждую поездку.',
             ordersLabel: 'Заказы',
             ordersTitle: '🚕 Доступные заказы',
-            startH: 6,
-            endH: 22,
+            startH: 0,
+            endH: 24,
             interviewMin: 600,
             questions: [
                 {
@@ -4426,7 +4414,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         if (!hasEnoughEnergyOrSleep()) {
-            xjSay('У вас недостаточно энергии или сна для выполнения задания.');
+            xjSay('Для работы нужны и энергия, и сон. Отдохните и поспите.');
             return;
         }
         if (xjTask && xjTask.active) {
@@ -4535,7 +4523,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         if (!hasEnoughEnergyOrSleep()) {
-            showToast('Недостаточно энергии или сна для задания');
+            showToast('Для работы нужны и энергия, и сон');
             return;
         }
         xjTask = {
@@ -4688,7 +4676,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (state.active) {
                 card.innerHTML = '<div class="collective-header"><div class="collective-avatar">' + config.icon + '</div><div><div class="collective-title">' + config.title +
                     '</div><div class="collective-sub" style="color:#16a34a;">Служба активна</div></div></div>' +
-                    '<p style="font-size:.75rem;color:#475569;line-height:1.4;">Рабочее время: ' + xjHourLabel(config.startH) + '–' + xjHourLabel(config.endH) + '.<br>Берите задания у работодателя ' + config.placeText + '.</p>' +
+                    '<p style="font-size:.75rem;color:#475569;line-height:1.4;">Рабочее время: ' + xjHoursText(config) + '.<br>Берите задания у работодателя ' + config.placeText + '.</p>' +
                     '<div class="collective-stats-box"><div class="collective-stat-item"><span class="collective-stat-title">Заданий сегодня</span><span class="collective-stat-value">' + state.today +
                     '</span></div><div class="collective-stat-item"><span class="collective-stat-title">Всего заданий</span><span class="collective-stat-value">' + state.total + '</span></div></div>' +
                     '<button type="button" class="job-decline-btn">Уволиться</button>';
@@ -4910,7 +4898,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         if (!hasEnoughEnergyOrSleep()) {
-            showToast('Недостаточно энергии или сна');
+            showToast('Для работы нужны и энергия, и сон');
             return;
         }
         xjGameActive = true;
@@ -5519,6 +5507,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     coLoad();
 
+    function coIconHtml(company) {
+        return '<img class="co-logo" src="companies/' + company.id + '.png" alt="" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><span class="co-emoji" style="display:none">' + company.icon + '</span>';
+    }
+
     function coFormat(value) {
         const abs = Math.abs(value);
         const trim = function (number) { return String(Math.round(number * 100) / 100).replace('.', ','); };
@@ -5597,7 +5589,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 '<div class="co-list-title">Источники дохода</div>' +
                 (coOwnedCount() === 0 ? '<div class="co-empty">У вас пока нет компаний. Купите первую во вкладке «Рынок».</div>' :
                     COMPANIES.filter(function (company) { return coState.owned[company.id]; }).map(function (company) {
-                        return '<div class="co-row"><span class="co-row-icon">' + company.icon + '</span><span class="co-row-name">' + company.name + '</span><span class="co-row-income">+' + coFormat(company.income) + '/мин</span></div>';
+                        return '<div class="co-row"><span class="co-row-icon">' + coIconHtml(company) + '</span><span class="co-row-name">' + company.name + '</span><span class="co-row-income">+' + coFormat(company.income) + '/мин</span></div>';
                     }).join(''));
             content.querySelector('#co-withdraw').addEventListener('click', coWithdraw);
             return;
@@ -5612,7 +5604,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const owned = Boolean(coState.owned[company.id]);
             const card = document.createElement('div');
             card.className = 'co-card' + (owned ? ' owned' : '');
-            card.innerHTML = '<div class="co-card-icon">' + company.icon + '</div>' +
+            card.innerHTML = '<div class="co-card-icon">' + coIconHtml(company) + '</div>' +
                 '<div class="co-card-info"><div class="co-card-name">' + company.name + '</div>' +
                 '<div class="co-card-sector">' + company.sector + '</div>' +
                 '<div class="co-card-income">+' + coFormat(company.income) + ' в минуту</div></div>' +
@@ -5642,6 +5634,877 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }, 1000);
 
+        function xjHoursText(config) {
+        return config.startH === 0 && config.endH === 24 ? 'круглосуточно' : xjHoursText(config);
+    }
+
+    /* =========================================================
+       БИЗНЕС, ЗАКАЗ ТОВАРОВ, ИМУЩЕСТВО (машины и бизнесы)
+       ========================================================= */
+    const BIZ_STORAGE_KEY = 'bestlife_business_v1';
+    const CAR_SELECTED_KEY = 'bestlife_selected_car';
+    const BIZ_SELL_RATE = 0.65;
+    const CAR_SELL_RATE = 0.7;
+    const BIZ_MAX_WORKER_DAYS = 2;
+    const BIZ_MAX_RENT_DAYS = 4;
+
+    const BUSINESSES = [
+        { id: 'kiosk', name: 'Ларёк', icon: '🏪', price: 650000, check: 800, visitors: 35, rent: 2000, worker: 2000, start: 540, end: 1260, capacity: 50, buy: 190, sell: 260 },
+        { id: 'grocery', name: 'Маленький продуктовый магазин', icon: '🛒', price: 1250000, check: 1300, visitors: 50, rent: 3500, worker: 4500, start: 540, end: 1320, capacity: 80, buy: 220, sell: 333 },
+        { id: 'minimarket', name: 'Минимаркет', icon: '🏬', price: 2250000, check: 2350, visitors: 67, rent: 6500, worker: 8000, start: 510, end: 1350, capacity: 125, buy: 300, sell: 450 },
+        { id: 'supermarket', name: 'Супермаркет', icon: '🏢', price: 7000000, check: 3000, visitors: 100, rent: 11000, worker: 13000, start: 480, end: 1380, capacity: 270, buy: 400, sell: 650 },
+        { id: 'restaurant', name: 'Ресторан', icon: '🍽️', price: 15000000, check: 15000, visitors: 43, rent: 25000, worker: 30000, start: 540, end: 1320, capacity: 260, buy: 550, sell: 900 },
+        { id: 'transport', name: 'Транспортная компания', icon: '🚚', price: 125000000, check: 15500, visitors: 255, rent: 320000, worker: 350000, start: 420, end: 1350, capacity: 1200, buy: 9000, sell: 15000 },
+        { id: 'carshowroom', name: 'Автосалон', icon: '🚗', price: 1450000000, check: 5000000, visitors: 10, rent: 1000000, worker: 750000, start: 480, end: 1320, capacity: 20, buy: 3500000, sell: 5000000 }
+    ];
+
+    let bizState = { owned: {}, profit: 0 };
+    let bizTab = 'market';
+    let bizLastAbs = null;
+    let bizSaveCounter = 0;
+    let bizSellConfirm = null;
+    const bizOrderQty = {};
+
+    function bizLoad() {
+        try {
+            const raw = localStorage.getItem(BIZ_STORAGE_KEY);
+            if (!raw) return;
+            const data = JSON.parse(raw);
+            if (data && typeof data === 'object') {
+                bizState.owned = data.owned && typeof data.owned === 'object' ? data.owned : {};
+                bizState.profit = Number(data.profit) || 0;
+            }
+        } catch (error) {
+            console.warn('Не удалось загрузить бизнесы:', error);
+        }
+    }
+
+    function bizSave() {
+        try {
+            localStorage.setItem(BIZ_STORAGE_KEY, JSON.stringify(bizState));
+        } catch (error) {
+            console.warn('Не удалось сохранить бизнесы:', error);
+        }
+    }
+
+    bizLoad();
+
+    function bizConfig(id) {
+        return BUSINESSES.find(function (item) { return item.id === id; });
+    }
+
+    function bizMoney(value) {
+        return Math.round(value).toLocaleString('ru-RU') + ' ₽';
+    }
+
+    function bizTimeLabel(minutes) {
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        return String(hours).padStart(2, '0') + ':' + String(mins).padStart(2, '0');
+    }
+
+    function bizRandomError() {
+        return (1 + Math.random() * 4) / 100 * (Math.random() < 0.5 ? -1 : 1);
+    }
+
+    function bizImageHtml(config, extraClass) {
+        return '<div class="biz-image ' + (extraClass || '') + '"><img src="business/' + config.id + '.png" alt="' + config.name + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><span class="biz-image-fallback">' + config.icon + '</span></div>';
+    }
+
+    /* ---------- Работа бизнесов по игровому времени ---------- */
+
+    function bizProcessSlice(from, to) {
+        const day = Math.floor(from / 1440);
+        const minuteOfDay = from % 1440;
+        const length = to - from;
+        BUSINESSES.forEach(function (config) {
+            const biz = bizState.owned[config.id];
+            if (!biz) return;
+            const overlap = Math.max(0, Math.min(minuteOfDay + length, config.end) - Math.max(minuteOfDay, config.start));
+            if (overlap <= 0) return;
+            if (biz.activeDay !== day) {
+                if (biz.workerHired && biz.workerCredit > 0 && biz.rentCredit > 0) {
+                    biz.workerCredit -= 1;
+                    biz.rentCredit -= 1;
+                    biz.activeDay = day;
+                    biz.dayVisitors = Math.max(1, Math.round(config.visitors * (1 + bizRandomError())));
+                    biz.dayCheck = Math.max(1, Math.round(config.check * (1 + bizRandomError())));
+                    biz.visitorsAcc = 0;
+                } else {
+                    return;
+                }
+            }
+            if (biz.stock <= 0.001) {
+                biz.stock = 0;
+                return;
+            }
+            biz.visitorsAcc += (biz.dayVisitors / (config.end - config.start)) * overlap;
+            while (biz.visitorsAcc >= 1 && biz.stock > 0.001) {
+                biz.visitorsAcc -= 1;
+                const wanted = 0.9 + Math.random();
+                const taken = Math.min(wanted, biz.stock);
+                biz.stock -= taken;
+                const revenue = biz.dayCheck * (taken / wanted);
+                bizState.profit += revenue;
+                biz.earned = (biz.earned || 0) + revenue;
+            }
+            if (biz.stock <= 0.001) {
+                biz.stock = 0;
+                if (!biz.emptyNotified) {
+                    biz.emptyNotified = true;
+                    addMessage('Бизнес', '📦', 'В бизнесе «' + config.name + '» закончились товары. Закажите новые в приложении «Заказ», иначе выручка не будет поступать.');
+                }
+            }
+        });
+    }
+
+    function bizTick() {
+        if (!isClockRunning) return;
+        const nowAbs = absoluteDay() * 1440 + gameMinutes;
+        if (bizLastAbs === null) {
+            bizLastAbs = nowAbs;
+            return;
+        }
+        if (nowAbs < bizLastAbs) {
+            bizLastAbs = nowAbs;
+            Object.keys(bizState.owned).forEach(function (id) { bizState.owned[id].activeDay = -1; });
+            return;
+        }
+        let cursor = bizLastAbs;
+        let guard = 0;
+        while (cursor < nowAbs && guard < 400) {
+            const next = Math.min(cursor + 10, nowAbs);
+            bizProcessSlice(cursor, next);
+            cursor = next;
+            guard += 1;
+        }
+        bizLastAbs = nowAbs;
+    }
+
+    function bizStatus(config) {
+        const biz = bizState.owned[config.id];
+        if (!biz) return { ok: false, text: 'Не куплен' };
+        const nowMinute = gameMinutes;
+        const inWindow = nowMinute >= config.start && nowMinute < config.end;
+        const today = absoluteDay();
+        if (!biz.workerHired) return { ok: false, text: 'Нет работника' };
+        if (biz.stock <= 0.001 && biz.activeDay === today) return { ok: false, text: 'Нет товара' };
+        if (biz.activeDay === today && inWindow) return { ok: true, text: 'Работает' };
+        if (biz.activeDay === today && !inWindow) return { ok: false, text: 'Смена закончена' };
+        if (biz.workerCredit <= 0) return { ok: false, text: 'Работник не оплачен' };
+        if (biz.rentCredit <= 0) return { ok: false, text: 'Аренда не оплачена' };
+        if (biz.stock <= 0.001) return { ok: false, text: 'Нет товара' };
+        return { ok: false, text: inWindow ? 'Откроется в ближайшие минуты' : 'Откроется ' + bizTimeLabel(config.start) };
+    }
+
+    setInterval(function () {
+        bizTick();
+        bizSaveCounter += 1;
+        if (bizSaveCounter >= 5) {
+            bizSaveCounter = 0;
+            bizSave();
+        }
+        bizRefreshLive();
+    }, 1000);
+
+    /* ---------- Действия ---------- */
+
+    function bizBuy(config) {
+        if (bizState.owned[config.id]) {
+            showToast('У вас уже есть этот бизнес');
+            return;
+        }
+        if (playerMoney < config.price) {
+            showToast('Недостаточно денег на балансе');
+            return;
+        }
+        playerMoney -= config.price;
+        bizState.owned[config.id] = { stock: 0, rentCredit: 0, workerHired: false, workerCredit: 0, activeDay: -1, dayVisitors: 0, dayCheck: 0, visitorsAcc: 0, earned: 0, emptyNotified: false };
+        addBankTransaction('Покупка бизнеса: ' + config.name, config.price, false);
+        bizSave();
+        saveGameData();
+        updateClockUI();
+        showToast('Вы купили бизнес «' + config.name + '»');
+        bizTab = 'mine';
+        renderBusinessApp();
+    }
+
+    function bizSell(config) {
+        const biz = bizState.owned[config.id];
+        if (!biz) return;
+        if (bizSellConfirm !== config.id) {
+            bizSellConfirm = config.id;
+            showToast('Нажмите «Продать» ещё раз для подтверждения');
+            renderBusinessApp();
+            setTimeout(function () {
+                if (bizSellConfirm === config.id) { bizSellConfirm = null; if (currentPhoneApp === 'business') renderBusinessApp(); }
+            }, 4000);
+            return;
+        }
+        bizSellConfirm = null;
+        const amount = Math.floor(config.price * BIZ_SELL_RATE);
+        playerMoney += amount;
+        delete bizState.owned[config.id];
+        addBankTransaction('Продажа бизнеса: ' + config.name, amount, true);
+        bizSave();
+        saveGameData();
+        updateClockUI();
+        showToast('Бизнес продан за ' + bizMoney(amount));
+        renderBusinessApp();
+    }
+
+    function bizPayRent(config, toMax) {
+        const biz = bizState.owned[config.id];
+        if (!biz) return;
+        const room = BIZ_MAX_RENT_DAYS - biz.rentCredit;
+        if (room <= 0) {
+            showToast('Аренда уже оплачена на максимум (' + BIZ_MAX_RENT_DAYS + ' дн.)');
+            return;
+        }
+        let days = toMax ? room : 1;
+        if (playerMoney < config.rent * days) {
+            days = Math.floor(playerMoney / config.rent);
+            if (days <= 0) {
+                showToast('Недостаточно денег для оплаты аренды');
+                return;
+            }
+        }
+        playerMoney -= config.rent * days;
+        biz.rentCredit += days;
+        addBankTransaction('Аренда: ' + config.name + ' (' + days + ' дн.)', config.rent * days, false);
+        bizSave();
+        saveGameData();
+        updateClockUI();
+        showToast('Аренда оплачена на ' + days + ' дн.');
+        renderBusinessApp();
+    }
+
+    function bizHire(config) {
+        const biz = bizState.owned[config.id];
+        if (!biz || biz.workerHired) return;
+        biz.workerHired = true;
+        bizSave();
+        showToast('Работник нанят. Оплатите ему день, чтобы он начал работать');
+        renderBusinessApp();
+    }
+
+    function bizFire(config) {
+        const biz = bizState.owned[config.id];
+        if (!biz || !biz.workerHired) return;
+        biz.workerHired = false;
+        biz.workerCredit = 0;
+        bizSave();
+        showToast('Работник уволен');
+        renderBusinessApp();
+    }
+
+    function bizPayWorker(config) {
+        const biz = bizState.owned[config.id];
+        if (!biz || !biz.workerHired) return;
+        if (biz.workerCredit >= BIZ_MAX_WORKER_DAYS) {
+            showToast('Работнику уже оплачено максимум (' + BIZ_MAX_WORKER_DAYS + ' дня)');
+            return;
+        }
+        if (playerMoney < config.worker) {
+            showToast('Недостаточно денег для оплаты работника');
+            return;
+        }
+        playerMoney -= config.worker;
+        biz.workerCredit += 1;
+        addBankTransaction('Зарплата работнику: ' + config.name, config.worker, false);
+        bizSave();
+        saveGameData();
+        updateClockUI();
+        showToast('Работнику оплачен 1 день');
+        renderBusinessApp();
+    }
+
+    function bizWithdraw() {
+        const amount = Math.floor(bizState.profit);
+        if (amount <= 0) {
+            showToast('Выручки для вывода пока нет');
+            return;
+        }
+        bizState.profit -= amount;
+        playerMoney += amount;
+        addBankTransaction('Вывод выручки бизнесов', amount, true);
+        bizSave();
+        saveGameData();
+        updateClockUI();
+        showToast('На баланс выведено ' + bizMoney(amount));
+        renderBusinessApp();
+    }
+
+    /* ---------- Приложение «Бизнес» ---------- */
+
+    function bizStatsHtml(config) {
+        return '<div class="biz-stats">' +
+            '<div><span>Средний чек</span><b>' + bizMoney(config.check) + '</b></div>' +
+            '<div><span>Посетителей в день</span><b>≈ ' + config.visitors + '</b></div>' +
+            '<div><span>Аренда в день</span><b>' + bizMoney(config.rent) + '</b></div>' +
+            '<div><span>Работник в день</span><b>' + bizMoney(config.worker) + '</b></div>' +
+            '<div><span>График работы</span><b>' + bizTimeLabel(config.start) + '–' + bizTimeLabel(config.end) + '</b></div>' +
+            '<div><span>Склад</span><b>до ' + config.capacity.toLocaleString('ru-RU') + ' шт.</b></div>' +
+            '<div><span>Закупка / продажа</span><b>' + bizMoney(config.buy) + ' / ≈' + bizMoney(config.sell) + '</b></div>' +
+            '</div>';
+    }
+
+    function renderBusinessApp() {
+        appScrollableBody.innerHTML = '';
+        const wrapper = document.createElement('div');
+        wrapper.className = 'co-wrap biz-wrap';
+        const tabs = [['market', 'Купить'], ['mine', 'Мои'], ['workers', 'Работники'], ['profit', 'Прибыль']];
+        wrapper.innerHTML = '<div class="co-tabs">' + tabs.map(function (tab) {
+            return '<button type="button" class="co-tab' + (bizTab === tab[0] ? ' active' : '') + '" data-tab="' + tab[0] + '">' + tab[1] + '</button>';
+        }).join('') + '</div><div id="biz-content" class="biz-content"></div>';
+        appScrollableBody.appendChild(wrapper);
+        wrapper.querySelectorAll('.co-tab').forEach(function (button) {
+            button.addEventListener('click', function () {
+                bizTab = button.dataset.tab;
+                renderBusinessApp();
+            });
+        });
+        const content = wrapper.querySelector('#biz-content');
+        const ownedList = BUSINESSES.filter(function (config) { return bizState.owned[config.id]; });
+
+        if (bizTab === 'market') {
+            BUSINESSES.forEach(function (config) {
+                const owned = Boolean(bizState.owned[config.id]);
+                const card = document.createElement('div');
+                card.className = 'biz-card' + (owned ? ' owned' : '');
+                card.innerHTML = bizImageHtml(config) +
+                    '<div class="biz-card-body"><div class="biz-card-title">' + config.name + '</div>' +
+                    '<div class="biz-card-price">' + bizMoney(config.price) + '</div>' + bizStatsHtml(config) +
+                    '<button type="button" class="biz-btn biz-btn-primary"' + (owned ? ' disabled' : '') + '>' + (owned ? 'Уже есть' : 'Купить за ' + bizMoney(config.price)) + '</button></div>';
+                card.querySelector('.biz-btn').addEventListener('click', function () { bizBuy(config); });
+                content.appendChild(card);
+            });
+            return;
+        }
+
+        if (ownedList.length === 0 && bizTab !== 'profit') {
+            content.innerHTML = '<div class="co-empty">У вас пока нет бизнесов.<br>Купите первый во вкладке «Купить».</div>';
+            return;
+        }
+
+        if (bizTab === 'mine') {
+            ownedList.forEach(function (config) {
+                const biz = bizState.owned[config.id];
+                const status = bizStatus(config);
+                const sellValue = Math.floor(config.price * BIZ_SELL_RATE);
+                const card = document.createElement('div');
+                card.className = 'biz-card owned';
+                card.innerHTML = bizImageHtml(config) +
+                    '<div class="biz-card-body"><div class="biz-card-title">' + config.name + '</div>' +
+                    '<div id="biz-status-' + config.id + '" class="biz-status ' + (status.ok ? 'ok' : 'bad') + '">' + status.text + '</div>' +
+                    '<div class="biz-row"><span>Товар на складе</span><b id="biz-stock-' + config.id + '">' + Math.floor(biz.stock) + ' / ' + config.capacity + '</b></div>' +
+                    '<div class="biz-row"><span>Аренда оплачена</span><b>' + biz.rentCredit + ' из ' + BIZ_MAX_RENT_DAYS + ' дн.</b></div>' +
+                    '<div class="biz-row"><span>Работник</span><b>' + (biz.workerHired ? 'оплачено ' + biz.workerCredit + ' из ' + BIZ_MAX_WORKER_DAYS + ' дн.' : 'не нанят') + '</b></div>' +
+                    '<div class="biz-row"><span>График</span><b>' + bizTimeLabel(config.start) + '–' + bizTimeLabel(config.end) + '</b></div>' +
+                    '<div class="biz-row"><span>Всего выручки</span><b>' + bizMoney(biz.earned || 0) + '</b></div>' +
+                    '<div class="biz-btn-row"><button type="button" class="biz-btn rent">Аренда +1 день (' + bizMoney(config.rent) + ')</button>' +
+                    '<button type="button" class="biz-btn rent-max">Аренда до максимума</button></div>' +
+                    '<button type="button" class="biz-btn biz-btn-danger sell">' + (bizSellConfirm === config.id ? 'Подтвердить продажу: ' + bizMoney(sellValue) : 'Продать за ' + bizMoney(sellValue) + ' (65%)') + '</button></div>';
+                card.querySelector('.rent').addEventListener('click', function () { bizPayRent(config, false); });
+                card.querySelector('.rent-max').addEventListener('click', function () { bizPayRent(config, true); });
+                card.querySelector('.sell').addEventListener('click', function () { bizSell(config); });
+                content.appendChild(card);
+            });
+            return;
+        }
+
+        if (bizTab === 'workers') {
+            ownedList.forEach(function (config) {
+                const biz = bizState.owned[config.id];
+                const card = document.createElement('div');
+                card.className = 'biz-card biz-worker-card';
+                card.innerHTML = '<div class="biz-worker-head"><span class="biz-worker-icon">' + config.icon + '</span><div><div class="biz-card-title">' + config.name + '</div>' +
+                    '<div class="biz-worker-sub">График: ' + bizTimeLabel(config.start) + '–' + bizTimeLabel(config.end) + ' • ' + bizMoney(config.worker) + ' в день</div></div></div>' +
+                    (biz.workerHired
+                        ? '<div class="biz-row"><span>Статус</span><b>' + (biz.workerCredit > 0 ? 'оплачено ' + biz.workerCredit + ' из ' + BIZ_MAX_WORKER_DAYS + ' дн.' : 'ждёт оплаты') + '</b></div>' +
+                          '<p class="biz-note">Работник начинает работу строго по графику, но только если ему оплачен день вперёд (максимум на 2 дня).</p>' +
+                          '<div class="biz-btn-row"><button type="button" class="biz-btn biz-btn-primary pay">Оплатить день (' + bizMoney(config.worker) + ')</button><button type="button" class="biz-btn fire">Уволить</button></div>'
+                        : '<p class="biz-note">Работника нет, бизнес стоит. Наймите работника и оплатите ему день.</p><button type="button" class="biz-btn biz-btn-primary hire">Нанять работника</button>');
+                const payButton = card.querySelector('.pay');
+                if (payButton) payButton.addEventListener('click', function () { bizPayWorker(config); });
+                const fireButton = card.querySelector('.fire');
+                if (fireButton) fireButton.addEventListener('click', function () { bizFire(config); });
+                const hireButton = card.querySelector('.hire');
+                if (hireButton) hireButton.addEventListener('click', function () { bizHire(config); });
+                content.appendChild(card);
+            });
+            return;
+        }
+
+        content.innerHTML = '<div class="co-profit-card"><div class="co-profit-label">Выручка, доступная к выводу</div>' +
+            '<div id="biz-profit-value" class="co-profit-value">' + bizMoney(Math.floor(bizState.profit)) + '</div>' +
+            '<button type="button" id="biz-withdraw" class="co-withdraw-btn">Вывести на баланс</button>' +
+            '<p class="co-note">Деньги бизнесов не попадают на баланс сами. Пока вы их не выведете, потратить их нельзя.</p></div>' +
+            '<div class="co-list-title">Выручка по бизнесам</div>' +
+            (ownedList.length === 0 ? '<div class="co-empty">У вас пока нет бизнесов.</div>' : ownedList.map(function (config) {
+                return '<div class="co-row"><span class="co-row-icon">' + config.icon + '</span><span class="co-row-name">' + config.name + '</span><span class="co-row-income">' + bizMoney(bizState.owned[config.id].earned || 0) + '</span></div>';
+            }).join(''));
+        content.querySelector('#biz-withdraw').addEventListener('click', bizWithdraw);
+    }
+
+    function bizRefreshLive() {
+        if (currentPhoneApp === 'business') {
+            const profit = document.getElementById('biz-profit-value');
+            if (profit) profit.textContent = bizMoney(Math.floor(bizState.profit));
+            BUSINESSES.forEach(function (config) {
+                const biz = bizState.owned[config.id];
+                if (!biz) return;
+                const status = bizStatus(config);
+                const statusElement = document.getElementById('biz-status-' + config.id);
+                if (statusElement) {
+                    statusElement.textContent = status.text;
+                    statusElement.className = 'biz-status ' + (status.ok ? 'ok' : 'bad');
+                }
+                const stockElement = document.getElementById('biz-stock-' + config.id);
+                if (stockElement) stockElement.textContent = Math.floor(biz.stock) + ' / ' + config.capacity;
+            });
+        }
+        if (currentPhoneApp === 'zakaz') {
+            BUSINESSES.forEach(function (config) {
+                const biz = bizState.owned[config.id];
+                const element = document.getElementById('order-stock-' + config.id);
+                if (biz && element) element.textContent = Math.floor(biz.stock) + ' / ' + config.capacity;
+            });
+        }
+    }
+
+    /* ---------- Приложение «Заказ»: закупка товаров для бизнеса ---------- */
+
+    function renderOrderApp() {
+        appScrollableBody.innerHTML = '';
+        const wrapper = document.createElement('div');
+        wrapper.className = 'co-wrap biz-wrap';
+        const ownedList = BUSINESSES.filter(function (config) { return bizState.owned[config.id]; });
+        if (ownedList.length === 0) {
+            wrapper.innerHTML = '<div class="co-empty">Здесь можно заказывать товары для вашего бизнеса.<br><br>Сначала купите бизнес в приложении «Бизнес».</div>';
+            appScrollableBody.appendChild(wrapper);
+            return;
+        }
+        const intro = document.createElement('div');
+        intro.className = 'biz-note biz-order-intro';
+        intro.textContent = 'Пока на складе есть товар, бизнес продаёт и приносит выручку. Когда товар заканчивается, бизнес останавливается.';
+        wrapper.appendChild(intro);
+        ownedList.forEach(function (config) {
+            const biz = bizState.owned[config.id];
+            const free = Math.max(0, config.capacity - Math.floor(biz.stock));
+            if (bizOrderQty[config.id] === undefined) bizOrderQty[config.id] = Math.min(free, 10);
+            bizOrderQty[config.id] = Math.min(bizOrderQty[config.id], free);
+            const card = document.createElement('div');
+            card.className = 'biz-card biz-order-card';
+            card.innerHTML = '<div class="biz-worker-head"><span class="biz-worker-icon">' + config.icon + '</span><div><div class="biz-card-title">' + config.name + '</div>' +
+                '<div class="biz-worker-sub">Закупка ' + bizMoney(config.buy) + ' за шт. • продажа ≈' + bizMoney(config.sell) + '</div></div></div>' +
+                '<div class="biz-row"><span>На складе</span><b id="order-stock-' + config.id + '">' + Math.floor(biz.stock) + ' / ' + config.capacity + '</b></div>' +
+                '<div class="biz-stock-bar"><div style="width:' + Math.min(100, (biz.stock / config.capacity) * 100) + '%"></div></div>' +
+                '<div class="biz-qty-row"><button type="button" class="biz-qty-btn" data-d="-10">−10</button><button type="button" class="biz-qty-btn" data-d="-1">−1</button>' +
+                '<div class="biz-qty-value"><b class="qty-num">' + bizOrderQty[config.id] + '</b><small>шт.</small></div>' +
+                '<button type="button" class="biz-qty-btn" data-d="1">+1</button><button type="button" class="biz-qty-btn" data-d="10">+10</button></div>' +
+                '<div class="biz-btn-row"><button type="button" class="biz-btn fill">Заполнить склад (' + free + ' шт.)</button></div>' +
+                '<div class="biz-order-total">Итого: <b class="qty-total">' + bizMoney(bizOrderQty[config.id] * config.buy) + '</b></div>' +
+                '<button type="button" class="biz-btn biz-btn-primary order-go"' + (free <= 0 ? ' disabled' : '') + '>' + (free <= 0 ? 'Склад заполнен' : 'Заказать товар') + '</button>';
+            const numElement = card.querySelector('.qty-num');
+            const totalElement = card.querySelector('.qty-total');
+            function updateQty() {
+                numElement.textContent = bizOrderQty[config.id];
+                totalElement.textContent = bizMoney(bizOrderQty[config.id] * config.buy);
+            }
+            card.querySelectorAll('.biz-qty-btn').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    const latestFree = Math.max(0, config.capacity - Math.floor(biz.stock));
+                    bizOrderQty[config.id] = Math.max(0, Math.min(latestFree, bizOrderQty[config.id] + Number(button.dataset.d)));
+                    updateQty();
+                });
+            });
+            card.querySelector('.fill').addEventListener('click', function () {
+                bizOrderQty[config.id] = Math.max(0, config.capacity - Math.floor(biz.stock));
+                updateQty();
+            });
+            card.querySelector('.order-go').addEventListener('click', function () {
+                const latestFree = Math.max(0, config.capacity - Math.floor(biz.stock));
+                const quantity = Math.min(bizOrderQty[config.id], latestFree);
+                if (quantity <= 0) {
+                    showToast('Выберите количество товара');
+                    return;
+                }
+                const cost = quantity * config.buy;
+                if (playerMoney < cost) {
+                    showToast('Недостаточно денег на балансе');
+                    return;
+                }
+                playerMoney -= cost;
+                biz.stock += quantity;
+                biz.emptyNotified = false;
+                addBankTransaction('Закупка товара: ' + config.name + ' (' + quantity + ' шт.)', cost, false);
+                bizOrderQty[config.id] = Math.min(10, Math.max(0, config.capacity - Math.floor(biz.stock)));
+                bizSave();
+                saveGameData();
+                updateClockUI();
+                showToast('Товар доставлен на склад: ' + quantity + ' шт.');
+                renderOrderApp();
+            });
+            wrapper.appendChild(card);
+        });
+        appScrollableBody.appendChild(wrapper);
+    }
+
+    /* ---------- Имущество: машины (выбор и продажа) и бизнесы ---------- */
+
+    function getSelectedCar() {
+        const cars = ownedCars.filter(function (item) { return item.id !== 'bike'; });
+        if (cars.length === 0) return null;
+        let selectedId = null;
+        try { selectedId = localStorage.getItem(CAR_SELECTED_KEY); } catch (error) { selectedId = null; }
+        const found = cars.find(function (item) { return item.id === selectedId; });
+        return found || cars[0];
+    }
+
+    function selectCar(car) {
+        try { localStorage.setItem(CAR_SELECTED_KEY, car.id); } catch (error) { /* ignore */ }
+        showToast('Выбрана машина: ' + car.title);
+        renderPropertyApp();
+    }
+
+    let carSellConfirm = null;
+    function sellOwnedVehicle(car) {
+        if (carSellConfirm !== car.id) {
+            carSellConfirm = car.id;
+            showToast('Нажмите «Продать» ещё раз для подтверждения');
+            renderPropertyApp();
+            setTimeout(function () {
+                if (carSellConfirm === car.id) { carSellConfirm = null; if (currentPhoneApp === 'imushka') renderPropertyApp(); }
+            }, 4000);
+            return;
+        }
+        carSellConfirm = null;
+        const index = ownedCars.findIndex(function (item) { return item.id === car.id; });
+        if (index < 0) return;
+        const amount = Math.floor(car.price * CAR_SELL_RATE);
+        ownedCars.splice(index, 1);
+        playerMoney += amount;
+        addBankTransaction('Продажа: ' + car.title, amount, true);
+        saveGameData();
+        updateClockUI();
+        showToast(car.title + ' продан за ' + bizMoney(amount));
+        renderPropertyApp();
+    }
+
+    function renderPropertyApp() {
+        appScrollableBody.innerHTML = '';
+        const wrapper = document.createElement('div');
+        wrapper.className = 'property-list';
+        wrapper.innerHTML = '<div class="property-card-item"><div class="property-thumb-box"><img src="house.png" class="property-thumb-img" alt="Квартира"></div><div class="property-details-col"><div class="property-details-title">Уютная квартира</div><div class="property-details-sub">Центральный район • Собственность</div><div class="property-status-badge">Основное жильё</div></div></div>';
+
+        const ownedBusinesses = BUSINESSES.filter(function (config) { return bizState.owned[config.id]; });
+        ownedBusinesses.forEach(function (config) {
+            const biz = bizState.owned[config.id];
+            const status = bizStatus(config);
+            const card = document.createElement('div');
+            card.className = 'property-card-item property-biz-card';
+            card.innerHTML = bizImageHtml(config, 'property-biz-image') +
+                '<div class="property-details-col"><div class="property-details-title">' + config.name + '</div>' +
+                '<div class="property-details-sub">Бизнес • склад ' + Math.floor(biz.stock) + ' / ' + config.capacity + '</div>' +
+                '<div class="property-status-badge" style="' + (status.ok ? 'color:#16a34a;background:#dcfce7;' : 'color:#b45309;background:#fef3c7;') + '">' + status.text + '</div></div>';
+            wrapper.appendChild(card);
+        });
+
+        const selected = getSelectedCar();
+        ownedCars.forEach(function (car) {
+            const isBike = car.id === 'bike';
+            const isSelected = !isBike && selected && selected.id === car.id;
+            const sellValue = Math.floor(car.price * CAR_SELL_RATE);
+            const card = document.createElement('div');
+            card.className = 'property-card-item property-car-card' + (isSelected ? ' selected' : '');
+            card.innerHTML = '<div class="property-car-top"><div class="property-thumb-box"><img src="cars/' + car.imgPrefix + '_1.png" class="property-thumb-img" alt="' + car.title + '"></div><div class="property-details-col"><div class="property-details-title">' + car.title + '</div>' +
+                '<div class="property-details-sub">' + car.year + ' г. • ' + (isBike ? 'велосипед' : car.power + ' л.с. • ' + car.accel + ' до 100') + '</div>' +
+                '<div class="property-status-badge" style="color:' + (isSelected ? '#16a34a' : '#2563eb') + ';background:' + (isSelected ? '#dcfce7' : '#dbeafe') + ';">' + (isSelected ? 'Выбрана для поездок' : 'В гараже') + '</div></div></div>' +
+                '<div class="property-car-actions">' + (isBike ? '' : '<button type="button" class="biz-btn biz-btn-primary pick"' + (isSelected ? ' disabled' : '') + '>' + (isSelected ? 'Выбрана' : 'Выбрать') + '</button>') +
+                '<button type="button" class="biz-btn biz-btn-danger sell">' + (carSellConfirm === car.id ? 'Подтвердить: ' + bizMoney(sellValue) : 'Продать за ' + bizMoney(sellValue) + ' (70%)') + '</button></div>';
+            const pickButton = card.querySelector('.pick');
+            if (pickButton) pickButton.addEventListener('click', function () { selectCar(car); });
+            card.querySelector('.sell').addEventListener('click', function () { sellOwnedVehicle(car); });
+            wrapper.appendChild(card);
+        });
+        appScrollableBody.appendChild(wrapper);
+    }
+
+    /* ---------- Временная кнопка денег в настройках ---------- */
+    const btnCheatMoney = document.getElementById('btn-cheat-money');
+    if (btnCheatMoney) {
+        btnCheatMoney.addEventListener('click', function () {
+            playerMoney += 1000000;
+            addBankTransaction('Тестовое пополнение', 1000000, true);
+            updateClockUI();
+            saveGameData();
+            showToast('+1 000 000 ₽');
+        });
+    }
+
+    /* =========================================================
+       ПОЕЗДКА НА МАШИНЕ: газ, тормоз, скорость и камеры
+       ========================================================= */
+    const DRIVE_SPEED_LIMIT = 80;
+    const DRIVE_FINE_PER_KMH = 500;
+    const DRIVE_PROGRESS_PER_KMH_SEC = 0.035;
+
+    const driveScreen = document.getElementById('drive-screen');
+    const driveCarName = document.getElementById('drive-car-name');
+    const driveSpeedValue = document.getElementById('drive-speed-value');
+    const driveSpeedBox = document.getElementById('drive-speed-box');
+    const driveProgressBar = document.getElementById('drive-progress');
+    const driveCamerasBox = document.getElementById('drive-cameras');
+    const drivePercentText = document.getElementById('drive-percent-text');
+    const driveAlert = document.getElementById('drive-alert');
+    const pedalGas = document.getElementById('pedal-gas');
+    const pedalBrake = document.getElementById('pedal-brake');
+    const btnDriveCancel = document.getElementById('btn-drive-cancel');
+    let driveState = null;
+
+    function driveCarStats(car) {
+        const accelSeconds = parseFloat(String(car.accel).replace(',', '.')) || 12;
+        const maxSpeed = parseInt(String(car.maxSpeed), 10) || 150;
+        const horsePower = Number(car.power) || 80;
+        return {
+            accelRate: 100 / Math.max(2, accelSeconds),
+            maxSpeed: maxSpeed,
+            brakeRate: Math.min(85, 16 + horsePower * 0.12)
+        };
+    }
+
+    function driveRandomCameras() {
+        const positions = [];
+        let guard = 0;
+        while (positions.length < 3 && guard < 200) {
+            guard += 1;
+            const candidate = 8 + Math.floor(Math.random() * 85);
+            if (positions.every(function (value) { return Math.abs(value - candidate) >= 9; })) positions.push(candidate);
+        }
+        positions.sort(function (a, b) { return a - b; });
+        return positions.map(function (position) { return { pos: position, maxSpeed: 0, done: false }; });
+    }
+
+    function startDriveGame() {
+        const car = getSelectedCar();
+        if (!car) {
+            showToast('У вас нет автомобиля');
+            return;
+        }
+        if (driveState) return;
+        travelChoiceModal.classList.add('hidden');
+        const stats = driveCarStats(car);
+        driveState = {
+            car: car,
+            stats: stats,
+            target: targetLocationSelected,
+            speed: 0,
+            progress: 0,
+            gas: false,
+            brake: false,
+            cameras: driveRandomCameras(),
+            lastTime: 0,
+            raf: 0,
+            finished: false
+        };
+        if (driveCarName) driveCarName.textContent = car.title;
+        if (driveCamerasBox) {
+            driveCamerasBox.innerHTML = driveState.cameras.map(function (camera) {
+                return '<div class="drive-camera" style="left:' + camera.pos + '%"><span>📷</span><i></i></div>';
+            }).join('');
+        }
+        if (driveAlert) { driveAlert.textContent = ''; driveAlert.className = 'drive-alert'; }
+        driveRender();
+        driveScreen.classList.remove('hidden');
+        driveState.raf = requestAnimationFrame(driveFrame);
+    }
+
+    function driveRender() {
+        if (!driveState) return;
+        const speed = Math.round(driveState.speed);
+        if (driveSpeedValue) driveSpeedValue.textContent = speed;
+        if (driveSpeedBox) driveSpeedBox.classList.toggle('over', speed > DRIVE_SPEED_LIMIT);
+        if (driveProgressBar) driveProgressBar.style.width = Math.min(100, driveState.progress) + '%';
+        if (drivePercentText) drivePercentText.textContent = Math.min(100, Math.floor(driveState.progress)) + '%';
+        if (pedalGas) pedalGas.classList.toggle('pressed', driveState.gas);
+        if (pedalBrake) pedalBrake.classList.toggle('pressed', driveState.brake);
+    }
+
+    function driveCameraSample(percent) {
+        driveState.cameras.forEach(function (camera) {
+            if (!camera.done && camera.pos === percent) camera.maxSpeed = Math.max(camera.maxSpeed, driveState.speed);
+        });
+    }
+
+    function driveCheckCameras(previousProgress) {
+        const state = driveState;
+        const previousPercent = Math.floor(previousProgress);
+        const currentPercent = Math.floor(state.progress);
+        for (let percent = previousPercent + 1; percent <= currentPercent; percent += 1) driveCameraSample(percent);
+        driveCameraSample(currentPercent);
+        state.cameras.forEach(function (camera) {
+            if (camera.done || currentPercent <= camera.pos) return;
+            camera.done = true;
+            const speed = Math.floor(camera.maxSpeed);
+            const excess = speed - DRIVE_SPEED_LIMIT;
+            const cameraElement = driveCamerasBox ? driveCamerasBox.children[state.cameras.indexOf(camera)] : null;
+            if (excess > 0) {
+                const fine = excess * DRIVE_FINE_PER_KMH;
+                createFine(fine, 'Превышение скорости: камера на ' + camera.pos + '% (' + speed + ' км/ч, лимит ' + DRIVE_SPEED_LIMIT + ')');
+                if (driveAlert) {
+                    driveAlert.textContent = '📸 Камера на ' + camera.pos + '%: ' + speed + ' км/ч. Штраф ' + fine.toLocaleString('ru-RU') + ' ₽';
+                    driveAlert.className = 'drive-alert bad';
+                }
+                if (cameraElement) cameraElement.classList.add('caught');
+                playClick();
+            } else {
+                if (driveAlert) {
+                    driveAlert.textContent = '📷 Камера на ' + camera.pos + '%: скорость в норме';
+                    driveAlert.className = 'drive-alert ok';
+                }
+                if (cameraElement) cameraElement.classList.add('passed');
+            }
+        });
+    }
+
+    function driveFrame(time) {
+        const state = driveState;
+        if (!state || state.finished) return;
+        if (!state.lastTime) state.lastTime = time;
+        const dt = Math.min(0.05, (time - state.lastTime) / 1000);
+        state.lastTime = time;
+
+        const stats = state.stats;
+        if (state.gas && !state.brake) {
+            let rate = stats.accelRate;
+            if (state.speed > stats.maxSpeed * 0.9) rate *= Math.max(0.15, (stats.maxSpeed - state.speed) / (stats.maxSpeed * 0.1));
+            state.speed += rate * dt;
+        } else if (state.brake) {
+            state.speed -= (stats.brakeRate + 3) * dt;
+        } else {
+            state.speed -= (3 + state.speed * 0.025) * dt;
+        }
+        state.speed = Math.max(0, Math.min(stats.maxSpeed, state.speed));
+
+        const previousProgress = state.progress;
+        state.progress += state.speed * DRIVE_PROGRESS_PER_KMH_SEC * dt;
+        driveCheckCameras(previousProgress);
+        driveRender();
+
+        if (state.progress >= 100) {
+            driveFinish();
+            return;
+        }
+        state.raf = requestAnimationFrame(driveFrame);
+    }
+
+    function driveClose() {
+        if (!driveState) return;
+        driveState.finished = true;
+        if (driveState.raf) cancelAnimationFrame(driveState.raf);
+        const target = driveState.target;
+        driveState = null;
+        driveScreen.classList.add('hidden');
+        return target;
+    }
+
+    function driveFinish() {
+        const target = driveClose();
+        gameMinutes += 10;
+        advanceCalendar();
+        apartmentScreen.classList.add('hidden');
+        firestationScreen.classList.add('hidden');
+        truckstationScreen.classList.add('hidden');
+        marketScreen.classList.add('hidden');
+        xjHideScreens();
+        lastExitedLocation = target;
+        currentScreen = 'city';
+        saveGameData();
+        updateStatsHUD();
+        showToast('Вы приехали на автомобиле. Нажмите на метку, чтобы войти');
+    }
+
+    function driveCancel() {
+        if (!driveState) return;
+        driveClose();
+        showToast('Поездка отменена');
+    }
+
+    function driveSetPedal(kind, pressed) {
+        if (!driveState) return;
+        if (kind === 'gas') driveState.gas = pressed;
+        if (kind === 'brake') driveState.brake = pressed;
+    }
+
+    function bindPedal(element, kind) {
+        if (!element) return;
+        element.addEventListener('pointerdown', function (event) {
+            event.preventDefault();
+            if (element.setPointerCapture) { try { element.setPointerCapture(event.pointerId); } catch (error) { /* ignore */ } }
+            driveSetPedal(kind, true);
+        });
+        ['pointerup', 'pointercancel', 'pointerleave', 'lostpointercapture'].forEach(function (name) {
+            element.addEventListener(name, function () { driveSetPedal(kind, false); });
+        });
+        element.addEventListener('contextmenu', function (event) { event.preventDefault(); });
+    }
+
+    bindPedal(pedalGas, 'gas');
+    bindPedal(pedalBrake, 'brake');
+    if (btnDriveCancel) btnDriveCancel.addEventListener('click', driveCancel);
+
+    document.addEventListener('keydown', function (event) {
+        if (!driveState) return;
+        if (event.code === 'ArrowUp' || event.code === 'Space' || event.code === 'KeyW') { driveSetPedal('gas', true); event.preventDefault(); }
+        if (event.code === 'ArrowDown' || event.code === 'KeyS' || event.code === 'KeyB') { driveSetPedal('brake', true); event.preventDefault(); }
+    });
+    document.addEventListener('keyup', function (event) {
+        if (!driveState) return;
+        if (event.code === 'ArrowUp' || event.code === 'Space' || event.code === 'KeyW') driveSetPedal('gas', false);
+        if (event.code === 'ArrowDown' || event.code === 'KeyS' || event.code === 'KeyB') driveSetPedal('brake', false);
+    });
+
+    /* ---------- Сонливость: экран мигает чёрным, если сон на нуле ---------- */
+    const sleepyOverlay = document.getElementById('sleepy-overlay');
+    let sleepyTicks = 0;
+    setInterval(function () {
+        if (!sleepyOverlay) return;
+        if (!isClockRunning || isSleeping || playerSleep > 0) {
+            sleepyTicks = 0;
+            sleepyOverlay.classList.remove('on');
+            return;
+        }
+        sleepyTicks += 1;
+        if (sleepyTicks >= 7) {
+            sleepyTicks = 0;
+            sleepyOverlay.classList.add('on');
+            setTimeout(function () { sleepyOverlay.classList.remove('on'); }, 1000);
+        }
+    }, 1000);
+
+    /* ---------- Повторная загрузка картинок, если они не загрузились сразу ---------- */
+    document.addEventListener('error', function (event) {
+        const target = event.target;
+        if (!target || target.tagName !== 'IMG') return;
+        const src = target.getAttribute('src') || '';
+        if (/suspects\/|business\/|companies\/|pedals\/|customers\/|police_|hospital|taxi_|doctor_|bike_/.test(src)) return;
+        const attempt = Number(target.dataset.retryCount || 0);
+        if (attempt >= 3) return;
+        target.dataset.retryCount = String(attempt + 1);
+        setTimeout(function () { target.setAttribute('src', src); }, 600 * (attempt + 1));
+    }, true);
+    document.addEventListener('load', function (event) {
+        const target = event.target;
+        if (target && target.tagName === 'IMG' && target.dataset.retryCount) {
+            target.style.visibility = '';
+            if (target.style.display === 'none' && target.nextElementSibling && target.nextElementSibling.style.display !== 'none') {
+                target.style.display = '';
+                target.nextElementSibling.style.display = 'none';
+            }
+        }
+    }, true);
+
     /* =========================================================
        ИНИЦИАЛИЗАЦИЯ
        ========================================================= */
@@ -5664,13 +6527,15 @@ document.addEventListener('DOMContentLoaded', function () {
     let preloadPromise = null;
     let loadingStarted = false;
 
+    const OPTIONAL_IMAGE_PATTERN = /suspects\/|business\/|companies\/|pedals\/|customers\/|police_|hospital|taxi_|doctor_|bike_/;
+
     function buildPreloadList() {
         const list = [
             'city_map.png', 'house.png', 'bed.png', 'men.png', 'phone.png', 'phone_btn.png', 'settings_btn.png',
             'fire_station.png', 'firefighter_npc.png', 'truck_station.png', 'trucker_npc.png',
             'market_room.png', 'cashier_manager.png', 'police_station.png', 'police_npc.png',
             'hospital.png', 'doctor_npc.png', 'taxi_park.png', 'taxi_npc.png',
-            'pdd_brick.png', 'pdd_main_road.png', 'burning_house.png'
+            'pdd_brick.png', 'pdd_main_road.png', 'burning_house.png', 'pedals/gas.png', 'pedals/brake.png'
         ];
         for (let n = 1; n <= 10; n += 1) list.push('customers/customer_' + n + '.png');
         ['taxi', 'work', 'shtraf', 'plat', 'business', 'karta', 'avto', 'casino', 'sms', 'eda', 'poisk', 'zakaz', 'kollectiv', 'imushka', 'compania', 'music'].forEach(function (name) { list.push('logo/' + name + '.png'); });
@@ -5678,6 +6543,8 @@ document.addEventListener('DOMContentLoaded', function () {
         FOOD_ITEMS.forEach(function (item) { list.push(item.image); });
         MUSIC_TRACKS.forEach(function (track) { if (track.image) list.push(track.image); });
         CARS.forEach(function (car) { for (let n = 1; n <= 3; n += 1) list.push('cars/' + car.imgPrefix + '_' + n + '.png'); });
+        BUSINESSES.forEach(function (item) { list.push('business/' + item.id + '.png'); });
+        COMPANIES.forEach(function (item) { list.push('companies/' + item.id + '.png'); });
         for (let n = 1; n <= XJ_SUSPECT_COUNT; n += 1) list.push('suspects/suspect_' + n + '.png');
         return Array.from(new Set(list));
     }
@@ -5688,28 +6555,60 @@ document.addEventListener('DOMContentLoaded', function () {
         if (loadingPercent) loadingPercent.textContent = percent + '%';
     }
 
+    function loadImageWithRetry(url, attempt) {
+        return new Promise(function (resolve) {
+            const image = new Image();
+            preloadedImages.push(image);
+            image.onload = function () { resolve(true); };
+            image.onerror = function () {
+                if (!OPTIONAL_IMAGE_PATTERN.test(url) && attempt < 3) {
+                    setTimeout(function () { loadImageWithRetry(url, attempt + 1).then(resolve); }, 500 * (attempt + 1));
+                } else {
+                    resolve(false);
+                }
+            };
+            image.src = url;
+        });
+    }
+
     function startPreload() {
         if (preloadPromise) return preloadPromise;
         const urls = buildPreloadList();
         preloadStatus.total = urls.length;
         preloadPromise = new Promise(function (resolve) {
-            urls.forEach(function (url) {
-                const image = new Image();
-                preloadedImages.push(image);
-                const finish = function () {
-                    preloadStatus.done += 1;
-                    updateLoadingUI();
-                    if (preloadStatus.done >= preloadStatus.total) {
-                        try { localStorage.setItem(ASSET_FLAG_KEY, '1'); } catch (error) { /* ignore */ }
-                        resolve();
-                    }
-                };
-                image.onload = finish;
-                image.onerror = finish;
-                image.src = url;
-            });
+            let index = 0;
+            let active = 0;
+            function pump() {
+                while (active < 6 && index < urls.length) {
+                    const url = urls[index];
+                    index += 1;
+                    active += 1;
+                    loadImageWithRetry(url, 0).then(function () {
+                        active -= 1;
+                        preloadStatus.done += 1;
+                        updateLoadingUI();
+                        if (preloadStatus.done >= preloadStatus.total) {
+                            try { localStorage.setItem(ASSET_FLAG_KEY, '1'); } catch (error) { /* ignore */ }
+                            resolve();
+                        } else {
+                            pump();
+                        }
+                    });
+                }
+            }
+            pump();
         });
         return preloadPromise;
+    }
+
+    function waitForMapImage(maxMs) {
+        return new Promise(function (resolve) {
+            const startedAt = Date.now();
+            (function check() {
+                if (isMapLoaded || Date.now() - startedAt > maxMs) resolve();
+                else setTimeout(check, 150);
+            })();
+        });
     }
 
     function startLoadingThenLaunch() {
@@ -5720,8 +6619,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const returning = localStorage.getItem(ASSET_FLAG_KEY) === '1';
         Promise.race([
             startPreload(),
-            new Promise(function (resolve) { setTimeout(resolve, returning ? 1500 : 25000); })
+            new Promise(function (resolve) { setTimeout(resolve, returning ? 4000 : 120000); })
         ]).then(function () {
+            return waitForMapImage(returning ? 3000 : 30000);
+        }).then(function () {
             preloadStatus.done = preloadStatus.total;
             updateLoadingUI();
             setTimeout(function () {
