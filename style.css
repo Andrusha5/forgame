@@ -3486,3 +3486,119 @@ body:has(#drive-screen:not(.hidden)) #btn-open-settings-game { display: none; }
     .pedal { height: 110px; }
     .drive-speed-box span { font-size: 4rem; }
 }
+
+
+/* =========================================================
+   ОБНОВЛЕНИЕ 7: анимации, касса, оформление
+   ========================================================= */
+
+/* ---------- Касса: все кнопки видны, купюры не наезжают ---------- */
+.cashier-screen { overflow: hidden; }
+.cashier-ui-container { height: 100%; overflow-y: auto; overflow-x: hidden; padding-bottom: 8px; scrollbar-width: thin; }
+.cashier-workspace { height: 176px; }
+.cashier-selected-items-box { height: auto; min-height: 92px; overflow: hidden; }
+.cashier-selected-items-tray { display: flex; flex-wrap: wrap; gap: 8px; max-height: 118px; overflow-y: auto; padding: 4px 2px 2px; align-content: flex-start; }
+.cashier-selected-chip { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 8px 3px; border-radius: 10px; cursor: pointer; }
+.cashier-selected-chip img { height: 38px; max-width: 76px; }
+.cashier-selected-chip .chip-label { font-size: 0.62rem; font-weight: 800; color: #cbd5e1; }
+.cashier-selected-chip .chip-count { position: absolute; top: -7px; right: -7px; background: #ef4444; color: #ffffff; border-radius: 10px; padding: 1px 6px; font-size: 0.7rem; font-weight: 900; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4); }
+.cashier-selected-chip:active { transform: scale(0.94); }
+.cashier-controls-panel { display: flex; flex-direction: column; gap: 8px; }
+.cashier-actions-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    background: linear-gradient(to top, #0f172a 78%, rgba(15, 23, 42, 0));
+    padding: 12px 0 4px;
+}
+.cashier-actions-row #btn-cashier-give-change { grid-column: 1 / -1; order: -1; }
+.cashier-actions-row .btn { width: 100%; margin: 0; }
+@media (max-height: 800px) {
+    .cashier-workspace { height: 150px; }
+    .cashier-customer-box { width: 112px; }
+    .cashier-denom-btn img { height: 34px; }
+    .cashier-counter-card { padding: 6px 12px; }
+}
+
+/* ---------- Анимации ---------- */
+@keyframes blFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes blPopIn { from { opacity: 0; transform: translateY(16px) scale(0.95); } to { opacity: 1; transform: none; } }
+@keyframes blFadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes blShellIn { from { opacity: 0; top: 40px; } to { opacity: 1; top: 0; } }
+@keyframes blFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes blGlow { 0%, 100% { box-shadow: 0 0 0 rgba(96, 165, 250, 0); } 50% { box-shadow: 0 0 22px rgba(96, 165, 250, 0.45); } }
+@keyframes blShine { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+
+.screen:not(.hidden) { animation: blFadeIn 0.35s ease both; }
+.modal-overlay:not(.hidden) { animation: blFadeIn 0.22s ease both; }
+.modal-overlay:not(.hidden) > .modal-card { animation: blPopIn 0.32s cubic-bezier(0.2, 0.85, 0.25, 1) both; }
+.phone-modal-overlay:not(.hidden) .iphone-shell { position: relative; animation: blShellIn 0.42s cubic-bezier(0.2, 0.9, 0.25, 1) both; }
+.dialogue-overlay:not(.hidden) { animation: blFadeUp 0.3s ease both; }
+.xjg-wrap > *, .xjg-result { animation: blFadeUp 0.35s ease both; }
+
+/* карточки внутри приложений появляются мягко и по очереди */
+.biz-card, .co-card, .co-row, .co-profit-card, .property-card-item, .car-card-new, .food-card, .message-item, .fine-card-item {
+    animation: blFadeUp 0.4s ease both;
+}
+.biz-card:nth-child(2), .co-card:nth-child(2), .property-card-item:nth-child(2), .car-card-new:nth-child(2), .food-card:nth-child(2) { animation-delay: 0.04s; }
+.biz-card:nth-child(3), .co-card:nth-child(3), .property-card-item:nth-child(3), .car-card-new:nth-child(3), .food-card:nth-child(3) { animation-delay: 0.08s; }
+.biz-card:nth-child(4), .co-card:nth-child(4), .property-card-item:nth-child(4), .car-card-new:nth-child(4), .food-card:nth-child(4) { animation-delay: 0.12s; }
+.biz-card:nth-child(5), .co-card:nth-child(5), .property-card-item:nth-child(5), .car-card-new:nth-child(5), .food-card:nth-child(5) { animation-delay: 0.16s; }
+.biz-card:nth-child(n+6), .co-card:nth-child(n+6), .property-card-item:nth-child(n+6), .car-card-new:nth-child(n+6), .food-card:nth-child(n+6) { animation-delay: 0.2s; }
+
+/* иконки приложений телефона */
+.app-item { animation: blFadeUp 0.45s ease both; transition: transform 0.18s ease; }
+.app-item:hover { transform: translateY(-3px) scale(1.04); }
+.app-item:active { transform: scale(0.94); }
+.app-item:nth-child(3n+2) { animation-delay: 0.05s; }
+.app-item:nth-child(3n+3) { animation-delay: 0.1s; }
+
+/* кнопки: живая реакция на нажатие и наведение */
+.btn, .biz-btn, .co-buy-btn, .co-withdraw-btn, .co-tab, .biz-qty-btn, .btn-gender, .btn-dlg, .pdd-answer-btn, .bd-btn, .cashier-denom-btn, .btn-room-exit {
+    transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+@media (hover: hover) {
+    .btn:not(:disabled):hover, .biz-btn:not(:disabled):hover, .co-buy-btn:not(:disabled):hover, .co-withdraw-btn:hover, .btn-gender:hover, .btn-dlg:hover, .pdd-answer-btn:hover, .cashier-denom-btn:hover {
+        transform: translateY(-2px);
+        filter: brightness(1.08);
+    }
+}
+.btn:not(:disabled):active, .biz-btn:not(:disabled):active, .co-buy-btn:not(:disabled):active, .co-withdraw-btn:active, .btn-gender:active, .btn-dlg:active, .pdd-answer-btn:active, .cashier-denom-btn:active, .bd-btn:active, .co-tab:active, .biz-qty-btn:active {
+    transform: scale(0.96);
+}
+
+/* HUD: стеклянный вид и мягкое появление */
+#global-hud .hud-pill { backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); animation: blFadeUp 0.5s ease both; }
+#global-hud .player-stats-hud { animation: blFadeUp 0.6s ease both; }
+.stat-circle-item { transition: transform 0.2s ease; }
+.stat-circle-item:hover { transform: scale(1.1); }
+
+/* главное меню */
+#main-menu .btn { animation: blFadeUp 0.5s ease both; }
+#main-menu .btn:nth-of-type(2) { animation-delay: 0.08s; }
+#main-menu h1, #main-menu .game-logo, #main-menu .menu-title { animation: blFloat 4s ease-in-out infinite; }
+.loading-box { animation: blPopIn 0.5s ease both; }
+#loading-bar-fill { background-size: 200% 100%; animation: blShine 1.6s linear infinite; }
+.pedal.pressed { transition: none; }
+.drive-speed-box span { transition: color 0.2s ease; }
+.biz-status.ok { animation: blGlow 2.6s ease-in-out infinite; }
+.xjg-result-icon { animation: blPopIn 0.5s cubic-bezier(0.2, 1.4, 0.3, 1) both; }
+.toast-message { transition: opacity 0.25s ease, transform 0.25s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* Компактный терминал кассы на невысоких экранах: сумма сдачи не вылезает за рамку */
+@media (max-height: 800px) {
+    .cashier-workspace { height: 168px; }
+    .cashier-pos-terminal { padding: 8px 10px; gap: 4px; }
+    .cashier-pos-terminal .pos-screen-header { font-size: 0.6rem; }
+    .cashier-pos-terminal .pos-data-row { font-size: 0.74rem; }
+    .cashier-pos-terminal .pos-data-row strong { font-size: 0.95rem; }
+    .pos-change-box { padding: 5px 8px; }
+    .pos-change-box strong { font-size: 1.5rem; }
+}
