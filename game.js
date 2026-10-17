@@ -437,6 +437,20 @@ document.addEventListener('DOMContentLoaded', function () {
        DOM-ЭЛЕМЕНТЫ
        ========================================================= */
 
+    window.blImgFail = function (img) {
+        const exts = (img.dataset.exts || '').split(',').filter(Boolean);
+        const base = img.dataset.base;
+        const index = Number(img.dataset.extIndex || 0) + 1;
+        if (base && index < exts.length) {
+            img.dataset.extIndex = String(index);
+            img.src = base + '.' + exts[index];
+            return;
+        }
+        img.style.display = 'none';
+        const sibling = img.nextElementSibling;
+        if (sibling) sibling.style.display = 'flex';
+    };
+
     const introScreen = document.getElementById('intro-screen');
     const mainMenu = document.getElementById('main-menu');
     const gameScreen = document.getElementById('game-screen');
@@ -1826,13 +1840,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const startTime = performance.now();
         const startMinutes = gameMinutes;
-        const totalTaxiRealSeconds = 12;
+        const totalTaxiRealSeconds = 15;
         isClockRunning = false;
 
         taxiTimerId = setInterval(function () {
             const elapsed = (performance.now() - startTime) / 1000;
             const progress = Math.min(1, elapsed / totalTaxiRealSeconds);
-            gameMinutes = startMinutes + progress * 33;
+            gameMinutes = startMinutes + progress * 45;
             advanceCalendar();
             taxiProgressInner.style.width = (progress * 100).toFixed(1) + '%';
             taxiPercentText.textContent = Math.round(progress * 100) + '%';
@@ -2692,24 +2706,41 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function renderSelectedDenominationsTray() {
         if (!cashierSelectedItemsTray) return;
-        const signature = cashierShiftState.selectedDenominations.map(function (item) { return item.id; }).join(',');
+        const groups = {};
+        const order = [];
+        cashierShiftState.selectedDenominations.forEach(function (denom) {
+            const key = String(denom.id || denom.value);
+            if (!groups[key]) {
+                groups[key] = { denom: denom, count: 0 };
+                order.push(key);
+            }
+            groups[key].count += 1;
+        });
+        order.sort(function (a, b) { return groups[b].denom.value - groups[a].denom.value; });
+        const signature = order.map(function (key) { return key + 'x' + groups[key].count; }).join(',');
         if (cashierSelectedItemsTray.dataset.signature === signature) return;
         cashierSelectedItemsTray.dataset.signature = signature;
         cashierSelectedItemsTray.innerHTML = '';
 
-        if (!cashierShiftState.selectedDenominations.length) {
+        if (!order.length) {
             cashierSelectedItemsTray.innerHTML = '<span class="cashier-empty-tray-label">Нажимайте на деньги ниже, чтобы собрать сдачу. Нажатие на выданную купюру вернёт её обратно.</span>';
             return;
         }
 
-        cashierShiftState.selectedDenominations.forEach(function (denom, index) {
+        order.forEach(function (key) {
+            const group = groups[key];
             const chip = document.createElement('div');
             chip.className = 'cashier-selected-chip';
-            chip.title = 'Нажмите, чтобы вернуть';
-            chip.innerHTML = '<img src="' + denom.image + '" alt="' + denom.label + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'inline\'"><span style="display:none">' + denom.label + '</span>';
+            chip.title = 'Нажмите, чтобы вернуть одну купюру';
+            chip.innerHTML = '<img src="' + group.denom.image + '" alt="' + group.denom.label + '" onerror="this.style.display=\'none\'"><span class="chip-label">' + group.denom.label + '</span>' + (group.count > 1 ? '<b class="chip-count">×' + group.count + '</b>' : '');
             chip.addEventListener('click', function (event) {
                 event.stopPropagation();
-                removeCashierDenomination(index);
+                for (let index = cashierShiftState.selectedDenominations.length - 1; index >= 0; index -= 1) {
+                    if (String(cashierShiftState.selectedDenominations[index].id || cashierShiftState.selectedDenominations[index].value) === key) {
+                        removeCashierDenomination(index);
+                        break;
+                    }
+                }
             });
             cashierSelectedItemsTray.appendChild(chip);
         });
@@ -3581,6 +3612,7 @@ document.addEventListener('DOMContentLoaded', function () {
        ========================================================= */
 
     function launchGame() {
+        if (typeof coAnnounceOffline === 'function') coAnnounceOffline();
         mainMenu.classList.add('hidden');
         gameScreen.classList.remove('hidden');
         isClockRunning = true;
@@ -4987,7 +5019,7 @@ document.addEventListener('DOMContentLoaded', function () {
             '<div class="xjg-suspects">' + suspects.map(function (suspect, index) {
                 return '<button type="button" class="xjg-suspect" data-index="' + index + '">' +
                     '<span class="xjg-suspect-num">' + (index + 1) + '</span>' +
-                    '<div class="xjg-suspect-photo"><img src="suspects/suspect_' + suspect.id + '.png" alt="Подозреваемый ' + (index + 1) + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' +
+                    '<div class="xjg-suspect-photo"><img src="suspects/suspect_' + suspect.id + '.png" data-base="suspects/suspect_' + suspect.id + '" data-exts="png,webp,jpg" alt="Подозреваемый ' + (index + 1) + '" onerror="blImgFail(this)">' +
                     '<span class="xjg-suspect-emoji">' + XJ_SUSPECT_EMOJI[(suspect.id - 1) % XJ_SUSPECT_EMOJI.length] + '</span></div>' +
                     '<div class="xjg-suspect-text">' + suspect.text + '</div></button>';
             }).join('') + '</div></div>';
@@ -5476,9 +5508,12 @@ document.addEventListener('DOMContentLoaded', function () {
         { id: 'vkusnotochka', name: 'Вкусно — и точка', icon: '🍟', sector: 'Рестораны', price: 150000000, income: 25000 }
     ];
 
+    const CO_INCOME_MULTIPLIER = 6;
+    COMPANIES.forEach(function (company) { company.income = company.income * CO_INCOME_MULTIPLIER; });
     COMPANIES.sort(function (a, b) { return a.price - b.price; });
 
-    let coState = { owned: {}, profit: 0 };
+    let coState = { owned: {}, profit: 0, lastSeen: 0 };
+    let coOfflineGain = 0;
     let coTab = 'market';
     let coLastTick = Date.now();
     let coSaveCounter = 0;
@@ -5491,6 +5526,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (data && typeof data === 'object') {
                 coState.owned = data.owned && typeof data.owned === 'object' ? data.owned : {};
                 coState.profit = Number(data.profit) || 0;
+                coState.lastSeen = Number(data.lastSeen) || 0;
             }
         } catch (error) {
             console.warn('Не удалось загрузить компании:', error);
@@ -5507,8 +5543,33 @@ document.addEventListener('DOMContentLoaded', function () {
 
     coLoad();
 
+    function coApplyOffline() {
+        const now = Date.now();
+        if (coState.lastSeen > 0) {
+            const maxMs = 30 * 24 * 60 * 60 * 1000;
+            const elapsed = Math.min(maxMs, Math.max(0, now - coState.lastSeen));
+            const perMinute = coIncomePerMinute();
+            const gain = perMinute * (elapsed / 60000);
+            if (gain > 0) {
+                coState.profit += gain;
+                if (elapsed > 120000) coOfflineGain = gain;
+            }
+        }
+        coState.lastSeen = now;
+        coSave();
+    }
+
+    function coAnnounceOffline() {
+        if (coOfflineGain > 0) {
+            const gain = coOfflineGain;
+            coOfflineGain = 0;
+            addMessage('Компании', '🏢', 'Пока вас не было, ваши компании принесли ' + coFormat(Math.floor(gain)) + '. Заберите прибыль в приложении «Компания».');
+            showToast('🏢 Компании принесли ' + coFormat(Math.floor(gain)));
+        }
+    }
+
     function coIconHtml(company) {
-        return '<img class="co-logo" src="companies/' + company.id + '.png" alt="" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><span class="co-emoji" style="display:none">' + company.icon + '</span>';
+        return '<img class="co-logo" src="companies/' + company.id + '.webp" data-base="companies/' + company.id + '" data-exts="webp,png,jpg" alt="" onerror="blImgFail(this)"><span class="co-emoji" style="display:none">' + company.icon + '</span>';
     }
 
     function coFormat(value) {
@@ -5585,7 +5646,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 '<div id="co-profit-value" class="co-profit-value">' + coFormat(Math.floor(coState.profit)) + '</div>' +
                 '<div class="co-profit-rate">Доход: ' + coFormat(coIncomePerMinute()) + ' в минуту</div>' +
                 '<button type="button" id="co-withdraw" class="co-withdraw-btn">Вывести на баланс</button>' +
-                '<p class="co-note">Деньги компаний не попадают на баланс сами. Пока вы их не выведете, потратить их нельзя.</p></div>' +
+                '<p class="co-note">Компании приносят деньги всегда, даже когда вы не в игре. Пока вы не выведете прибыль на баланс, потратить её нельзя.</p></div>' +
                 '<div class="co-list-title">Источники дохода</div>' +
                 (coOwnedCount() === 0 ? '<div class="co-empty">У вас пока нет компаний. Купите первую во вкладке «Рынок».</div>' :
                     COMPANIES.filter(function (company) { return coState.owned[company.id]; }).map(function (company) {
@@ -5615,14 +5676,14 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    coApplyOffline();
+
     setInterval(function () {
         const now = Date.now();
-        const delta = Math.min(5000, now - coLastTick) / 1000;
-        coLastTick = now;
-        if (!isClockRunning) return;
+        const elapsedMinutes = Math.max(0, now - (coState.lastSeen || now)) / 60000;
+        coState.lastSeen = now;
         const perMinute = coIncomePerMinute();
-        if (perMinute <= 0) return;
-        coState.profit += perMinute * (delta / 60);
+        if (perMinute > 0) coState.profit += perMinute * elapsedMinutes;
         coSaveCounter += 1;
         if (coSaveCounter >= 10) {
             coSaveCounter = 0;
@@ -5634,8 +5695,11 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }, 1000);
 
+    document.addEventListener('visibilitychange', function () { if (document.hidden) coSave(); });
+    window.addEventListener('pagehide', coSave);
+
         function xjHoursText(config) {
-        return config.startH === 0 && config.endH === 24 ? 'круглосуточно' : xjHoursText(config);
+        return config.startH === 0 && config.endH === 24 ? 'круглосуточно' : xjHourLabel(config.startH) + '–' + xjHourLabel(config.endH);
     }
 
     /* =========================================================
@@ -5708,7 +5772,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function bizImageHtml(config, extraClass) {
-        return '<div class="biz-image ' + (extraClass || '') + '"><img src="business/' + config.id + '.png" alt="' + config.name + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><span class="biz-image-fallback">' + config.icon + '</span></div>';
+        return '<div class="biz-image ' + (extraClass || '') + '"><img src="business/' + config.id + '.png" data-base="business/' + config.id + '" data-exts="png,webp,jpg" alt="' + config.name + '" onerror="blImgFail(this)"><span class="biz-image-fallback">' + config.icon + '</span></div>';
     }
 
     /* ---------- Работа бизнесов по игровому времени ---------- */
@@ -6248,7 +6312,7 @@ document.addEventListener('DOMContentLoaded', function () {
        ========================================================= */
     const DRIVE_SPEED_LIMIT = 80;
     const DRIVE_FINE_PER_KMH = 500;
-    const DRIVE_PROGRESS_PER_KMH_SEC = 0.035;
+    const DRIVE_PROGRESS_PER_KMH_SEC = 0.11;
 
     const driveScreen = document.getElementById('drive-screen');
     const driveCarName = document.getElementById('drive-car-name');
@@ -6411,8 +6475,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function driveFinish() {
         const target = driveClose();
-        gameMinutes += 10;
-        advanceCalendar();
         apartmentScreen.classList.add('hidden');
         firestationScreen.classList.add('hidden');
         truckstationScreen.classList.add('hidden');
@@ -6483,6 +6545,39 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }, 1000);
 
+
+    /* Защита от случайного двойного нажатия: сразу после открытия теста ответы не нажимаются */
+    const quizGuardObserver = new MutationObserver(function (mutations) {
+        const now = performance.now();
+        mutations.forEach(function (mutation) {
+            if (mutation.type === 'childList') {
+                mutation.addedNodes.forEach(function (node) {
+                    if (node.nodeType !== 1) return;
+                    if (node.classList && node.classList.contains('pdd-answer-btn')) node.dataset.born = String(now);
+                    if (node.querySelectorAll) node.querySelectorAll('.pdd-answer-btn').forEach(function (button) { button.dataset.born = String(now); });
+                });
+            } else if (mutation.type === 'attributes') {
+                const target = mutation.target;
+                if (target.classList && target.classList.contains('modal-overlay') && !target.classList.contains('hidden') && String(mutation.oldValue || '').indexOf('hidden') !== -1) {
+                    target.dataset.openedAt = String(now);
+                }
+            }
+        });
+    });
+    quizGuardObserver.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'], attributeOldValue: true });
+    document.addEventListener('click', function (event) {
+        const button = event.target.closest ? event.target.closest('.pdd-answer-btn') : null;
+        if (!button) return;
+        const now = performance.now();
+        const born = Number(button.dataset.born || 0);
+        const modal = button.closest('.modal-overlay');
+        const openedAt = modal ? Number(modal.dataset.openedAt || 0) : 0;
+        if ((born && now - born < 800) || (openedAt && now - openedAt < 800)) {
+            event.stopImmediatePropagation();
+            event.preventDefault();
+        }
+    }, true);
+
     /* ---------- Повторная загрузка картинок, если они не загрузились сразу ---------- */
     document.addEventListener('error', function (event) {
         const target = event.target;
@@ -6528,23 +6623,28 @@ document.addEventListener('DOMContentLoaded', function () {
     let loadingStarted = false;
 
     const OPTIONAL_IMAGE_PATTERN = /suspects\/|business\/|companies\/|pedals\/|customers\/|police_|hospital|taxi_|doctor_|bike_/;
+    let backgroundStarted = false;
 
-    function buildPreloadList() {
+    function buildEssentialList() {
+        const list = ['city_map.png', 'house.png', 'bed.png', 'men.png', 'phone.png', 'phone_btn.png', 'settings_btn.png'];
+        ['taxi', 'work', 'shtraf', 'plat', 'business', 'karta', 'avto', 'casino', 'sms', 'eda', 'poisk', 'zakaz', 'kollectiv', 'imushka', 'compania', 'music'].forEach(function (name) { list.push('logo/' + name + '.png'); });
+        return list;
+    }
+
+    function buildBackgroundList() {
         const list = [
-            'city_map.png', 'house.png', 'bed.png', 'men.png', 'phone.png', 'phone_btn.png', 'settings_btn.png',
             'fire_station.png', 'firefighter_npc.png', 'truck_station.png', 'trucker_npc.png',
             'market_room.png', 'cashier_manager.png', 'police_station.png', 'police_npc.png',
             'hospital.png', 'doctor_npc.png', 'taxi_park.png', 'taxi_npc.png',
             'pdd_brick.png', 'pdd_main_road.png', 'burning_house.png', 'pedals/gas.png', 'pedals/brake.png'
         ];
-        for (let n = 1; n <= 10; n += 1) list.push('customers/customer_' + n + '.png');
-        ['taxi', 'work', 'shtraf', 'plat', 'business', 'karta', 'avto', 'casino', 'sms', 'eda', 'poisk', 'zakaz', 'kollectiv', 'imushka', 'compania', 'music'].forEach(function (name) { list.push('logo/' + name + '.png'); });
         CASHIER_DENOMINATIONS.forEach(function (item) { list.push(item.image); });
+        for (let n = 1; n <= 10; n += 1) list.push('customers/customer_' + n + '.png');
         FOOD_ITEMS.forEach(function (item) { list.push(item.image); });
         MUSIC_TRACKS.forEach(function (track) { if (track.image) list.push(track.image); });
-        CARS.forEach(function (car) { for (let n = 1; n <= 3; n += 1) list.push('cars/' + car.imgPrefix + '_' + n + '.png'); });
         BUSINESSES.forEach(function (item) { list.push('business/' + item.id + '.png'); });
-        COMPANIES.forEach(function (item) { list.push('companies/' + item.id + '.png'); });
+        COMPANIES.forEach(function (item) { list.push('companies/' + item.id + '.webp'); });
+        CARS.forEach(function (car) { for (let n = 1; n <= 3; n += 1) list.push('cars/' + car.imgPrefix + '_' + n + '.png'); });
         for (let n = 1; n <= XJ_SUSPECT_COUNT; n += 1) list.push('suspects/suspect_' + n + '.png');
         return Array.from(new Set(list));
     }
@@ -6555,14 +6655,14 @@ document.addEventListener('DOMContentLoaded', function () {
         if (loadingPercent) loadingPercent.textContent = percent + '%';
     }
 
-    function loadImageWithRetry(url, attempt) {
+    function loadImageWithRetry(url, attempt, keep) {
         return new Promise(function (resolve) {
             const image = new Image();
-            preloadedImages.push(image);
-            image.onload = function () { resolve(true); };
+            if (keep) preloadedImages.push(image);
+            image.onload = function () { image.onload = null; resolve(true); };
             image.onerror = function () {
-                if (!OPTIONAL_IMAGE_PATTERN.test(url) && attempt < 3) {
-                    setTimeout(function () { loadImageWithRetry(url, attempt + 1).then(resolve); }, 500 * (attempt + 1));
+                if (!OPTIONAL_IMAGE_PATTERN.test(url) && attempt < 2) {
+                    setTimeout(function () { loadImageWithRetry(url, attempt + 1, keep).then(resolve); }, 400 * (attempt + 1));
                 } else {
                     resolve(false);
                 }
@@ -6571,34 +6671,47 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    function startPreload() {
-        if (preloadPromise) return preloadPromise;
-        const urls = buildPreloadList();
-        preloadStatus.total = urls.length;
-        preloadPromise = new Promise(function (resolve) {
+    function runImageQueue(urls, concurrency, keep, onEach) {
+        return new Promise(function (resolve) {
+            if (!urls.length) { resolve(); return; }
             let index = 0;
             let active = 0;
+            let finished = 0;
             function pump() {
-                while (active < 6 && index < urls.length) {
+                while (active < concurrency && index < urls.length) {
                     const url = urls[index];
                     index += 1;
                     active += 1;
-                    loadImageWithRetry(url, 0).then(function () {
+                    loadImageWithRetry(url, 0, keep).then(function () {
                         active -= 1;
-                        preloadStatus.done += 1;
-                        updateLoadingUI();
-                        if (preloadStatus.done >= preloadStatus.total) {
-                            try { localStorage.setItem(ASSET_FLAG_KEY, '1'); } catch (error) { /* ignore */ }
-                            resolve();
-                        } else {
-                            pump();
-                        }
+                        finished += 1;
+                        if (onEach) onEach();
+                        if (finished >= urls.length) resolve();
+                        else pump();
                     });
                 }
             }
             pump();
         });
+    }
+
+    function startPreload() {
+        if (preloadPromise) return preloadPromise;
+        const urls = buildEssentialList();
+        preloadStatus.total = urls.length;
+        preloadPromise = runImageQueue(urls, 6, true, function () {
+            preloadStatus.done += 1;
+            updateLoadingUI();
+        }).then(function () {
+            try { localStorage.setItem(ASSET_FLAG_KEY, '1'); } catch (error) { /* ignore */ }
+        });
         return preloadPromise;
+    }
+
+    function startBackgroundPreload() {
+        if (backgroundStarted) return;
+        backgroundStarted = true;
+        runImageQueue(buildBackgroundList(), 3, false, null);
     }
 
     function waitForMapImage(maxMs) {
@@ -6619,18 +6732,22 @@ document.addEventListener('DOMContentLoaded', function () {
         const returning = localStorage.getItem(ASSET_FLAG_KEY) === '1';
         Promise.race([
             startPreload(),
-            new Promise(function (resolve) { setTimeout(resolve, returning ? 4000 : 120000); })
+            new Promise(function (resolve) { setTimeout(resolve, returning ? 3000 : 60000); })
         ]).then(function () {
-            return waitForMapImage(returning ? 3000 : 30000);
+            return waitForMapImage(returning ? 3000 : 45000);
         }).then(function () {
             preloadStatus.done = preloadStatus.total;
             updateLoadingUI();
             setTimeout(function () {
                 if (loadingScreen) loadingScreen.classList.add('hidden');
                 launchGame();
-            }, 250);
+                setTimeout(startBackgroundPreload, 1200);
+            }, 200);
         });
     }
+
+    /* Самое важное начинает грузиться уже во время интро */
+    startPreload();
 
     /* Выбор даты рождения */
     const BD_MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
