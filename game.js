@@ -412,7 +412,9 @@ document.addEventListener('DOMContentLoaded', function () {
         { id: 'oliveira_edit', title: 'Оливейра (Эдит)', file: 'music/Oliveira_edit.mp3', image: 'music/Oliveira_edit.png', price: 1500 },
         { id: 'khabib', title: 'Хабиб', file: 'music/Khabib.mp3', image: 'music/Khabib.png', price: 2000 },
         { id: 'makhachev', title: 'Махачев', file: 'music/Makhachev.mp3', image: 'music/Makhachev.png', price: 2200 },
-        { id: 'topuria', title: 'Топурия', file: 'music/Topuria.mp3', image: 'music/Topuria.png', price: 3333 }
+        { id: 'topuria', title: 'Топурия', file: 'music/Topuria.mp3', image: 'music/Topuria.png', price: 3333 },
+        { id: 'merab', title: 'Мераб', file: 'music/merab.mp3', image: 'music/merab.png', price: 12000 },
+        { id: 'petr', title: 'Пётр Ян', file: 'music/petr.mp3', image: 'music/petr.png', price: 33333 }
     ];
 
     const APP_NAMES = {
@@ -631,6 +633,24 @@ document.addEventListener('DOMContentLoaded', function () {
     let isMapLoaded = false;
 
     playerSpriteImg.src = 'men.png';
+
+    /* Спрайт игрока 1920×1914 уменьшается один раз, а не при каждом кадре */
+    let playerSpriteSmall = null;
+    function getPlayerSpriteSmall() {
+        if (playerSpriteSmall) return playerSpriteSmall;
+        try {
+            const small = document.createElement('canvas');
+            small.width = 192;
+            small.height = Math.max(1, Math.round(192 * (playerSpriteImg.naturalHeight / playerSpriteImg.naturalWidth)));
+            const smallCtx = small.getContext('2d');
+            smallCtx.imageSmoothingQuality = 'high';
+            smallCtx.drawImage(playerSpriteImg, 0, 0, small.width, small.height);
+            playerSpriteSmall = small;
+            return small;
+        } catch (error) {
+            return playerSpriteImg;
+        }
+    }
 
     function tryLoadNextMapSource() {
         if (mapSourceIndex >= possibleMapSources.length) return;
@@ -896,7 +916,27 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!truckerOrdersCounterDay) truckerOrdersCounterDay = currentDay + '_' + currentMonthIdx;
     }
 
+    /* Сохранение откладывается и склеивается: раньше игра записывала весь прогресс в память телефона каждый кадр (60 раз в секунду) */
+    let saveTimerId = null;
+    let saveIsDirty = false;
+
     function saveGameData() {
+        saveIsDirty = true;
+        if (saveTimerId === null) saveTimerId = setTimeout(flushGameData, 1200);
+    }
+
+    function flushGameData() {
+        if (saveTimerId !== null) { clearTimeout(saveTimerId); saveTimerId = null; }
+        if (!saveIsDirty) return;
+        saveIsDirty = false;
+        writeGameDataNow();
+    }
+
+    document.addEventListener('visibilitychange', function () { if (document.hidden) flushGameData(); });
+    window.addEventListener('pagehide', flushGameData);
+    window.addEventListener('beforeunload', flushGameData);
+
+    function writeGameDataNow() {
         normalizeMoney();
         try {
             localStorage.setItem('bestlife_game_data', JSON.stringify({
@@ -1062,37 +1102,67 @@ document.addEventListener('DOMContentLoaded', function () {
        HUD, ВРЕМЯ И ПОТРЕБНОСТИ
        ========================================================= */
 
+    /* Интерфейс обновляется только если значение реально изменилось (раньше каждый кадр заново искались десятки элементов) */
+    const hudCache = { nodes: {}, text: {}, style: {} };
+
+    function hudNode(id) {
+        let node = hudCache.nodes[id];
+        if (node === undefined) {
+            node = document.getElementById(id) || null;
+            hudCache.nodes[id] = node;
+        }
+        return node;
+    }
+
+    function setTextCached(id, value) {
+        if (hudCache.text[id] === value) return;
+        const node = hudNode(id);
+        if (!node) return;
+        hudCache.text[id] = value;
+        node.textContent = value;
+    }
+
+    function setNodeTextCached(key, node, value) {
+        if (!node || hudCache.text[key] === value) return;
+        hudCache.text[key] = value;
+        node.textContent = value;
+    }
+
+    function setRingCached(key, node, value) {
+        if (!node) return;
+        const offset = (CIRCUMFERENCE - (clamp(value, 0, 100) / 100) * CIRCUMFERENCE).toFixed(2);
+        if (hudCache.style[key] === offset) return;
+        hudCache.style[key] = offset;
+        node.style.strokeDashoffset = offset;
+    }
+
     function updateClockUI() {
         normalizeMoney();
         const timeString = getTimeString();
         const dateString = getDateString();
         const moneyString = playerMoney.toLocaleString('ru-RU') + ' ₽';
 
-        const setText = function (id, value) {
-            const element = document.getElementById(id);
-            if (element) element.textContent = value;
-        };
+        setTextCached('hud-clock-text', timeString);
+        setTextCached('hud-date-text', dateString);
+        if (hudCache.text['hud-money-text'] !== moneyString) {
+            setTextCached('hud-money-text', moneyString);
+            const moneyTextElement = hudNode('hud-money-text');
+            if (moneyTextElement) moneyTextElement.style.color = playerMoney < 0 ? '#f87171' : '';
+        }
+        setTextCached('phone-clock-text', timeString);
+        setTextCached('phone-date-text', dateString);
+        setTextCached('walk-clock-text', timeString);
+        setTextCached('walk-date-text', dateString);
+        setTextCached('walk-money-text', moneyString);
 
-        setText('hud-clock-text', timeString);
-        setText('hud-date-text', dateString);
-        setText('hud-money-text', moneyString);
-        const moneyTextElement = document.getElementById('hud-money-text');
-        if (moneyTextElement) moneyTextElement.style.color = playerMoney < 0 ? '#f87171' : '';
-        setText('phone-clock-text', timeString);
-        setText('phone-date-text', dateString);
-        setText('walk-clock-text', timeString);
-        setText('walk-date-text', dateString);
-        setText('walk-money-text', moneyString);
-
-        if (taxiClockText) taxiClockText.textContent = timeString;
-        if (taxiDateText) taxiDateText.textContent = dateString;
-        if (taxiMoneyText) taxiMoneyText.textContent = moneyString;
-        if (truckerClockText) truckerClockText.textContent = timeString;
-        if (truckerDateText) truckerDateText.textContent = dateString;
-        if (truckerMoneyText) truckerMoneyText.textContent = moneyString;
+        setNodeTextCached('taxiClock', taxiClockText, timeString);
+        setNodeTextCached('taxiDate', taxiDateText, dateString);
+        setNodeTextCached('taxiMoney', taxiMoneyText, moneyString);
+        setNodeTextCached('truckerClock', truckerClockText, timeString);
+        setNodeTextCached('truckerDate', truckerDateText, dateString);
+        setNodeTextCached('truckerMoney', truckerMoneyText, moneyString);
 
         if (cashierShiftState.active && cashierShiftTimer) {
-            const elapsed = Math.floor((gameMinutes - cashierShiftState.startedAtMinutes) / 60);
             cashierShiftTimer.textContent = '⏱ Начало: ' + getTimeString(cashierShiftState.startedAtMinutes);
         }
     }
@@ -1106,24 +1176,27 @@ document.addEventListener('DOMContentLoaded', function () {
 
         Object.keys(values).forEach(function (key) {
             const value = clamp(values[key], 0, 100);
-            const ring = document.getElementById(key + '-ring');
-            const text = document.getElementById(key + '-val-text');
-            if (ring) ring.style.strokeDashoffset = CIRCUMFERENCE - (value / 100) * CIRCUMFERENCE;
-            if (text) text.textContent = Math.round(value) + '%';
+            setRingCached(key, hudNode(key + '-ring'), value);
+            setTextCached(key + '-val-text', Math.round(value) + '%');
         });
 
-        if (taxiHungerRing) taxiHungerRing.style.strokeDashoffset = CIRCUMFERENCE - (playerHunger / 100) * CIRCUMFERENCE;
-        if (taxiEnergyRing) taxiEnergyRing.style.strokeDashoffset = CIRCUMFERENCE - (playerEnergy / 100) * CIRCUMFERENCE;
-        if (taxiSleepRing) taxiSleepRing.style.strokeDashoffset = CIRCUMFERENCE - (playerSleep / 100) * CIRCUMFERENCE;
-        if (taxiHungerVal) taxiHungerVal.textContent = Math.round(playerHunger) + '%';
-        if (taxiEnergyVal) taxiEnergyVal.textContent = Math.round(playerEnergy) + '%';
-        if (taxiSleepVal) taxiSleepVal.textContent = Math.round(playerSleep) + '%';
+        setRingCached('taxiHunger', taxiHungerRing, playerHunger);
+        setRingCached('taxiEnergy', taxiEnergyRing, playerEnergy);
+        setRingCached('taxiSleep', taxiSleepRing, playerSleep);
+        setNodeTextCached('taxiHungerVal', taxiHungerVal, Math.round(playerHunger) + '%');
+        setNodeTextCached('taxiEnergyVal', taxiEnergyVal, Math.round(playerEnergy) + '%');
+        setNodeTextCached('taxiSleepVal', taxiSleepVal, Math.round(playerSleep) + '%');
 
         updateClockUI();
     }
 
+    let lastBadgeCount = -1;
+
     function updatePhoneBadge() {
-        const unreadMessages = messages.filter(function (message) { return !message.read; }).length;
+        let unreadMessages = 0;
+        for (let i = 0; i < messages.length; i += 1) if (!messages[i].read) unreadMessages += 1;
+        if (unreadMessages === lastBadgeCount) return;
+        lastBadgeCount = unreadMessages;
 
         if (phoneBadge) {
             phoneBadge.textContent = unreadMessages;
@@ -3123,6 +3196,53 @@ document.addEventListener('DOMContentLoaded', function () {
         };
         page.querySelector('.car-arrow-left').addEventListener('click', function () { setSlide(slide - 1); });
         page.querySelector('.car-arrow-right').addEventListener('click', function () { setSlide(slide + 1); });
+
+        /* Листание картинок пальцем: палец тянет картинку за собой, отпустили — она долистывается или возвращается */
+        const viewport = page.querySelector('.car-slider-viewport');
+        if (viewport) {
+            let dragging = false;
+            let axis = null;
+            let startX = 0;
+            let startY = 0;
+            let deltaX = 0;
+            const finishDrag = function (commit) {
+                if (!dragging) return;
+                dragging = false;
+                track.style.transition = '';
+                const threshold = Math.max(40, viewport.clientWidth * 0.18);
+                if (commit && axis === 'x' && Math.abs(deltaX) > threshold) setSlide(slide + (deltaX < 0 ? 1 : -1));
+                else setSlide(slide);
+                axis = null;
+                deltaX = 0;
+            };
+            viewport.addEventListener('pointerdown', function (event) {
+                if (event.pointerType === 'mouse' && event.button !== 0) return;
+                dragging = true;
+                axis = null;
+                startX = event.clientX;
+                startY = event.clientY;
+                deltaX = 0;
+            });
+            viewport.addEventListener('pointermove', function (event) {
+                if (!dragging) return;
+                const moveX = event.clientX - startX;
+                const moveY = event.clientY - startY;
+                if (axis === null && (Math.abs(moveX) > 6 || Math.abs(moveY) > 6)) {
+                    axis = Math.abs(moveX) > Math.abs(moveY) ? 'x' : 'y';
+                    if (axis === 'x') {
+                        track.style.transition = 'none';
+                        if (event.pointerType === 'mouse') { try { viewport.setPointerCapture(event.pointerId); } catch (error) { /* ignore */ } }
+                    }
+                }
+                if (axis !== 'x') return;
+                deltaX = moveX;
+                const width = viewport.clientWidth || 1;
+                const shown = ((slide === 0 && moveX > 0) || (slide === 2 && moveX < 0)) ? moveX * 0.4 : moveX;
+                track.style.transform = 'translateX(' + (-slide * width + shown) + 'px)';
+            });
+            viewport.addEventListener('pointerup', function () { finishDrag(true); });
+            viewport.addEventListener('pointercancel', function () { finishDrag(false); });
+        }
     }
 
     function buyCar(car) {
@@ -3246,74 +3366,131 @@ document.addEventListener('DOMContentLoaded', function () {
         else camera.y = clamp(camera.y, innerHeight - map.h / 2, map.h / 2);
     }
 
+    let renderScale = 1;
+    let forceRender = true;
+    const mapLayer = document.createElement('canvas');
+    const mapLayerCtx = mapLayer.getContext('2d');
+    let mapLayerKey = '';
+
     function resizeCanvas() {
         if (!canvas || !ctx) return;
-        const dpr = window.devicePixelRatio || 1;
-        canvas.width = innerWidth * dpr;
-        canvas.height = innerHeight * dpr;
+        /* Плотность пикселей ограничена: на телефонах с 3x экраном карта рисовалась в 2,25 раза тяжелее, а разницы глазом почти нет */
+        const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+        renderScale = dpr;
+        canvas.width = Math.round(innerWidth * dpr);
+        canvas.height = Math.round(innerHeight * dpr);
         canvas.style.width = innerWidth + 'px';
         canvas.style.height = innerHeight + 'px';
-        ctx.resetTransform();
-        ctx.scale(dpr, dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        mapLayerKey = '';
+        markerSpriteCache.clear();
+        forceRender = true;
+    }
+
+    /* Метки рисуются один раз в маленькие картинки и дальше только копируются: свечение (shadowBlur) на телефонах очень тяжёлое */
+    const markerSpriteCache = new Map();
+
+    function makeSprite(width, height, drawFn) {
+        const sprite = document.createElement('canvas');
+        sprite.width = Math.ceil(width * renderScale);
+        sprite.height = Math.ceil(height * renderScale);
+        const spriteCtx = sprite.getContext('2d');
+        spriteCtx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
+        drawFn(spriteCtx);
+        return { canvas: sprite, w: width, h: height };
+    }
+
+    function getMarkerBodySprite(color, icon, glowColor, zoom) {
+        const key = 'b|' + color + '|' + icon + '|' + glowColor + '|' + zoom;
+        let entry = markerSpriteCache.get(key);
+        if (entry) return entry;
+        const width = Math.max(28, 36 * zoom);
+        const height = Math.max(32, 42 * zoom);
+        const pad = 26;
+        entry = makeSprite(width + pad * 2, height + pad * 2, function (c) {
+            const cx = pad + width / 2;
+            const cy = pad + height / 2;
+            c.shadowColor = glowColor || color;
+            c.shadowBlur = 15;
+            c.beginPath();
+            c.moveTo(cx, cy + height / 2);
+            c.lineTo(cx - width / 2, cy - height / 2);
+            c.lineTo(cx + width / 2, cy - height / 2);
+            c.closePath();
+            c.fillStyle = color;
+            c.fill();
+            c.strokeStyle = '#ffffff';
+            c.lineWidth = Math.max(2, 3 * zoom);
+            c.stroke();
+            c.font = Math.max(16, 22 * zoom) + 'px sans-serif';
+            c.textAlign = 'center';
+            c.textBaseline = 'middle';
+            c.shadowBlur = 4;
+            c.shadowColor = '#000000';
+            c.fillStyle = '#ffffff';
+            c.fillText(icon, cx, cy - 2 * zoom);
+        });
+        entry.cx = pad + width / 2;
+        entry.cy = pad + height / 2;
+        if (markerSpriteCache.size > 120) markerSpriteCache.clear();
+        markerSpriteCache.set(key, entry);
+        return entry;
+    }
+
+    function getMarkerLabelSprite(color, label, zoom) {
+        const key = 'l|' + color + '|' + label + '|' + zoom;
+        let entry = markerSpriteCache.get(key);
+        if (entry) return entry;
+        const pad = 10;
+        const fontSize = Math.max(10, Math.round(12 * zoom));
+        const measureCtx = mapLayerCtx;
+        measureCtx.save();
+        measureCtx.font = '900 ' + fontSize + 'px Montserrat, sans-serif';
+        const textWidth = measureCtx.measureText(label).width;
+        measureCtx.restore();
+        const pillW = textWidth + 14;
+        const pillH = Math.max(18, 20 * zoom);
+        entry = makeSprite(pillW + pad * 2, pillH + pad * 2, function (c) {
+            c.shadowColor = '#000000';
+            c.shadowBlur = 4;
+            c.font = '900 ' + fontSize + 'px Montserrat, sans-serif';
+            c.textAlign = 'center';
+            c.fillStyle = 'rgba(15, 23, 42, 0.88)';
+            c.strokeStyle = color;
+            c.lineWidth = 1.5;
+            c.beginPath();
+            if (c.roundRect) c.roundRect(pad, pad, pillW, pillH, 8);
+            else c.rect(pad, pad, pillW, pillH);
+            c.fill();
+            c.stroke();
+            c.fillStyle = '#ffffff';
+            c.textBaseline = 'middle';
+            c.fillText(label, pad + pillW / 2, pad + pillH / 2);
+        });
+        entry.cx = pad + pillW / 2;
+        entry.top = pad;
+        if (markerSpriteCache.size > 120) markerSpriteCache.clear();
+        markerSpriteCache.set(key, entry);
+        return entry;
+    }
+
+    if (document.fonts && document.fonts.addEventListener) {
+        document.fonts.addEventListener('loadingdone', function () { markerSpriteCache.clear(); forceRender = true; });
     }
 
     function drawMarker(x, y, color, icon, label, glowColor) {
         if (x < -120 || x > innerWidth + 120 || y < -120 || y > innerHeight + 120) return { x: x, y: y };
 
+        const zoom = Math.round(camera.zoom * 25) / 25;
         const markerY = y - 38 * camera.zoom + Math.sin(animTimer * 1.5) * 6;
-        const width = Math.max(28, 36 * camera.zoom);
-        const height = Math.max(32, 42 * camera.zoom);
 
-        ctx.save();
-        ctx.shadowColor = glowColor || color;
-        ctx.shadowBlur = 15;
-
-        ctx.beginPath();
-        ctx.moveTo(x, markerY + height / 2);
-        ctx.lineTo(x - width / 2, markerY - height / 2);
-        ctx.lineTo(x + width / 2, markerY - height / 2);
-        ctx.closePath();
-
-        ctx.fillStyle = color;
-        ctx.fill();
-
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = Math.max(2, 3 * camera.zoom);
-        ctx.stroke();
-
-        ctx.font = Math.max(16, 22 * camera.zoom) + 'px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.shadowBlur = 4;
-        ctx.shadowColor = '#000000';
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText(icon, x, markerY - 2 * camera.zoom);
+        const body = getMarkerBodySprite(color, icon, glowColor, zoom);
+        ctx.drawImage(body.canvas, x - body.cx, markerY - body.cy, body.w, body.h);
 
         if (label) {
-            ctx.font = '900 ' + Math.max(10, Math.round(12 * camera.zoom)) + 'px Montserrat, sans-serif';
-            const textWidth = ctx.measureText(label).width;
-            const pillW = textWidth + 14;
-            const pillH = Math.max(18, 20 * camera.zoom);
-            const pillY = y + 10 * camera.zoom;
-
-            ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            if (ctx.roundRect) {
-                ctx.roundRect(x - pillW / 2, pillY, pillW, pillH, 8);
-            } else {
-                ctx.rect(x - pillW / 2, pillY, pillW, pillH);
-            }
-            ctx.fill();
-            ctx.stroke();
-
-            ctx.fillStyle = '#ffffff';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(label, x, pillY + pillH / 2);
+            const pill = getMarkerLabelSprite(color, label, zoom);
+            ctx.drawImage(pill.canvas, x - pill.cx, y + 10 * camera.zoom - pill.top, pill.w, pill.h);
         }
-
-        ctx.restore();
         return { x: x, y: y };
     }
 
@@ -3322,14 +3499,25 @@ document.addEventListener('DOMContentLoaded', function () {
         const map = getMapDimensions();
         const left = camera.x - map.w / 2;
         const top = camera.y - map.h / 2;
-        ctx.clearRect(0, 0, innerWidth, innerHeight);
-        ctx.imageSmoothingEnabled = true;
-
-        if (isMapLoaded) ctx.drawImage(mapImg, left, top, map.w, map.h);
-        else {
-            ctx.fillStyle = '#1e293b';
-            ctx.fillRect(left, top, map.w, map.h);
+        /* Огромная карта перерисовывается только когда её сдвинули или приблизили, в остальное время копируется готовая картинка экрана */
+        const layerKey = canvas.width + 'x' + canvas.height + '|' + left.toFixed(1) + '|' + top.toFixed(1) + '|' + map.w.toFixed(1) + '|' + (isMapLoaded ? 1 : 0);
+        if (layerKey !== mapLayerKey) {
+            mapLayerKey = layerKey;
+            if (mapLayer.width !== canvas.width || mapLayer.height !== canvas.height) {
+                mapLayer.width = canvas.width;
+                mapLayer.height = canvas.height;
+            }
+            mapLayerCtx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
+            mapLayerCtx.clearRect(0, 0, innerWidth, innerHeight);
+            mapLayerCtx.imageSmoothingEnabled = true;
+            if (isMapLoaded) mapLayerCtx.drawImage(mapImg, left, top, map.w, map.h);
+            else {
+                mapLayerCtx.fillStyle = '#1e293b';
+                mapLayerCtx.fillRect(left, top, map.w, map.h);
+            }
         }
+        ctx.clearRect(0, 0, innerWidth, innerHeight);
+        ctx.drawImage(mapLayer, 0, 0, innerWidth, innerHeight);
 
         const homeX = left + map.w * MAP_POINTS.home.x;
         const homeY = top + map.h * MAP_POINTS.home.y;
@@ -3365,7 +3553,7 @@ document.addEventListener('DOMContentLoaded', function () {
         ctx.save();
         const size = Math.max(48, 62 * camera.zoom);
         if (playerSpriteImg.complete && playerSpriteImg.naturalWidth) {
-            ctx.drawImage(playerSpriteImg, playerPoint.x - size / 2, playerPoint.y - size / 2, size, size);
+            ctx.drawImage(getPlayerSpriteSmall(), playerPoint.x - size / 2, playerPoint.y - size / 2, size, size);
         } else {
             ctx.font = size + 'px sans-serif';
             ctx.textAlign = 'center';
@@ -3525,7 +3713,11 @@ document.addEventListener('DOMContentLoaded', function () {
         canvas.addEventListener('touchend', function (event) {
             if (camera.isDragging && event.changedTouches.length && !isSleeping) {
                 const touch = event.changedTouches[0];
-                if (Math.hypot(touch.clientX - startX, touch.clientY - startY) < 15) checkMapPointClick(touch.clientX, touch.clientY);
+                if (Math.hypot(touch.clientX - startX, touch.clientY - startY) < 15) {
+                    /* Без этого браузер после касания метки «нажимает» ещё раз уже по кнопке нового окна (например, сразу выбирает такси) */
+                    if (event.cancelable) event.preventDefault();
+                    checkMapPointClick(touch.clientX, touch.clientY);
+                }
             }
             camera.isDragging = false;
         });
@@ -3590,6 +3782,7 @@ document.addEventListener('DOMContentLoaded', function () {
         else if (name === 'compania') renderCompanyApp();
         else if (name === 'business') renderBusinessApp();
         else if (name === 'zakaz') renderOrderApp();
+        else if (name === 'poisk') renderSearchApp();
         else if (name === 'casino') {
             lottoState.step = 'select_tier';
             renderLottoApp();
@@ -3634,13 +3827,38 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function renderLoop() {
+    /* Игровой цикл: потребности считаются 5 раз в секунду, карта рисуется до 30 кадров в секунду и не рисуется,
+       пока её закрывает телефон, окно или другой экран */
+    const MAP_FRAME_MS = 1000 / 30;
+    const OBSCURE_SELECTOR = '.modal-overlay:not(.hidden), .phone-modal-overlay:not(.hidden), .tax-history-overlay:not(.hidden), .dialogue-overlay:not(.hidden), .screen:not(.hidden):not(#game-screen), .full-screen:not(.hidden):not(#game-screen)';
+    let needsAccum = 0;
+    let lastMapFrameAt = 0;
+    let obscureCheckAt = 0;
+    let mapObscured = false;
+
+    function renderLoop(frameNow) {
         const now = performance.now();
         const deltaSeconds = Math.min((now - lastFrameTime) / 1000, 0.25);
         lastFrameTime = now;
-        animTimer += 0.04;
-        updateNeeds(deltaSeconds);
-        if (currentScreen === 'city') render();
+        animTimer += deltaSeconds * 2.4;
+
+        needsAccum += deltaSeconds;
+        if (needsAccum >= 0.2) {
+            updateNeeds(needsAccum);
+            needsAccum = 0;
+        }
+
+        if (currentScreen === 'city') {
+            if (now - obscureCheckAt > 250) {
+                obscureCheckAt = now;
+                mapObscured = Boolean(document.querySelector(OBSCURE_SELECTOR));
+            }
+            if (forceRender || (!mapObscured && now - lastMapFrameAt >= MAP_FRAME_MS)) {
+                forceRender = false;
+                lastMapFrameAt = now;
+                render();
+            }
+        }
         requestAnimationFrame(renderLoop);
     }
 
@@ -6295,18 +6513,6 @@ document.addEventListener('DOMContentLoaded', function () {
         appScrollableBody.appendChild(wrapper);
     }
 
-    /* ---------- Временная кнопка денег в настройках ---------- */
-    const btnCheatMoney = document.getElementById('btn-cheat-money');
-    if (btnCheatMoney) {
-        btnCheatMoney.addEventListener('click', function () {
-            playerMoney += 1000000;
-            addBankTransaction('Тестовое пополнение', 1000000, true);
-            updateClockUI();
-            saveGameData();
-            showToast('+1 000 000 ₽');
-        });
-    }
-
     /* =========================================================
        ПОЕЗДКА НА МАШИНЕ: газ, тормоз, скорость и камеры
        ========================================================= */
@@ -6622,29 +6828,38 @@ document.addEventListener('DOMContentLoaded', function () {
     let preloadPromise = null;
     let loadingStarted = false;
 
-    const OPTIONAL_IMAGE_PATTERN = /suspects\/|business\/|companies\/|pedals\/|customers\/|police_|hospital|taxi_|doctor_|bike_/;
+    const OPTIONAL_IMAGE_PATTERN = /music\/|suspects\/|business\/|companies\/|pedals\/|customers\/|police_|hospital|taxi_|doctor_|bike_/;
     let backgroundStarted = false;
 
+    /* Загрузка картинок в три этапа:
+       1) до входа в игру только самое нужное (карта, значки телефона), оно качается уже во время интро;
+       2) сразу после входа то, что нужно в первые минуты (телефон, квартира, список машин, еда);
+       3) всё остальное тихо докачивается в фоне, пока игрок осваивается, самые лёгкие и нужные файлы первыми. */
     function buildEssentialList() {
-        const list = ['city_map.png', 'house.png', 'bed.png', 'men.png', 'phone.png', 'phone_btn.png', 'settings_btn.png'];
+        const list = ['city_map.png', 'men.png', 'phone_btn.png', 'settings_btn.png'];
         ['taxi', 'work', 'shtraf', 'plat', 'business', 'karta', 'avto', 'casino', 'sms', 'eda', 'poisk', 'zakaz', 'kollectiv', 'imushka', 'compania', 'music'].forEach(function (name) { list.push('logo/' + name + '.png'); });
         return list;
     }
 
+    function buildSecondList() {
+        const list = ['phone.png', 'house.png', 'bed.png'];
+        CARS.forEach(function (car) { list.push('cars/' + car.imgPrefix + '_1.png'); });
+        FOOD_ITEMS.forEach(function (item) { list.push(item.image); });
+        return list;
+    }
+
     function buildBackgroundList() {
-        const list = [
-            'fire_station.png', 'firefighter_npc.png', 'truck_station.png', 'trucker_npc.png',
-            'market_room.png', 'cashier_manager.png', 'police_station.png', 'police_npc.png',
-            'hospital.png', 'doctor_npc.png', 'taxi_park.png', 'taxi_npc.png',
-            'pdd_brick.png', 'pdd_main_road.png', 'burning_house.png', 'pedals/gas.png', 'pedals/brake.png'
-        ];
+        const list = [];
+        COMPANIES.forEach(function (item) { list.push('companies/' + item.id + '.webp'); });
+        BUSINESSES.forEach(function (item) { list.push('business/' + item.id + '.png'); });
+        MUSIC_TRACKS.forEach(function (track) { if (track.image) list.push(track.image); });
+        CARS.forEach(function (car) { for (let n = 2; n <= 3; n += 1) list.push('cars/' + car.imgPrefix + '_' + n + '.png'); });
+        list.push('pedals/gas.png', 'pedals/brake.png', 'pdd_brick.png', 'pdd_main_road.png');
+        list.push('fire_station.png', 'firefighter_npc.png', 'truck_station.png', 'trucker_npc.png',
+            'market_room.png', 'cashier_manager.png', 'burning_house.png');
         CASHIER_DENOMINATIONS.forEach(function (item) { list.push(item.image); });
         for (let n = 1; n <= 10; n += 1) list.push('customers/customer_' + n + '.png');
-        FOOD_ITEMS.forEach(function (item) { list.push(item.image); });
-        MUSIC_TRACKS.forEach(function (track) { if (track.image) list.push(track.image); });
-        BUSINESSES.forEach(function (item) { list.push('business/' + item.id + '.png'); });
-        COMPANIES.forEach(function (item) { list.push('companies/' + item.id + '.webp'); });
-        CARS.forEach(function (car) { for (let n = 1; n <= 3; n += 1) list.push('cars/' + car.imgPrefix + '_' + n + '.png'); });
+        list.push('police_station.png', 'police_npc.png', 'hospital.png', 'doctor_npc.png', 'taxi_park.png', 'taxi_npc.png');
         for (let n = 1; n <= XJ_SUSPECT_COUNT; n += 1) list.push('suspects/suspect_' + n + '.png');
         return Array.from(new Set(list));
     }
@@ -6655,14 +6870,15 @@ document.addEventListener('DOMContentLoaded', function () {
         if (loadingPercent) loadingPercent.textContent = percent + '%';
     }
 
-    function loadImageWithRetry(url, attempt, keep) {
+    function loadImageWithRetry(url, attempt, keep, lowPriority) {
         return new Promise(function (resolve) {
             const image = new Image();
+            if (lowPriority && 'fetchPriority' in image) image.fetchPriority = 'low';
             if (keep) preloadedImages.push(image);
             image.onload = function () { image.onload = null; resolve(true); };
             image.onerror = function () {
                 if (!OPTIONAL_IMAGE_PATTERN.test(url) && attempt < 2) {
-                    setTimeout(function () { loadImageWithRetry(url, attempt + 1, keep).then(resolve); }, 400 * (attempt + 1));
+                    setTimeout(function () { loadImageWithRetry(url, attempt + 1, keep, lowPriority).then(resolve); }, 400 * (attempt + 1));
                 } else {
                     resolve(false);
                 }
@@ -6671,7 +6887,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    function runImageQueue(urls, concurrency, keep, onEach) {
+    function runImageQueue(urls, concurrency, keep, onEach, lowPriority) {
         return new Promise(function (resolve) {
             if (!urls.length) { resolve(); return; }
             let index = 0;
@@ -6682,7 +6898,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     const url = urls[index];
                     index += 1;
                     active += 1;
-                    loadImageWithRetry(url, 0, keep).then(function () {
+                    loadImageWithRetry(url, 0, keep, lowPriority).then(function () {
                         active -= 1;
                         finished += 1;
                         if (onEach) onEach();
@@ -6699,7 +6915,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (preloadPromise) return preloadPromise;
         const urls = buildEssentialList();
         preloadStatus.total = urls.length;
-        preloadPromise = runImageQueue(urls, 6, true, function () {
+        preloadPromise = runImageQueue(urls, 8, true, function () {
             preloadStatus.done += 1;
             updateLoadingUI();
         }).then(function () {
@@ -6711,7 +6927,15 @@ document.addEventListener('DOMContentLoaded', function () {
     function startBackgroundPreload() {
         if (backgroundStarted) return;
         backgroundStarted = true;
-        runImageQueue(buildBackgroundList(), 3, false, null);
+        /* Этап 2: нужное в первые минуты, сразу и быстро */
+        runImageQueue(buildSecondList(), 6, false, null, false).then(function () {
+            /* Этап 3: остальное в фоне. В режиме экономии трафика не качаем заранее */
+            const connection = navigator.connection || {};
+            if (connection.saveData) return;
+            const startRest = function () { runImageQueue(buildBackgroundList(), 4, false, null, true); };
+            if ('requestIdleCallback' in window) requestIdleCallback(startRest, { timeout: 1500 });
+            else setTimeout(startRest, 300);
+        });
     }
 
     function waitForMapImage(maxMs) {
@@ -6741,7 +6965,7 @@ document.addEventListener('DOMContentLoaded', function () {
             setTimeout(function () {
                 if (loadingScreen) loadingScreen.classList.add('hidden');
                 launchGame();
-                setTimeout(startBackgroundPreload, 1200);
+                setTimeout(startBackgroundPreload, 300);
             }, 200);
         });
     }
@@ -6839,6 +7063,313 @@ document.addEventListener('DOMContentLoaded', function () {
         if (introScreen) introScreen.classList.add('hidden');
         if (mainMenu) mainMenu.classList.remove('hidden');
     }, 3200);
+
+
+    /* =========================================================
+       ПРИЛОЖЕНИЕ «ПОИСК»: частые вопросы и ответы
+       Нажмите на вопрос, и ниже раскроется ответ. Строка поиска фильтрует вопросы, а кнопки сверху выбирают тему.
+       ========================================================= */
+    const FAQ_ITEMS = [
+        /* ---------- Начало игры ---------- */
+        ['Начало игры', 'С чего начать игру?', 'В начале вы дома, на счёте 1 000 ₽. Откройте телефон (кнопка справа вверху), зайдите в «Работа.ру» и выберите профессию. Не забывайте про еду и сон: следите за кружками слева вверху.'],
+        ['Начало игры', 'Сколько денег у меня в начале?', '1 000 ₽. Дальше деньги приносят работа, бизнес, компании и выплаты от государства по праздникам.'],
+        ['Начало игры', 'Когда начинается игра по календарю?', 'Игра стартует 1 мая в 06:00. Дата и время всегда показаны вверху экрана.'],
+        ['Начало игры', 'Как двигать карту и приближать её?', 'Перетаскивайте карту пальцем. Чтобы приблизить или отдалить, разведите или сведите два пальца. Метки на карте нажимаются одним касанием.'],
+        ['Начало игры', 'Что значит надпись «Вы здесь»?', 'Она показывает, где сейчас находится ваш персонаж: у дома или у последнего места, откуда вы вышли.'],
+        ['Начало игры', 'Сохраняется ли прогресс?', 'Да, игра сохраняется автоматически на вашем устройстве. Если очистить данные сайта или приложения, прогресс пропадёт.'],
+        ['Начало игры', 'Зачем при входе просят выбрать пол и дату рождения?', 'От пола зависят праздничные выплаты (23 февраля для парней, 8 марта для девушек), а в день рождения государство дарит подарок.'],
+        ['Начало игры', 'Почему при первом запуске игра грузится дольше?', 'Сначала скачиваются самые важные картинки (карта и значки телефона), остальные подгружаются в фоне, пока вы осваиваетесь. Потом они запоминаются на устройстве, и игра открывается быстрее.'],
+        ['Начало игры', 'Почему некоторые картинки появляются не сразу?', 'Они ещё докачиваются в фоне. Подождите немного или откройте раздел ещё раз: игра сама пробует загрузить картинку повторно.'],
+
+        /* ---------- Потребности ---------- */
+        ['Потребности', 'Какие потребности есть у персонажа?', 'Голод, энергия и сон. Они показаны тремя кружками в левом верхнем углу с процентами.'],
+        ['Потребности', 'Как быстро падает голод?', 'С 100% до нуля примерно за 5 игровых часов.'],
+        ['Потребности', 'Как быстро падает энергия?', 'Примерно за 6 игровых часов. Пока вы работаете, энергия тратится быстрее на 11%.'],
+        ['Потребности', 'Как быстро падает сон?', 'Примерно за 15 игровых часов.'],
+        ['Потребности', 'Как восстановить голод?', 'Закажите еду в приложении «Еда». Когда доставка придёт, голод восстановится.'],
+        ['Потребности', 'Как восстановить сон и энергию?', 'Ложитесь спать: зайдите домой, нажмите на кровать и выберите «Спать». Во время сна растут и сон, и энергия.'],
+        ['Потребности', 'Сколько длится сон?', 'Сон восстанавливается примерно за 8,5 игровых часа, энергия за 7,5. Время во сне идёт в 7 раз быстрее, а проснётесь вы автоматически, когда сон дойдёт до 100%.'],
+        ['Потребности', 'Можно ли лечь спать, если сон уже 100%?', 'Нет, игра сообщит, что сон уже полностью восстановлен.'],
+        ['Потребности', 'Что будет, если сон упадёт до нуля?', 'Экран начнёт периодически на секунду темнеть, а работать станет нельзя, пока вы не поспите.'],
+        ['Потребности', 'Можно ли работать с нулевой энергией?', 'Нет. Брать задания и работать можно только когда сон и энергия не равны нулю.'],
+        ['Потребности', 'Падает ли голод во время сна?', 'Да, но примерно в 5 раз медленнее, чем днём.'],
+        ['Потребности', 'Можно ли пользоваться телефоном во время сна?', 'Нет. Сначала проснитесь, нажав кнопку пробуждения.'],
+
+        /* ---------- Время ---------- */
+        ['Время', 'Как идёт время в игре?', 'Одна реальная секунда равна 2,4 игровой минуты. Игровой час длится 25 секунд, а игровые сутки около 10 минут реального времени.'],
+        ['Время', 'Что ускоряет время?', 'Сон: пока персонаж спит, время идёт в 7 раз быстрее.'],
+        ['Время', 'Идёт ли игровое время, когда игра закрыта?', 'Нет, время и потребности стоят. Зато приносят деньги компании: их доход копится, даже когда вы не в игре.'],
+        ['Время', 'Где посмотреть время и дату?', 'В верхней части экрана рядом с вашим балансом и на экране телефона.'],
+
+        /* ---------- Телефон ---------- */
+        ['Телефон', 'Как открыть телефон?', 'Нажмите кнопку с телефоном в правом верхнем углу карты. Закрывается он красной кнопкой с крестиком.'],
+        ['Телефон', 'Какие приложения есть в телефоне?', 'Такси, Работа.ру, Штрафы, Оплата, Бизнес, Счёт, Авто.ру, Лотерея, СМС, Еда, Поиск, Заказ, Коллектив, Имущество и Компания.'],
+        ['Телефон', 'Для чего нужно приложение «Такси»?', 'С его помощью можно вызвать такси в любую точку на карте.'],
+        ['Телефон', 'Для чего нужно приложение «Работа.ру»?', 'Там список профессий. Выберите работу и подайте заявку, чтобы устроиться.'],
+        ['Телефон', 'Для чего нужно приложение «Счёт»?', 'Это ваш банк: там баланс и история всех поступлений и списаний.'],
+        ['Телефон', 'Для чего нужно приложение «СМС»?', 'Сюда приходят сообщения от работодателей, магазина, государства и других. Красный значок показывает непрочитанные.'],
+        ['Телефон', 'Для чего нужно приложение «Коллектив»?', 'Там отображается информация о ваших работах и выполненных заказах. Если вы нигде не работаете, приложение подскажет, как устроиться.'],
+        ['Телефон', 'Для чего нужно приложение «Имущество»?', 'Показывает вашу недвижимость, машины, велосипед и бизнесы. Там же выбирают машину для поездок и продают транспорт.'],
+        ['Телефон', 'Для чего нужно приложение «Заказ»?', 'Для закупки товара в ваши бизнесы. Без товара на складе бизнес не работает.'],
+        ['Телефон', 'Что делать, если телефон тормозит?', 'Закройте лишние вкладки и приложения на устройстве и обновите страницу. Игра уже не рисует карту под открытым телефоном, поэтому он должен открываться плавно.'],
+
+        /* ---------- Деньги, налоги и штрафы ---------- */
+        ['Деньги и налоги', 'Где посмотреть баланс?', 'Вверху экрана под датой и в приложении «Счёт».'],
+        ['Деньги и налоги', 'Где посмотреть историю операций?', 'В приложении «Счёт»: там все поступления и списания.'],
+        ['Деньги и налоги', 'Какие налоги есть в игре?', '3% с зарплаты, 5% при покупке автомобиля и 1,5% с выигрыша в лотерею.'],
+        ['Деньги и налоги', 'Где платить налоги?', 'В приложении «Оплата».'],
+        ['Деньги и налоги', 'Сколько времени есть на оплату налога?', '7 игровых дней. За день до срока придёт напоминание в «СМС».'],
+        ['Деньги и налоги', 'Что будет, если не платить налог?', 'Через неделю налог спишется с баланса автоматически, и вдобавок придёт штраф за неуплату в размере двух налогов.'],
+        ['Деньги и налоги', 'За что бывают штрафы?', 'За превышение скорости на камерах во время поездки на машине, за нарушения на работе и за неуплату налога.'],
+        ['Деньги и налоги', 'Где платить штрафы?', 'В приложении «Штрафы». Там есть вкладки с неоплаченными и оплаченными штрафами.'],
+        ['Деньги и налоги', 'Сколько времени есть на оплату штрафа?', '3 игровых дня. Если не успеть, штраф списывается автоматически, и сумма утраивается.'],
+        ['Деньги и налоги', 'Может ли баланс уйти в минус?', 'Да. Автосписание налогов и штрафов может увести баланс в минус, тогда сумма станет красной.'],
+
+        /* ---------- Работа ---------- */
+        ['Работа', 'Как устроиться на работу?', 'Откройте «Работа.ру», выберите профессию и подайте заявку. На карте появится метка места работы. Приезжайте туда на собеседование в назначенное время, о нём напишут в «СМС».'],
+        ['Работа', 'Сколько работ можно совмещать?', 'Максимум две одновременно.'],
+        ['Работа', 'В какое время работают профессии?', 'Пожарный 07:00–19:00, дальнобойщик 06:00–22:00, кассир 09:00–21:00, полицейский 08:00–17:00, доктор 08:00–20:00, таксист круглосуточно.'],
+        ['Работа', 'Сколько платят на разных работах?', 'В «Работа.ру» указана примерная зарплата: пожарный 65 000 ₽, дальнобойщик 90 000 ₽, кассир 11 500 ₽ за смену, полицейский 70 000 ₽, доктор 75 000 ₽, таксист 52 000 ₽. Точный доход зависит от заказов.'],
+        ['Работа', 'Облагается ли зарплата налогом?', 'Да, с каждой зарплаты начисляется налог 3%. Его нужно оплатить в приложении «Оплата».'],
+        ['Работа', 'Как начать рабочий день?', 'Поезжайте на метку своей работы и поговорите с сотрудником (начальником). Он даст заказы или откроет смену.'],
+        ['Работа', 'Почему мне нельзя брать задания?', 'Скорее всего, сейчас не рабочее время вашей профессии или у вас нулевой сон или энергия. Поспите или дождитесь начала рабочего времени.'],
+        ['Работа', 'Зачем при устройстве задают вопросы?', 'Для некоторых профессий нужно пройти короткий тест. Сразу после открытия вопросов ответы 0,8 секунды не нажимаются, чтобы вы случайно не ответили двойным тапом.'],
+
+        /* ---------- Профессии ---------- */
+        ['Профессии', 'Как работает пожарный?', 'Вы берёте заказ МЧС (лёгкий, средний или сложный), едете на вызов и тушите очаги огня. Чем сложнее заказ, тем больше очагов и выше награда.'],
+        ['Профессии', 'Можно ли отменить заказ пожарного?', 'Да, на экране выезда и тушения есть кнопка отмены.'],
+        ['Профессии', 'Как работает дальнобойщик?', 'У начальника автобазы вы выбираете один из двух рейсов. Зарплата равна расстоянию, умноженному на ставку за километр. В пути нажимайте на экран, чтобы ехать вперёд.'],
+        ['Профессии', 'Как работает кассир?', 'Вы обслуживаете покупателей: видите сумму чека и сколько заплатил клиент, собираете сдачу купюрами и монетами и нажимаете «Выдать сдачу».'],
+        ['Профессии', 'Как убрать лишнюю купюру из сдачи?', 'Нажмите на карточку этой купюры в выданной сдаче, и одна купюра вернётся обратно. Одинаковые купюры собраны в одну карточку со счётчиком, например «10 ₽ ×8».'],
+        ['Профессии', 'Когда у кассира перерыв?', 'С 13:00 до 14:30. Смена идёт с 09:00 до 21:00.'],
+        ['Профессии', 'Сколько получает кассир за смену?', '11 500 ₽. Зарплата делится на 3 при позднем начале смены, на 3,3 при раннем уходе и на 2, если обслужено меньше 15 клиентов.'],
+        ['Профессии', 'Как закончить смену кассира?', 'Нажмите кнопку «Закончить смену» внизу экрана кассы. Все нижние кнопки всегда видны.'],
+        ['Профессии', 'Чем занимается полицейский?', 'Выезжает на вызовы: ищет преступника среди подозреваемых, участвует в погоне и проверяет скорость машин на дорожном патруле.'],
+        ['Профессии', 'Чем занимается доктор?', 'Проводит рентген, реанимацию и операции. Это короткие мини-игры на внимательность и реакцию.'],
+        ['Профессии', 'Чем занимается таксист?', 'Возит пассажиров по городу и получает оплату за каждую поездку. Работать можно круглосуточно.'],
+
+        /* ---------- Транспорт ---------- */
+        ['Транспорт', 'Как добраться до места на карте?', 'Нажмите на метку и выберите способ: пешком, личный транспорт или такси. Новое окно несколько мгновений не реагирует на нажатия, чтобы вы случайно не выбрали лишнего.'],
+        ['Транспорт', 'Как долго идти пешком?', 'Нужно сделать 222 нажатия по экрану, это примерно 49 игровых минут.'],
+        ['Транспорт', 'Сколько стоит такси?', 'От 450 до 700 ₽ в зависимости от маршрута. Поездка занимает 45 игровых минут.'],
+        ['Транспорт', 'Как ехать на своей машине?', 'Удерживайте педаль газа, чтобы набирать скорость, и тормоз, чтобы замедляться. Скорость зависит от машины: у быстрых она растёт быстрее.'],
+        ['Транспорт', 'Как управлять машиной на компьютере?', 'Стрелка вверх или пробел это газ, стрелка вниз это тормоз.'],
+        ['Транспорт', 'Что за камеры на дороге?', 'Три камеры стоят в случайных местах шкалы. Если в момент проезда скорость выше 80 км/ч, штраф 500 ₽ за каждый лишний км/ч.'],
+        ['Транспорт', 'Прибавляется ли время, когда я приезжаю на машине?', 'Нет, время идёт как обычно, а лишние минуты к часам не добавляются.'],
+        ['Транспорт', 'Сколько нужно ехать на машине?', 'На недорогой машине примерно 30–40 игровых минут. Быстрые машины доезжают быстрее.'],
+        ['Транспорт', 'Как выбрать машину для поездок?', 'В приложении «Имущество» выберите нужную из купленных машин.'],
+        ['Транспорт', 'Можно ли продать машину или велосипед?', 'Да, в «Имуществе». Вы получите 70% от цены.'],
+        ['Транспорт', 'Зачем нужен велосипед?', 'Он стоит 15 000 ₽ и быстрее пешей прогулки: до места нужно 167 нажатий вместо 222.'],
+
+        /* ---------- Авто.ру ---------- */
+        ['Авто.ру', 'Как купить машину?', 'В приложении «Авто.ру» нажмите «Купить» на карточке машины. Налог 5% от цены придёт отдельным платежом в «Оплате».'],
+        ['Авто.ру', 'Как листать фотографии машины?', 'Открыв машину, листайте фото свайпом пальцем вправо или влево, либо нажимайте стрелки по бокам.'],
+        ['Авто.ру', 'Сколько машин в игре?', '20 автомобилей и велосипед. Список идёт от дешёвого к дорогому.'],
+        ['Авто.ру', 'Какая машина самая дорогая и самая дешёвая?', 'Самая дорогая Bugatti Chiron за 250 000 000 ₽. Самая дешёвая из автомобилей ВАЗ 2107 за 150 000 ₽, а дешевле всего велосипед за 15 000 ₽.'],
+        ['Авто.ру', 'Можно ли купить одну и ту же машину дважды?', 'Нет, каждую машину можно купить только один раз.'],
+
+        /* ---------- Еда ---------- */
+        ['Еда', 'Как заказать еду?', 'В приложении «Еда» добавьте блюда в корзину, откройте корзину и оплатите. Заказ будет доставлен через некоторое время.'],
+        ['Еда', 'Какая еда самая сытная?', 'Геркулес восстанавливает 67% голода и стоит всего 65 ₽. Это самое выгодное блюдо.'],
+        ['Еда', 'Какая еда самая дорогая?', 'Гамбургер за 250 ₽, он восстанавливает 55% голода.'],
+        ['Еда', 'Что лучше купить на последние деньги?', 'Геркулес (67% за 65 ₽), гречку (44% за 70 ₽) или хлеб (40% за 45 ₽).'],
+
+        /* ---------- Лотерея ---------- */
+        ['Лотерея', 'Как играть в лотерею?', 'Откройте «Лотерею», выберите уровень билета (от 100 ₽ до 100 000 000 ₽), купите билеты и посмотрите результат розыгрыша.'],
+        ['Лотерея', 'Какой выигрыш в лотерее?', 'Зависит от числа совпадений: 1 совпадение ×1,15, 2 ×1,3, 3 ×2, 4 ×3,3, 5 ×5 от цены билета.'],
+        ['Лотерея', 'Облагается ли выигрыш налогом?', 'Да, налог 1,5% с суммы выигрыша. Его нужно оплатить в «Оплате».'],
+        ['Лотерея', 'Можно ли проиграть?', 'Да. Если совпадений нет, деньги за билет не возвращаются. Играйте на ту сумму, которую не жалко потерять.'],
+
+        /* ---------- Бизнес ---------- */
+        ['Бизнес', 'Какие бизнесы можно купить?', 'Ларёк (650 000 ₽), Маленький продуктовый магазин (1 250 000 ₽), Минимаркет (2 250 000 ₽), Супермаркет (7 000 000 ₽), Ресторан (15 000 000 ₽), Транспортная компания (125 000 000 ₽) и Автосалон (1 450 000 000 ₽).'],
+        ['Бизнес', 'Что нужно, чтобы бизнес работал?', 'Три вещи: работник (его нужно оплатить на 1–2 дня вперёд), аренда на 1–4 дня и товар на складе.'],
+        ['Бизнес', 'Куда идёт выручка?', 'Во вкладку «Прибыль» в приложении «Бизнес». На баланс деньги попадают только когда вы нажмёте кнопку вывода.'],
+        ['Бизнес', 'Как купить товар для бизнеса?', 'В приложении «Заказ»: кнопки −10, −1, +1 и +10, а также «Заполнить склад». Внизу видны итоговая цена и вместимость склада.'],
+        ['Бизнес', 'Что будет, когда товар закончится?', 'Придёт СМС, а бизнес остановится, пока вы не пополните склад.'],
+        ['Бизнес', 'Можно ли купить несколько одинаковых бизнесов?', 'Нет, каждого вида можно иметь только один.'],
+        ['Бизнес', 'Сколько можно получить при продаже бизнеса?', '65% от цены покупки. Например, ларёк за 650 000 ₽ продаётся за 422 500 ₽.'],
+        ['Бизнес', 'Как меняется выручка бизнеса?', 'Число посетителей и средний чек каждый день немного отличаются (на 1–5%), так что доход не бывает одинаковым.'],
+
+        /* ---------- Компании ---------- */
+        ['Компании', 'Что такое приложение «Компания»?', 'В нём можно купить мировые компании: от «Вкусно — и точка» за 150 млн ₽ до Apple за 120 млрд ₽. Всего их 30.'],
+        ['Компании', 'Когда компании приносят доход?', 'Всегда, в том числе когда вы не в игре. Прибыль копится до 30 дней, и при возвращении придёт СМС о том, сколько накопилось.'],
+        ['Компании', 'Как забрать прибыль компаний?', 'Во вкладке «Прибыль» приложения «Компания» нажмите кнопку вывода. Пока вы не выведете деньги, они на баланс не попадают.'],
+        ['Компании', 'Какая компания самая прибыльная?', 'Apple: она приносит 84 млн ₽ за минуту реального времени. Чем дороже компания, тем выше её доход.'],
+
+        /* ---------- Музыка и настройки ---------- */
+        ['Музыка и настройки', 'Как поменять музыку?', 'Нажмите на шестерёнку справа вверху, затем «Выбор музыки» и нажмите «Выбрать» у нужного трека.'],
+        ['Музыка и настройки', 'Какие песни бесплатные?', 'Нейтральный трек и Чимаев доступны сразу. Остальные нужно купить.'],
+        ['Музыка и настройки', 'Сколько стоят песни?', 'Гейджи 500 ₽, Царукян 1 000 ₽, Оливейра 1 200 ₽, Оливейра (Эдит) 1 500 ₽, Хабиб 2 000 ₽, Махачев 2 200 ₽, Топурия 3 333 ₽, Мераб 12 000 ₽, Пётр Ян 33 333 ₽.'],
+        ['Музыка и настройки', 'Как изменить громкость?', 'В настройках есть два ползунка: «Звуковые эффекты» и «Фоновая музыка».'],
+
+        /* ---------- Праздники ---------- */
+        ['Праздники', 'Какие выплаты даёт государство?', '1 января +7 000 ₽ всем, 23 февраля +10 000 ₽ парням, 8 марта +10 000 ₽ девушкам и +12 000 ₽ в ваш день рождения.'],
+        ['Праздники', 'Как получить выплату?', 'Ничего делать не нужно: в праздничный день деньги придут на счёт сами, и вы получите сообщение.'],
+
+        /* ---------- Советы ---------- */
+        ['Советы', 'Как быстро заработать в начале?', 'Устройтесь на подходящую работу (например, кассиром или пожарным), следите за сном и едой и не пропускайте рабочее время.'],
+        ['Советы', 'Во что вложить большие деньги?', 'В бизнесы и компании: они приносят доход постоянно. Компании платят даже тогда, когда вы не играете.'],
+        ['Советы', 'Как не получать штрафы?', 'Ездите на машине медленно в зоне камер, платите налоги в первые дни и вовремя приходите на работу.'],
+        ['Советы', 'Что делать, если игра зависла?', 'Обновите страницу: прогресс сохраняется автоматически, и вы продолжите с того же места.']
+    ];
+
+    const FAQ_CATEGORIES = ['Все'].concat(FAQ_ITEMS.map(function (item) { return item[0]; }).filter(function (name, index, list) { return list.indexOf(name) === index; }));
+
+    function faqNormalize(text) {
+        return String(text || '').toLowerCase().replace(/ё/g, 'е');
+    }
+
+    function renderSearchApp() {
+        appScrollableBody.innerHTML = '';
+        const wrapper = document.createElement('div');
+        wrapper.className = 'faq-wrapper';
+        wrapper.innerHTML =
+            '<div class="faq-search-box"><span class="faq-search-icon">🔍</span>' +
+            '<input type="search" class="faq-search-input" placeholder="Поиск по вопросам" autocomplete="off" enterkeyhint="search">' +
+            '<button type="button" class="faq-search-clear hidden" aria-label="Очистить">✕</button></div>' +
+            '<div class="faq-cats"></div>' +
+            '<div class="faq-count"></div>' +
+            '<div class="faq-list"></div>' +
+            '<div class="faq-empty hidden"><div class="faq-empty-icon">🤷</div><b>Ничего не найдено</b><span>Попробуйте другое слово или выберите тему «Все».</span></div>';
+        appScrollableBody.appendChild(wrapper);
+
+        const input = wrapper.querySelector('.faq-search-input');
+        const clearButton = wrapper.querySelector('.faq-search-clear');
+        const catsBox = wrapper.querySelector('.faq-cats');
+        const countBox = wrapper.querySelector('.faq-count');
+        const listBox = wrapper.querySelector('.faq-list');
+        const emptyBox = wrapper.querySelector('.faq-empty');
+        let activeCategory = 'Все';
+        let openCard = null;
+
+        const cards = FAQ_ITEMS.map(function (item, index) {
+            const card = document.createElement('div');
+            card.className = 'faq-card';
+            card.innerHTML =
+                '<button type="button" class="faq-question" aria-expanded="false">' +
+                '<span class="faq-q-num">' + (index + 1) + '</span>' +
+                '<span class="faq-q-text"></span><span class="faq-chevron">⌄</span></button>' +
+                '<div class="faq-answer-wrap"><div class="faq-answer"><div class="faq-answer-inner"></div></div></div>';
+            card.querySelector('.faq-q-text').textContent = item[1];
+            card.querySelector('.faq-answer-inner').textContent = item[2];
+            card.dataset.search = faqNormalize(item[0] + ' ' + item[1] + ' ' + item[2]);
+            card.dataset.cat = item[0];
+            card.querySelector('.faq-question').addEventListener('click', function () {
+                const willOpen = !card.classList.contains('open');
+                if (openCard && openCard !== card) {
+                    openCard.classList.remove('open');
+                    openCard.querySelector('.faq-question').setAttribute('aria-expanded', 'false');
+                }
+                card.classList.toggle('open', willOpen);
+                card.querySelector('.faq-question').setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+                openCard = willOpen ? card : null;
+                if (willOpen) {
+                    setTimeout(function () {
+                        if (card.classList.contains('open') && card.scrollIntoView) card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                    }, 120);
+                }
+            });
+            listBox.appendChild(card);
+            return card;
+        });
+
+        function applyFilter() {
+            const words = faqNormalize(input.value).split(/\s+/).filter(Boolean);
+            let shown = 0;
+            cards.forEach(function (card) {
+                const categoryOk = activeCategory === 'Все' || card.dataset.cat === activeCategory;
+                const textOk = words.every(function (word) { return card.dataset.search.indexOf(word) !== -1; });
+                const visible = categoryOk && textOk;
+                card.classList.toggle('hidden', !visible);
+                if (visible) shown += 1;
+                if (!visible && card.classList.contains('open')) {
+                    card.classList.remove('open');
+                    if (openCard === card) openCard = null;
+                }
+            });
+            countBox.textContent = words.length || activeCategory !== 'Все' ? 'Найдено вопросов: ' + shown : 'Всего вопросов: ' + FAQ_ITEMS.length;
+            emptyBox.classList.toggle('hidden', shown !== 0);
+            clearButton.classList.toggle('hidden', !input.value);
+        }
+
+        FAQ_CATEGORIES.forEach(function (name) {
+            const chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'faq-chip' + (name === activeCategory ? ' active' : '');
+            chip.textContent = name;
+            chip.addEventListener('click', function () {
+                activeCategory = name;
+                catsBox.querySelectorAll('.faq-chip').forEach(function (other) { other.classList.toggle('active', other === chip); });
+                applyFilter();
+                appScrollableBody.scrollTop = 0;
+            });
+            catsBox.appendChild(chip);
+        });
+
+        let filterTimer = null;
+        input.addEventListener('input', function () {
+            clearTimeout(filterTimer);
+            filterTimer = setTimeout(applyFilter, 120);
+        });
+        clearButton.addEventListener('click', function () {
+            input.value = '';
+            applyFilter();
+            input.focus();
+        });
+        applyFilter();
+    }
+
+    /* =========================================================
+       ЗАЩИТА ОТ СЛУЧАЙНЫХ ДВОЙНЫХ НАЖАТИЙ
+       1) Только что открывшееся окно или экран первые 0,45 с не принимает нажатия.
+          Так «призрачный» клик по метке на карте не попадает в кнопки такси, пешком и т. д.
+       2) Повторное нажатие на ту же кнопку в течение 0,25 с игнорируется.
+          Быстрые игры (касса, пожар, пешая прогулка, количество в «Заказе») этим правилом не затрагиваются.
+       ========================================================= */
+    (function setupTapGuard() {
+        const OPEN_GUARD_MS = 450;
+        const DOUBLE_TAP_MS = 250;
+        const WATCH_SELECTOR = '.modal-overlay, .phone-modal-overlay, .tax-history-overlay, .dialogue-overlay, .screen, [id$="-modal"], [id$="-overlay"], [id^="travel-step"]';
+        const RAPID_SELECTOR = '.biz-qty-btn, [data-rapid], #walk-fullscreen, #cashier-work-screen, #drive-screen, #fire-fullscreen, #road-fullscreen, #trucker-road-fullscreen, #xj-game-screen, #xj-task-screen, .pedal';
+        const lastClick = { target: null, time: 0 };
+
+        if (typeof MutationObserver === 'function') {
+            new MutationObserver(function (records) {
+                const now = performance.now();
+                for (let i = 0; i < records.length; i += 1) {
+                    const record = records[i];
+                    const element = record.target;
+                    if (!element.classList || element.classList.contains('hidden')) continue;
+                    if (!(record.oldValue || '').split(/\s+/).includes('hidden')) continue;
+                    if (element.matches(WATCH_SELECTOR)) element.__shownAt = now;
+                }
+            }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'], attributeOldValue: true });
+        }
+
+        document.addEventListener('click', function (event) {
+            const target = event.target;
+            if (!target || !target.closest) return;
+            const now = performance.now();
+
+            for (let element = target; element && element !== document.body; element = element.parentElement) {
+                if (element.__shownAt && now - element.__shownAt < OPEN_GUARD_MS) {
+                    event.stopPropagation();
+                    event.preventDefault();
+                    return;
+                }
+            }
+
+            const control = target.closest('button, .app-item, .car-card-new, .music-track-card, [role="button"]');
+            if (!control || control.closest(RAPID_SELECTOR) || control.hasAttribute('data-rapid')) return;
+            if (lastClick.target === control && now - lastClick.time < DOUBLE_TAP_MS) {
+                event.stopPropagation();
+                event.preventDefault();
+                return;
+            }
+            lastClick.target = control;
+            lastClick.time = now;
+        }, true);
+    })();
 
     if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
         navigator.serviceWorker.register('sw.js').catch(function () {});
