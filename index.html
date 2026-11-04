@@ -5,9 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>BestLife - 2D Life Simulator</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="preload" href="city_map.png" as="image" fetchpriority="high">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Шрифт подключается без блокировки показа страницы: если интернет медленный, игра всё равно откроется сразу -->
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet"></noscript>
 </head>
 <body>
 
@@ -63,7 +66,6 @@
                 </div>
             </div>
             <button id="btn-open-music-modal" class="btn btn-secondary" style="width:100%;margin-top:10px;">🎵 Выбор музыки</button>
-            <button id="btn-cheat-money" class="btn btn-secondary" style="width:100%;margin-top:10px;">💰 +1 000 000 ₽ (временно)</button>
             <button id="btn-close-settings" class="btn btn-primary" style="margin-top:15px;width:100%;">Закрыть</button>
         </div>
     </div>
