@@ -56,6 +56,17 @@ document.addEventListener('DOMContentLoaded', function () {
     let scheduledEvents = [];
     let ownedCars = [];
     let taxes = [];
+    let carFuel = {};
+    let gamesState = { best: {} };
+    let bankState = { account: 0, registered: false, loans: [], transfers: [], recents: [], seen: [], loanSeq: 0 };
+    let ytState = { channel: null, subs: 0, views: 0, likes: 0, balance: 0, counter: 0, shooting: null, editing: [], archive: [], live: [], history: [], uploads: { day: -1, count: 0 }, lastStreamDay: -1, stream: null, milestones: {}, tab: 'video' };
+    let travelState = { ticket: null, trip: null, restUntil: 0, years: 0, souvenirs: [] };
+    let phoneState = { model: 'basic', installed: [], layout: ['playstore', 'sms'], pendingInstalls: [], pendingRemovals: [] };
+    let marketState = { owned: {}, pending: [] };
+    let backpack = [];
+    let pendingBackpack = [];
+    let hygieneState = { lastWash: 0, warned: false };
+    let energyState = { until: 0, day: -1, count: 0, dizzyUntil: 0, dizzySleep: 0 };
 
     let phoneView = 'home';
     let currentPhoneApp = null;
@@ -229,7 +240,8 @@ document.addEventListener('DOMContentLoaded', function () {
         market: { x: 0.50, y: 0.52 },
         police: { x: 0.66, y: 0.46 },
         hospital: { x: 0.50, y: 0.44 },
-        taxipark: { x: 0.57, y: 0.565 }
+        taxipark: { x: 0.57, y: 0.565 },
+        airport: { x: 0.88, y: 0.22 }
     };
 
     const TAXI_ROUTE_PRICES = {
@@ -370,6 +382,7 @@ document.addEventListener('DOMContentLoaded', function () {
         { id: 'borshch', name: 'Борщ', hunger: 40, price: 150, image: 'food/borshch.png' },
         { id: 'gercules', name: 'Геркулес', hunger: 67, price: 65, image: 'food/gercules.png' },
         { id: 'gamburger', name: 'Гамбургер', hunger: 55, price: 250, image: 'food/gamburger.png' },
+        { id: 'energy', name: 'Энергетик', hunger: 20, energy: 85, price: 150, image: 'food/energy.png', isEnergy: true },
         { id: 'ris', name: 'Рис', hunger: 33, price: 75, image: 'food/ris.png' },
         { id: 'snickers', name: 'Сникерс', hunger: 20, price: 70, image: 'food/snickers.png' },
         { id: 'morozhenoe', name: 'Мороженое', hunger: 20, price: 90, image: 'food/morozhenoe.png' },
@@ -432,7 +445,12 @@ document.addEventListener('DOMContentLoaded', function () {
         zakaz: 'Заказ',
         kollectiv: 'Коллектив',
         imushka: 'Имущество',
-        compania: 'Компания'
+        compania: 'Компания',
+        playstore: 'Google Play',
+        market: 'Маркетплейс',
+        tickets: 'Билеты.би',
+        youtube: 'Ютуб',
+        games: 'Игры оффлайн'
     };
 
     /* =========================================================
@@ -784,6 +802,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (currentScreen === 'firestation' || lastExitedLocation === 'firestation') return 'firestation';
         if (currentScreen === 'truckstation' || lastExitedLocation === 'truckstation') return 'truckstation';
         if (currentScreen === 'market' || lastExitedLocation === 'market') return 'market';
+        if (currentScreen === 'airport' || lastExitedLocation === 'airport') return 'airport';
         if (XJ_LOCATIONS[currentScreen]) return currentScreen;
         if (XJ_LOCATIONS[lastExitedLocation]) return lastExitedLocation;
         return 'home';
@@ -793,11 +812,13 @@ document.addEventListener('DOMContentLoaded', function () {
         if (key === 'firestation') return '🚒 Пожарная часть';
         if (key === 'truckstation') return '🚛 Автобаза';
         if (key === 'market') return '🛒 Магазин';
+        if (key === 'airport') return '✈️ Аэропорт';
         if (XJ_LOCATIONS[key]) return XJ_LOCATIONS[key].title;
         return '🏠 Дом';
     }
 
     function getTaxiRoutePrice(fromKey, toKey) {
+        if (fromKey === 'airport' || toKey === 'airport') return 1400;
         return TAXI_ROUTE_PRICES[fromKey + '->' + toKey] || xjTaxiPrice(fromKey, toKey);
     }
 
@@ -893,6 +914,25 @@ document.addEventListener('DOMContentLoaded', function () {
             if (data.truckerTotalOrdersCompleted !== undefined) truckerTotalOrdersCompleted = Number(data.truckerTotalOrdersCompleted) || 0;
             if (data.truckerOrdersCompletedToday !== undefined) truckerOrdersCompletedToday = Number(data.truckerOrdersCompletedToday) || 0;
             if (data.truckerOrdersCounterDay !== undefined) truckerOrdersCounterDay = data.truckerOrdersCounterDay;
+            if (data.energyState && typeof data.energyState === 'object') energyState = Object.assign(energyState, data.energyState);
+            if (data.carFuel && typeof data.carFuel === 'object') carFuel = data.carFuel;
+            if (data.gamesState && typeof data.gamesState === 'object' && data.gamesState.best && typeof data.gamesState.best === 'object') gamesState = { best: data.gamesState.best };
+            if (data.bankState && typeof data.bankState === 'object') {
+                bankState = Object.assign(bankState, data.bankState);
+                ['loans', 'transfers', 'recents', 'seen'].forEach(function (k) { if (!Array.isArray(bankState[k])) bankState[k] = []; });
+            }
+            if (data.ytState && typeof data.ytState === 'object') {
+                ytState = Object.assign(ytState, data.ytState);
+                ['editing', 'archive', 'live', 'history'].forEach(function (k) { if (!Array.isArray(ytState[k])) ytState[k] = []; });
+                if (!ytState.uploads || typeof ytState.uploads !== 'object') ytState.uploads = { day: -1, count: 0 };
+                if (!ytState.milestones || typeof ytState.milestones !== 'object') ytState.milestones = {};
+            }
+            if (data.travelState && typeof data.travelState === 'object') travelState = Object.assign(travelState, data.travelState);
+            if (data.phoneState && typeof data.phoneState === 'object') phoneState = Object.assign(phoneState, data.phoneState);
+            if (data.marketState && typeof data.marketState === 'object') marketState = Object.assign(marketState, data.marketState);
+            if (Array.isArray(data.backpack)) backpack = data.backpack.filter(function (id) { return backpackFood(id); }).slice(0, 10);
+            if (Array.isArray(data.pendingBackpack)) pendingBackpack = data.pendingBackpack.filter(function (item) { return item && backpackFood(item.id); });
+            if (data.hygieneState && typeof data.hygieneState === 'object') hygieneState = Object.assign(hygieneState, data.hygieneState);
 
             if (data.cashierTotalShiftsCompleted !== undefined) cashierTotalShiftsCompleted = Number(data.cashierTotalShiftsCompleted) || 0;
             if (data.cashierCustomersServed !== undefined) cashierCustomersServed = Number(data.cashierCustomersServed) || 0;
@@ -922,7 +962,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function saveGameData() {
         saveIsDirty = true;
-        if (saveTimerId === null) saveTimerId = setTimeout(flushGameData, 1200);
+        if (saveTimerId === null) saveTimerId = setTimeout(flushGameData, 3000);
     }
 
     function flushGameData() {
@@ -970,6 +1010,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 cashierJobState: cashierJobState,
                 truckerCurrentOffers: truckerCurrentOffers,
                 truckerTripState: truckerTripState,
+                energyState: energyState,
+                carFuel: carFuel,
+                gamesState: gamesState,
+                bankState: bankState,
+                ytState: ytState,
+                travelState: travelState,
+                phoneState: phoneState,
+                marketState: marketState,
+                backpack: backpack,
+                pendingBackpack: pendingBackpack,
+                hygieneState: hygieneState,
                 truckerTotalOrdersCompleted: truckerTotalOrdersCompleted,
                 truckerOrdersCompletedToday: truckerOrdersCompletedToday,
                 truckerOrdersCounterDay: truckerOrdersCounterDay,
@@ -1428,6 +1479,37 @@ document.addEventListener('DOMContentLoaded', function () {
         showToast(icon + ' ' + title + ': +' + amount.toLocaleString('ru-RU') + ' ₽');
     }
 
+    /* Дополнительные праздники (месяцы с нуля: 0 = январь) */
+    const HOLIDAY_EXTRA_LIST = [
+        { d: 7, m: 0, sum: 15000, icon: '⭐', name: 'Рождество' },
+        { d: 14, m: 1, sum: 10000, icon: '💝', name: 'День святого Валентина' },
+        { d: 1, m: 3, sum: 10000, icon: '🤡', name: 'День смеха' },
+        { d: 12, m: 3, sum: 30000, icon: '🚀', name: 'День космонавтики' },
+        { d: 1, m: 4, sum: 20000, icon: '🌷', name: 'Праздник Весны и Труда' },
+        { d: 9, m: 4, sum: 75000, icon: '🎖️', name: 'День Победы' },
+        { d: 1, m: 5, sum: 10000, icon: '🧸', name: 'День защиты детей' },
+        { d: 12, m: 5, sum: 25000, icon: '🎉', name: 'День России' },
+        { d: 1, m: 8, sum: 25000, icon: '📚', name: 'День знаний' },
+        { d: 5, m: 9, sum: 15000, icon: '🍎', name: 'День учителя' },
+        { d: 4, m: 10, sum: 20000, icon: '🤝', name: 'День народного единства' }
+    ];
+
+    /* Награды госслужащим: каждые 30 заказов +15 000, 100 заказов +35 000, 500 заказов +100 000 */
+    const GOV_MILESTONES = [
+        { step: 30, sum: 15000 },
+        { step: 100, sum: 35000 },
+        { step: 500, sum: 100000 }
+    ];
+
+    function checkGovMilestones(jobTitle, prevTotal, newTotal) {
+        GOV_MILESTONES.forEach(function (ms) {
+            if (Math.floor(newTotal / ms.step) > Math.floor(prevTotal / ms.step)) {
+                giveGovernmentReward(ms.sum, '🏅', 'Награда: ' + jobTitle + ', ' + Math.floor(newTotal / ms.step) * ms.step + ' заказов',
+                    'Вы выполнили ' + (Math.floor(newTotal / ms.step) * ms.step) + ' заказов на службе (' + jobTitle + '). Награда: ' + ms.sum.toLocaleString('ru-RU') + ' ₽.');
+            }
+        });
+    }
+
     function processHolidayRewards(day, monthIndex) {
         const gender = localStorage.getItem('bestlife_gender');
         const birthday = getPlayerBirthday();
@@ -1443,6 +1525,11 @@ document.addEventListener('DOMContentLoaded', function () {
         if (birthday && birthday.day === day && birthday.month === monthIndex) {
             giveGovernmentReward(BIRTHDAY_REWARD, '🎂', 'Подарок ко дню рождения', 'С днём рождения! Государство дарит вам ' + BIRTHDAY_REWARD.toLocaleString('ru-RU') + ' ₽.');
         }
+        HOLIDAY_EXTRA_LIST.forEach(function (h) {
+            if (h.d === day && h.m === monthIndex) {
+                giveGovernmentReward(h.sum, h.icon, h.name, h.name + '! Государство поздравляет вас и начисляет ' + h.sum.toLocaleString('ru-RU') + ' ₽.');
+            }
+        });
         saveGameData();
     }
 
@@ -1475,6 +1562,7 @@ document.addEventListener('DOMContentLoaded', function () {
         wrapper.className = 'bank-app-wrapper';
         wrapper.innerHTML = '<div class="bank-card-premium"><div class="bank-card-logo">BestBank Premium</div><div class="bank-balance-title">Ваш баланс</div><div class="bank-balance-value">' + playerMoney.toLocaleString('ru-RU') + ' ₽</div><div class="bank-card-number">•••• 4412</div></div><div class="bank-history-section"><div class="bank-section-title">История операций</div><div class="bank-history-list" id="bank-history-list-box"></div></div>';
         appScrollableBody.appendChild(wrapper);
+        renderBankExtras(wrapper);
 
         const historyBox = wrapper.querySelector('#bank-history-list-box');
         if (!bankHistory.length) {
@@ -1603,7 +1691,7 @@ document.addEventListener('DOMContentLoaded', function () {
         FOOD_ITEMS.forEach(function (food) {
             const card = document.createElement('div');
             card.className = 'food-card';
-            card.innerHTML = '<img src="' + food.image + '" alt="' + food.name + '" onerror="this.style.visibility=\'hidden\'"><div class="food-name">' + food.name + '</div><div class="food-info">+' + food.hunger + '% сытости</div><div class="food-price">' + food.price + ' ₽</div><button class="food-buy-btn">В корзину</button>';
+            card.innerHTML = '<img src="' + food.image + '" alt="' + food.name + '" onerror="this.style.visibility=\'hidden\'"><div class="food-name">' + food.name + '</div><div class="food-info">+' + food.hunger + '% сытости' + (food.energy ? ', +' + food.energy + '% энергии' : '') + '</div><div class="food-price">' + food.price + ' ₽</div><button class="food-buy-btn">В корзину</button>';
             card.querySelector('button').addEventListener('click', function () {
                 foodCart.push(food);
                 saveGameData();
@@ -1650,12 +1738,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 showToast('Недостаточно денег на счёте');
                 return;
             }
+            const drinksInCart = foodCart.filter(function (f) { return f.isEnergy; }).length;
+            if (drinksInCart > 0 && energyBlockedAtPurchase(drinksInCart)) return;
+            const normalFoodHunger = foodCart.reduce(function (s, f) { return s + (f.isEnergy ? 0 : f.hunger); }, 0);
             playerMoney = Math.max(0, playerMoney - total);
             addBankTransaction('Покупка еды', total, false);
             pendingFoodDeliveries.push({
+                energyDrinks: drinksInCart,
                 deliverAtMinutes: getTotalAbsoluteMinutes() + 30,
-                totalHunger: Math.min(totalHunger, Math.max(0, 100 - playerHunger)),
-                totalEnergy: Math.min(totalHunger, Math.max(0, 100 - playerEnergy))
+                totalHunger: Math.min(normalFoodHunger, Math.max(0, 100 - playerHunger)),
+                totalEnergy: Math.min(normalFoodHunger, Math.max(0, 100 - playerEnergy))
             });
             foodCart = [];
             saveGameData();
@@ -1863,7 +1955,7 @@ document.addEventListener('DOMContentLoaded', function () {
         appScrollableBody.innerHTML = '';
         const fromKey = getLocationKey();
         const fromTitle = getLocationTitle(fromKey);
-        const targets = ['home', 'firestation', 'truckstation', 'market', 'police', 'hospital', 'taxipark'].filter(function (key) { return key !== fromKey; });
+        const targets = ['home', 'firestation', 'truckstation', 'market', 'police', 'hospital', 'taxipark', 'airport'].filter(function (key) { return key !== fromKey; });
 
         const wrapper = document.createElement('div');
         wrapper.className = 'taxi-app-wrapper';
@@ -1885,7 +1977,15 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function orderTaxi(fromKey, toKey, price, fromTitle, toTitle) {
-        if (cashierShiftState.active || (xjTask && xjTask.active) || xjGameActive) {
+        if (taxiTimerId) {
+            showToast('Вы уже в такси');
+            return;
+        }
+        if (travelBlockMessage()) {
+            showToast(travelBlockMessage());
+            return;
+        }
+        if (isPlayerWorking() || truckerTripState.active || cashierShiftState.active || (xjTask && xjTask.active) || xjGameActive) {
             showToast('Сначала завершите смену или задание');
             return;
         }
@@ -1898,7 +1998,6 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         if (taxiTimerId) clearInterval(taxiTimerId);
-
         playerMoney = Math.max(0, playerMoney - price);
         addBankTransaction('Поездка на такси', price, false);
         phoneModal.classList.add('hidden');
@@ -1919,7 +2018,7 @@ document.addEventListener('DOMContentLoaded', function () {
         taxiTimerId = setInterval(function () {
             const elapsed = (performance.now() - startTime) / 1000;
             const progress = Math.min(1, elapsed / totalTaxiRealSeconds);
-            gameMinutes = startMinutes + progress * 45;
+            gameMinutes = startMinutes + progress * ((fromKey === 'airport' || toKey === 'airport') ? 120 : 45);
             advanceCalendar();
             taxiProgressInner.style.width = (progress * 100).toFixed(1) + '%';
             taxiPercentText.textContent = Math.round(progress * 100) + '%';
@@ -1943,7 +2042,7 @@ document.addEventListener('DOMContentLoaded', function () {
         firestationScreen.classList.add('hidden');
         truckstationScreen.classList.add('hidden');
         marketScreen.classList.add('hidden');
-        xjHideScreens();
+        xjHideScreens(); hideAirportScreen();
         lastExitedLocation = toKey;
 
         currentScreen = 'city';
@@ -1955,6 +2054,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function openTravelChoiceModal(targetKey) {
+        if (travelBlockMessage()) {
+            showToast(travelBlockMessage());
+            return;
+        }
         targetLocationSelected = targetKey;
         travelChoiceTitle.textContent = targetKey === 'home' ? 'Едем домой' : (targetKey === 'firestation' ? 'Едем в Пожарную часть' : (targetKey === 'truckstation' ? 'Едем на Автобазу' : (targetKey === 'market' ? 'Едем в Магазин' : xjTravelTitle(targetKey, 'choice'))));
         const realCar = ownedCars.find(function (item) { return item.id !== 'bike'; });
@@ -2013,8 +2116,8 @@ document.addEventListener('DOMContentLoaded', function () {
     function startWalkTravel() {
         travelChoiceModal.classList.add('hidden');
         travelMode = 'walk';
-        walkClicksTotal = 222;
-        walkClicksLeft = 222;
+        walkClicksTotal = targetLocationSelected === 'airport' ? 444 : 222;
+        walkClicksLeft = walkClicksTotal;
         walkFullscreen.classList.remove('hidden');
         const title = targetLocationSelected === 'home' ? 'Дом' : (targetLocationSelected === 'firestation' ? 'Пожарную часть' : (targetLocationSelected === 'truckstation' ? 'Автобазу' : (targetLocationSelected === 'market' ? 'Магазин' : xjTravelTitle(targetLocationSelected, 'walk'))));
         walkTitleText.textContent = 'Идём пешком в ' + title;
@@ -2042,7 +2145,7 @@ document.addEventListener('DOMContentLoaded', function () {
         firestationScreen.classList.add('hidden');
         truckstationScreen.classList.add('hidden');
         marketScreen.classList.add('hidden');
-        xjHideScreens();
+        xjHideScreens(); hideAirportScreen();
         lastExitedLocation = targetLocationSelected;
 
         currentScreen = 'city';
@@ -2062,8 +2165,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         travelChoiceModal.classList.add('hidden');
         travelMode = 'bike';
-        walkClicksTotal = 167;
-        walkClicksLeft = 167;
+        walkClicksTotal = targetLocationSelected === 'airport' ? 334 : 167;
+        walkClicksLeft = walkClicksTotal;
         walkFullscreen.classList.remove('hidden');
         const placeNames = { home: 'Дом', firestation: 'Пожарную часть', truckstation: 'Автобазу', market: 'Магазин', police: 'Полицейский участок', hospital: 'Больницу', taxipark: 'Таксопарк' };
         walkTitleText.textContent = 'Едем на велосипеде в ' + (placeNames[targetLocationSelected] || 'место назначения');
@@ -2072,6 +2175,14 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function startCarTravel() {
+        if (travelBlockMessage()) {
+            showToast(travelBlockMessage());
+            return;
+        }
+        if (isDizzy()) {
+            showToast('🥴 Кружится голова: нельзя садиться за руль');
+            return;
+        }
         if (!ownedCars.some(function (item) { return item.id !== 'bike'; })) {
             showToast('У вас нет автомобиля');
             return;
@@ -2144,6 +2255,14 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function acceptFireOrder(level) {
+        if (travelBlockMessage()) {
+            showToast(travelBlockMessage());
+            return;
+        }
+        if (isDizzy()) {
+            showToast('🥴 Кружится голова: нельзя работать');
+            return;
+        }
         const selected = ORDER_TYPES[level];
         if (!selected || !isFirefighterWorkTime()) return;
         if (!hasEnoughEnergyOrSleep()) {
@@ -2217,13 +2336,15 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function completeFireOrder() {
-        const reward = orderState.reward;
+        const reward = applySalaryHygiene(orderState.reward);
         playerMoney += reward;
         addBankTransaction('Зарплата: Пожарный', reward, true);
         createTax('salary', reward * SALARY_TAX_RATE, 'Налог: Пожарный 3%');
         checkResetDailyOrdersCounter();
         ordersCompletedToday += 1;
+        const prevFireTotal = totalOrdersCompleted;
         totalOrdersCompleted += 1;
+        checkGovMilestones('Пожарный', prevFireTotal, totalOrdersCompleted);
         orderState.active = false;
         saveGameData();
         fireFullscreen.classList.add('hidden');
@@ -2409,6 +2530,14 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function acceptTruckerOrder(offer) {
+        if (travelBlockMessage()) {
+            showToast(travelBlockMessage());
+            return;
+        }
+        if (isDizzy()) {
+            showToast('🥴 Кружится голова: нельзя работать');
+            return;
+        }
         if (!hasEnoughEnergyOrSleep()) {
             showToast('Недостаточно энергии или сна для рейса');
             return;
@@ -2454,7 +2583,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function completeTruckerTrip() {
         if (!truckerTripState.active || !truckerTripState.order) return;
         const order = truckerTripState.order;
-        const salary = Math.round(order.dist * order.rate);
+        const salary = applySalaryHygiene(Math.round(order.dist * order.rate));
 
         playerMoney += salary;
         addBankTransaction('Зарплата: Дальнобойщик', salary, true);
@@ -2614,6 +2743,14 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function handleMarketWorkButton() {
+        if (travelBlockMessage()) {
+            showToast(travelBlockMessage());
+            return;
+        }
+        if (isDizzy()) {
+            showToast('🥴 Кружится голова: нельзя работать');
+            return;
+        }
         if (cashierShiftState.active) {
             marketDialogueOverlay.classList.add('hidden');
             showCashierWorkScreen();
@@ -2681,7 +2818,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function showCashierWorkScreen() {
         marketScreen.classList.add('hidden');
-        xjHideScreens();
+        xjHideScreens(); hideAirportScreen();
         cashierWorkScreen.classList.remove('hidden');
         updateCashierUI();
         renderCashierDenominations();
@@ -2913,7 +3050,7 @@ document.addEventListener('DOMContentLoaded', function () {
             createFine(CASHIER_EARLY_END_FINE, 'Досрочное завершение смены кассира');
         }
         if (notEnoughClients) { salary /= 2; notes.push('меньше ' + CASHIER_MIN_CLIENTS + ' клиентов: зарплата ÷2'); }
-        salary = Math.round(salary);
+        salary = applySalaryHygiene(Math.round(salary));
 
         playerMoney += salary;
         addBankTransaction('Зарплата: Кассир', salary, true);
@@ -2981,6 +3118,24 @@ document.addEventListener('DOMContentLoaded', function () {
                 card.addEventListener('click', function () { startLottoTier(tier); });
                 grid.appendChild(card);
             });
+            const custom = document.createElement('div');
+            custom.style.cssText = 'margin-top:12px;padding:12px;border-radius:14px;background:#f1f5f9;';
+            custom.innerHTML = '<div style="font-weight:800;margin-bottom:6px;">✏️ Своя сумма билета</div>' +
+                '<div style="font-size:.7rem;color:#64748b;margin-bottom:8px;line-height:1.35;">От 10 до 1 000 000 000 ₽. Выигрыш считается в процентах от вашей суммы: чем больше совпадений, тем больше, а за все 5 числ выплата ×5.</div>' +
+                '<div style="display:flex;gap:8px;"><input id="lotto-custom-input" type="number" inputmode="numeric" min="10" max="1000000000" placeholder="Например, 456" style="flex:1;min-width:0;padding:10px;border-radius:10px;border:1px solid #cbd5e1;font-size:1rem;"><button type="button" class="lotto-btn-start" id="lotto-custom-btn">Играть</button></div>';
+            wrapper.appendChild(custom);
+            custom.querySelector('#lotto-custom-btn').addEventListener('click', function () {
+                const amount = Math.floor(Number(custom.querySelector('#lotto-custom-input').value));
+                if (!amount || amount < 10 || amount > 1000000000) {
+                    showToast('Введите сумму от 10 до 1 000 000 000 ₽');
+                    return;
+                }
+                if (playerMoney < amount) {
+                    showToast('Недостаточно денег на такой билет');
+                    return;
+                }
+                startLottoTier({ icon: '✏️', label: amount.toLocaleString('ru-RU') + ' ₽', price: amount, custom: true });
+            });
             return;
         }
 
@@ -2990,7 +3145,7 @@ document.addEventListener('DOMContentLoaded', function () {
             game.className = 'lotto-game-container';
             const header = document.createElement('div');
             header.className = 'lotto-header-bar';
-            header.innerHTML = '<div><strong>Категория: ' + tier.label + '</strong><br><span style="font-size:.68rem;color:#64748b;">Выбрано: ' + lottoState.selectedTicketIndexes.length + '/2</span></div>';
+            header.innerHTML = '<div><strong>Категория: ' + tier.label + '</strong><br><span style="font-size:.68rem;color:#64748b;">Выбрано: ' + lottoState.selectedTicketIndexes.length + '/3</span></div>';
             const startButton = document.createElement('button');
             startButton.className = 'lotto-btn-start';
             startButton.disabled = lottoState.selectedTicketIndexes.length === 0;
@@ -3082,8 +3237,8 @@ document.addEventListener('DOMContentLoaded', function () {
             renderLottoApp();
             return;
         }
-        if (lottoState.selectedTicketIndexes.length >= 2) {
-            showToast('Можно выбрать максимум 2 билета');
+        if (lottoState.selectedTicketIndexes.length >= 3) {
+            showToast('Можно выбрать максимум 3 билета');
             return;
         }
         const price = lottoState.selectedTier.price;
@@ -3276,6 +3431,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 playerHunger = clamp(playerHunger + delivery.totalHunger, 0, 100);
                 playerEnergy = clamp(playerEnergy + delivery.totalEnergy, 0, 100);
                 pendingFoodDeliveries.splice(index, 1);
+                for (let d = 0; d < (delivery.energyDrinks || 0); d += 1) drinkEnergyDrink();
                 showToast('🍕 Еда доставлена');
             }
         }
@@ -3300,6 +3456,344 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    /* =========================================================
+       РЮКЗАК (до 10 предметов, только еда)
+       ========================================================= */
+    const BACKPACK_SIZE = 10;
+    const BACKPACK_DELIVERY_MINUTES = 30;
+    let backpackSelected = -1;
+
+    function backpackFood(id) {
+        return FOOD_ITEMS.find(function (food) { return food.id === id; });
+    }
+
+    function backpackTotal() {
+        return backpack.length + pendingBackpack.length;
+    }
+
+    function renderBackpack() {
+        const grid = document.getElementById('backpack-grid');
+        if (!grid) return;
+        grid.innerHTML = '';
+        const total = backpackTotal();
+        if (backpackSelected >= backpack.length) backpackSelected = -1;
+        for (let i = 0; i < BACKPACK_SIZE; i += 1) {
+            const slot = document.createElement('button');
+            slot.type = 'button';
+            slot.className = 'backpack-slot';
+            if (i < backpack.length) {
+                const food = backpackFood(backpack[i]);
+                slot.classList.add('filled');
+                if (i === backpackSelected) slot.classList.add('selected');
+                slot.innerHTML = '<img src="' + food.image + '" alt="" onerror="this.style.visibility=\'hidden\'"><span>' + food.name + '</span>';
+                slot.addEventListener('click', function () { backpackSelected = i; renderBackpack(); });
+            } else if (i < total) {
+                slot.classList.add('pending');
+                slot.disabled = true;
+                slot.innerHTML = '<b>⏳</b><span>в пути</span>';
+            } else if (i === total) {
+                slot.classList.add('add');
+                slot.innerHTML = '<b>+</b>';
+                slot.addEventListener('click', openBackpackShop);
+            } else {
+                slot.disabled = true;
+            }
+            grid.appendChild(slot);
+        }
+        const counter = document.getElementById('backpack-count');
+        if (counter) counter.textContent = total + '/' + BACKPACK_SIZE;
+        const detail = document.getElementById('backpack-detail');
+        if (!detail) return;
+        if (backpackSelected >= 0) {
+            const food = backpackFood(backpack[backpackSelected]);
+            detail.innerHTML = '<div class="bp-name">' + food.name + '</div><div class="bp-info">+' + food.hunger + '% сытости' + (food.energy ? ', +' + food.energy + '% энергии' : '') + '</div><button type="button" id="btn-backpack-use" class="btn btn-primary" style="width:100%;">Использовать</button>';
+            document.getElementById('btn-backpack-use').addEventListener('click', function () { useBackpackItem(backpackSelected); });
+        } else {
+            detail.innerHTML = '';
+        }
+    }
+
+    function openBackpack() {
+        backpackSelected = -1;
+        renderBackpack();
+        document.getElementById('backpack-modal').classList.remove('hidden');
+    }
+
+    function closeBackpack() {
+        document.getElementById('backpack-modal').classList.add('hidden');
+    }
+
+    function openBackpackShop() {
+        renderBackpackShop();
+        document.getElementById('backpack-shop-modal').classList.remove('hidden');
+    }
+
+    function renderBackpackShop() {
+        const list = document.getElementById('backpack-shop-list');
+        const hint = document.getElementById('backpack-shop-hint');
+        if (!list) return;
+        const free = BACKPACK_SIZE - backpackTotal();
+        if (hint) hint.textContent = 'Свободных мест: ' + free + '. Еда появится в рюкзаке через ' + BACKPACK_DELIVERY_MINUTES + ' игровых минут.';
+        list.innerHTML = '';
+        FOOD_ITEMS.forEach(function (food) {
+            const row = document.createElement('div');
+            row.className = 'backpack-shop-row';
+            row.innerHTML = '<img src="' + food.image + '" alt="" onerror="this.style.visibility=\'hidden\'"><div class="bp-col"><b>' + food.name + '</b>+' + food.hunger + '% сытости' + (food.energy ? ', +' + food.energy + '% энергии' : '') + ' • ' + food.price + ' ₽</div><button type="button" class="btn btn-primary">Купить</button>';
+            row.querySelector('button').addEventListener('click', function () { buyToBackpack(food); });
+            list.appendChild(row);
+        });
+    }
+
+    function buyToBackpack(food) {
+        if (backpackTotal() >= BACKPACK_SIZE) {
+            showToast('Рюкзак полный (максимум ' + BACKPACK_SIZE + ' предметов)');
+            return;
+        }
+        if (playerMoney < food.price) {
+            showToast('Недостаточно денег');
+            return;
+        }
+        playerMoney -= food.price;
+        addBankTransaction('Покупка в рюкзак: ' + food.name, food.price, false);
+        pendingBackpack.push({ id: food.id, at: getTotalAbsoluteMinutes() + BACKPACK_DELIVERY_MINUTES });
+        saveGameData();
+        updateClockUI();
+        renderBackpackShop();
+        renderBackpack();
+        showToast(food.name + ' появится в рюкзаке через 30 игровых минут');
+    }
+
+    function useBackpackItem(index) {
+        const id = backpack[index];
+        const food = id ? backpackFood(id) : null;
+        if (!food) return;
+        if (food.isEnergy) {
+            if (energyState.until > getTotalAbsoluteMinutes()) {
+                showToast('Эффект энергетика ещё действует, повторно выпить нельзя');
+                return;
+            }
+            drinkEnergyDrink();
+        } else {
+            if (playerHunger >= 100 && playerEnergy >= 100) {
+                showToast('Вы не голодны');
+                return;
+            }
+            playerHunger = clamp(playerHunger + food.hunger, 0, 100);
+            playerEnergy = clamp(playerEnergy + food.hunger, 0, 100);
+            showToast('🍽️ Вы съели: ' + food.name);
+        }
+        backpack.splice(index, 1);
+        backpackSelected = -1;
+        saveGameData();
+        updateClockUI();
+        updateStatsHUD();
+        renderBackpack();
+    }
+
+    function processBackpackDeliveries() {
+        if (!pendingBackpack.length) return;
+        const now = getTotalAbsoluteMinutes();
+        let changed = false;
+        for (let i = 0; i < pendingBackpack.length; i += 1) {
+            const item = pendingBackpack[i];
+            if (item.at <= now) {
+                pendingBackpack.splice(i, 1);
+                i -= 1;
+                if (backpackFood(item.id) && backpack.length < BACKPACK_SIZE) {
+                    backpack.push(item.id);
+                    showToast('🎒 В рюкзаке появилось: ' + backpackFood(item.id).name);
+                }
+                changed = true;
+            }
+        }
+        if (changed) {
+            const modal = document.getElementById('backpack-modal');
+            if (modal && !modal.classList.contains('hidden')) renderBackpack();
+            const shop = document.getElementById('backpack-shop-modal');
+            if (shop && !shop.classList.contains('hidden')) renderBackpackShop();
+        }
+    }
+
+    (function bindBackpackButtons() {
+        const openButton = document.getElementById('btn-open-backpack');
+        const closeButton = document.getElementById('btn-close-backpack');
+        const closeShopButton = document.getElementById('btn-close-backpack-shop');
+        if (openButton) openButton.addEventListener('click', function () { playClick(); openBackpack(); });
+        if (closeButton) closeButton.addEventListener('click', closeBackpack);
+        if (closeShopButton) closeShopButton.addEventListener('click', function () {
+            document.getElementById('backpack-shop-modal').classList.add('hidden');
+            renderBackpack();
+        });
+    })();
+
+    /* =========================================================
+       БЕНЗИН
+       ========================================================= */
+    const FUEL_PRICE = 65;
+    const FUEL_PER_TRIP_SHARE = 0.045;
+
+    function carTank(car) {
+        return Math.max(30, Math.min(60, Math.round(30 + (Number(car.power) || 0) / 5)));
+    }
+
+    function getFuel(car) {
+        if (carFuel[car.id] === undefined) carFuel[car.id] = carTank(car);
+        return Math.max(0, Math.min(carTank(car), Number(carFuel[car.id]) || 0));
+    }
+
+    let fuelTextEl = null;
+    let fuelBarEl = null;
+    let fuelLastText = '';
+    let fuelLastPct = -1;
+
+    function updateFuelHud(car, tank) {
+        if (!fuelTextEl || !fuelTextEl.isConnected) {
+            fuelTextEl = document.getElementById('drive-fuel-text');
+            fuelBarEl = document.getElementById('drive-fuel-bar');
+            fuelLastText = '';
+            fuelLastPct = -1;
+        }
+        const fuel = getFuel(car);
+        const text = '⛽ ' + fuel.toFixed(1) + ' / ' + tank + ' л';
+        if (fuelTextEl && text !== fuelLastText) {
+            fuelTextEl.textContent = text;
+            fuelLastText = text;
+        }
+        const pct = Math.round(fuel / tank * 100);
+        if (fuelBarEl && pct !== fuelLastPct) {
+            fuelBarEl.style.width = pct + '%';
+            fuelBarEl.style.background = pct < 20 ? '#ef4444' : '#22c55e';
+            fuelLastPct = pct;
+        }
+    }
+
+    function refuelCar(car) {
+        const need = Math.ceil(carTank(car) - getFuel(car));
+        if (need <= 0) { showToast('Бак уже полный'); return; }
+        const cost = need * FUEL_PRICE;
+        if (playerMoney < cost) { showToast('Недостаточно денег для заправки'); return; }
+        playerMoney -= cost;
+        addBankTransaction('Бензин: ' + car.title + ' (' + need + ' л)', cost, false);
+        carFuel[car.id] = carTank(car);
+        saveGameData();
+        updateClockUI();
+        showToast('⛽ Заправлено ' + need + ' л за ' + cost.toLocaleString('ru-RU') + ' ₽');
+        renderPropertyApp();
+    }
+
+    /* =========================================================
+       ГИГИЕНА: если долго не мыться, зарплата уменьшается
+       ========================================================= */
+    function daysWithoutWash() {
+        const now = getTotalAbsoluteMinutes();
+        if (!hygieneState.lastWash || hygieneState.lastWash > now) hygieneState.lastWash = now;
+        return Math.floor((now - hygieneState.lastWash) / 1440);
+    }
+
+    function hygienePenaltyPercent() {
+        const days = daysWithoutWash();
+        if (days <= 7) return 0;
+        if (days <= 15) return 5;
+        return Math.min(60, 15 + 5 * Math.floor((days - 15) / 5 + 1));
+    }
+
+    function applySalaryHygiene(amount) {
+        const pct = hygienePenaltyPercent();
+        return pct > 0 ? Math.round(amount * (1 - pct / 100)) : amount;
+    }
+
+    function checkHygieneWarning() {
+        const days = daysWithoutWash();
+        if (days > 7 && !hygieneState.warned) {
+            hygieneState.warned = true;
+            addMessage('Коллеги', '🧼', 'От вас неприятно пахнет. Помойтесь дома, иначе зарплата на работах будет снижена.');
+        }
+    }
+
+    function startWashing() {
+        if (isSleeping) return;
+        bedModal.classList.add('hidden');
+        let overlay = document.getElementById('wash-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'wash-overlay';
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;background:rgba(15,23,42,.88);color:#fff;font:800 1.2rem sans-serif;text-align:center;';
+            overlay.innerHTML = '<div style="font-size:3.2rem">🚿</div><div>Вы моетесь...</div><div style="font-size:.8rem;font-weight:600;opacity:.75">25 игровых минут</div>';
+            document.body.appendChild(overlay);
+        }
+        overlay.style.display = 'flex';
+        isClockRunning = false;
+        setTimeout(function () {
+            gameMinutes += 25;
+            advanceCalendar();
+            playerHunger = clamp(playerHunger - 1.5, 0, 100);
+            hygieneState.lastWash = getTotalAbsoluteMinutes();
+            hygieneState.warned = false;
+            overlay.style.display = 'none';
+            isClockRunning = true;
+            saveGameData();
+            updateClockUI();
+            updateStatsHUD();
+            showToast('🚿 Вы помылись. Зарплата в норме');
+        }, 3000);
+    }
+
+    /* =========================================================
+       ЭНЕРГЕТИК И ГОЛОВОКРУЖЕНИЕ
+       ========================================================= */
+
+    function isDizzy() {
+        return energyState.dizzyUntil > getTotalAbsoluteMinutes();
+    }
+
+    function energyDecayFactor() {
+        return (energyState.until > getTotalAbsoluteMinutes() ? 0.5 : 1) * (travelState.restUntil > monoNow() ? 1 / 1.15 : 1);
+    }
+
+    function drinkEnergyDrink() {
+        const now = getTotalAbsoluteMinutes();
+        const today = absoluteDay();
+        if (energyState.day !== today) {
+            energyState.day = today;
+            energyState.count = 0;
+        }
+        energyState.count += 1;
+        playerHunger = clamp(playerHunger + 20, 0, 100);
+        playerEnergy = clamp(playerEnergy + 85, 0, 100);
+        energyState.until = now + 120;
+        showToast('⚡ Энергетик выпит: энергия +85%, голод +20%');
+        if (energyState.count > 2) {
+            energyState.dizzyUntil = now + 180;
+            energyState.dizzySleep = 0;
+            addMessage('Здоровье', '🥴', 'Вы выпили больше 2 энергетиков за день. Началось головокружение на 3 часа. Поспите хотя бы 30 минут, чтобы оно прошло. Работать и садиться за руль нельзя.');
+            showToast('🥴 Кружится голова!');
+        }
+    }
+
+    function energyBlockedAtPurchase(drinksInCart) {
+        if (drinksInCart > 1) {
+            showToast('За один заказ можно взять только один энергетик');
+            return true;
+        }
+        if (energyState.until > getTotalAbsoluteMinutes()) {
+            showToast('Эффект энергетика ещё действует, повторно выпить нельзя');
+            return true;
+        }
+        return false;
+    }
+
+    function processEnergyEffects(sleepMinutes) {
+        if (energyState.dizzyUntil > 0) {
+            if (sleepMinutes > 0) energyState.dizzySleep += sleepMinutes;
+            if (energyState.dizzyUntil <= getTotalAbsoluteMinutes() || energyState.dizzySleep >= 30) {
+                energyState.dizzyUntil = 0;
+                energyState.dizzySleep = 0;
+                showToast('Головокружение прошло');
+            }
+        }
+        document.body.classList.toggle('is-dizzy', isDizzy());
+    }
+
     function updateNeeds(deltaSeconds) {
         if (!isClockRunning) return;
         const multiplier = isSleeping ? SLEEP_TIME_MULTIPLIER : 1;
@@ -3308,12 +3802,13 @@ document.addEventListener('DOMContentLoaded', function () {
         if (isSleeping) {
             playerHunger = clamp(playerHunger - (minutesPassed / (HUNGER_EMPTY_HOURS * 60)) * 100 / SLEEP_HUNGER_SLOWDOWN, 0, 100);
             playerSleep = clamp(playerSleep + (minutesPassed / (SLEEP_RESTORE_HOURS * 60)) * 100, 0, 100);
+            processEnergyEffects(minutesPassed);
             playerEnergy = clamp(playerEnergy + (minutesPassed / (ENERGY_RESTORE_HOURS * 60)) * 100, 0, 100);
             if (playerSleep >= 100) wakeUp(true);
         } else {
             playerHunger = clamp(playerHunger - (minutesPassed / (HUNGER_EMPTY_HOURS * 60)) * 100, 0, 100);
             playerSleep = clamp(playerSleep - (minutesPassed / (SLEEP_EMPTY_HOURS * 60)) * 100, 0, 100);
-            playerEnergy = clamp(playerEnergy - (minutesPassed / (ENERGY_EMPTY_HOURS * 60)) * 100 * (isPlayerWorking() ? 1.11 : 1), 0, 100);
+            playerEnergy = clamp(playerEnergy - (minutesPassed / (ENERGY_EMPTY_HOURS * 60)) * 100 * (isPlayerWorking() ? 1.11 : 1) * energyDecayFactor(), 0, 100);
         }
 
         gameMinutes += minutesPassed;
@@ -3325,6 +3820,13 @@ document.addEventListener('DOMContentLoaded', function () {
         processTaxesExpiration();
         processFinesExpiration();
         processFoodDeliveries();
+        processEnergyEffects(0);
+        processBackpackDeliveries();
+        processPhoneQueues();
+        processTravel();
+        processYoutube();
+        processBank();
+        checkHygieneWarning();
 
         if (cashierShiftState.active && !cashierShiftState.shiftCompleted) {
             updateCashierUI();
@@ -3543,12 +4045,14 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         xjDrawMarkers(left, top, map);
+        drawMarker(left + map.w * MAP_POINTS.airport.x, top + map.h * MAP_POINTS.airport.y, '#0ea5e9', '✈️', 'Аэропорт', '#7dd3fc');
         let playerPoint = { x: homeX + 34 * camera.zoom, y: homeY };
         if (lastExitedLocation === 'firestation') playerPoint = { x: fireX + 34 * camera.zoom, y: fireY };
         if (lastExitedLocation === 'truckstation') playerPoint = { x: truckX + 34 * camera.zoom, y: truckY };
         if (lastExitedLocation === 'market') playerPoint = { x: marketX + 34 * camera.zoom, y: marketY };
         const xjPoint = xjPlayerPoint(left, top, map);
         if (xjPoint) playerPoint = xjPoint;
+        if (lastExitedLocation === 'airport') playerPoint = { x: left + map.w * MAP_POINTS.airport.x + 34 * camera.zoom, y: top + map.h * MAP_POINTS.airport.y };
 
         ctx.save();
         const size = Math.max(48, 62 * camera.zoom);
@@ -3608,6 +4112,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         ];
 
+        points.push({ key: 'airport', x: left + map.w * MAP_POINTS.airport.x, y: top + map.h * MAP_POINTS.airport.y, active: true });
         xjAddMapPoints(points, left, top, map);
         for (let index = 0; index < points.length; index += 1) {
             const point = points[index];
@@ -3623,7 +4128,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 firestationScreen.classList.add('hidden');
                 truckstationScreen.classList.add('hidden');
                 marketScreen.classList.add('hidden');
-        xjHideScreens();
+        xjHideScreens(); hideAirportScreen();
                 cashierWorkScreen.classList.add('hidden');
                 /* HUD всегда виден */
                 if (point.key === 'home') {
@@ -3640,6 +4145,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 } else if (point.key === 'market') {
                     currentScreen = 'market';
                     marketScreen.classList.remove('hidden');
+                } else if (point.key === 'airport') {
+                    showAirportScreen();
                 } else if (XJ_LOCATIONS[point.key]) {
             currentScreen = point.key;
             xjShowScreen(point.key);
@@ -3752,8 +4259,20 @@ document.addEventListener('DOMContentLoaded', function () {
     function openBedInteractionModal() {
         if (isSleeping) return;
         bedModalTitle.textContent = playerSleep >= 100 ? '😴 Сон не нужен' : '🌙 Сон';
-        bedModalText.textContent = 'Во время сна время ускоряется в 7 раз.';
+        const dirtyDays = daysWithoutWash();
+        bedModalText.textContent = 'Во время сна время ускоряется в 7 раз. Не мылись дней: ' + dirtyDays + (hygienePenaltyPercent() > 0 ? ' (зарплата -' + hygienePenaltyPercent() + '%)' : '') + '.';
         btnSleepAction.classList.toggle('hidden', playerSleep >= 100);
+        let washButton = document.getElementById('btn-wash-action');
+        if (!washButton) {
+            washButton = document.createElement('button');
+            washButton.id = 'btn-wash-action';
+            washButton.type = 'button';
+            washButton.className = btnSleepAction.className;
+            washButton.textContent = '🚿 Помыться (25 мин)';
+            washButton.addEventListener('click', startWashing);
+            btnSleepAction.parentNode.insertBefore(washButton, btnSleepAction.nextSibling);
+        }
+        washButton.classList.remove('hidden');
         bedModal.classList.remove('hidden');
     }
 
@@ -3762,6 +4281,7 @@ document.addEventListener('DOMContentLoaded', function () {
        ========================================================= */
 
     function openPhoneApp(name) {
+        stopOfflineGame();
         currentPhoneApp = name;
         phoneView = 'app';
         phoneAppsGrid.classList.add('hidden');
@@ -3783,6 +4303,11 @@ document.addEventListener('DOMContentLoaded', function () {
         else if (name === 'business') renderBusinessApp();
         else if (name === 'zakaz') renderOrderApp();
         else if (name === 'poisk') renderSearchApp();
+        else if (name === 'playstore') renderPlayStore();
+        else if (name === 'market') renderMarketApp();
+        else if (name === 'tickets') renderTicketsApp();
+        else if (name === 'youtube') renderYoutubeApp();
+        else if (name === 'games') renderGamesApp();
         else if (name === 'casino') {
             lottoState.step = 'select_tier';
             renderLottoApp();
@@ -3792,12 +4317,1916 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function closePhoneApp() {
+        stopOfflineGame();
         phoneAppsGrid.classList.remove('hidden');
         phoneAppContent.classList.add('hidden');
         phoneStatusBar.classList.remove('dark-status');
         currentPhoneApp = null;
         phoneView = 'home';
         currentOpenedMessage = null;
+    }
+
+    /* =========================================================
+       ТЕЛЕФОН: GOOGLE PLAY, РАБОЧИЙ СТОЛ (3×5, свайп, перетаскивание), МАРКЕТПЛЕЙС
+       ========================================================= */
+    const PHONE_PAGE_SIZE = 15;
+    const PHONE_MODELS = {
+        basic: { title: 'Обычный телефон', cap: 6, wallpaper: 'linear-gradient(180deg, #60a5fa 0%, #c084fc 100%)' },
+        phone15: { title: 'Смартфон Pro', cap: 10, wallpaper: 'linear-gradient(160deg, #38bdf8 0%, #6366f1 55%, #a78bfa 100%)' },
+        phone33: { title: 'Смартфон Ultra', cap: 25, wallpaper: 'linear-gradient(155deg, #0ea5e9 0%, #8b5cf6 45%, #f472b6 100%)' }
+    };
+
+    const PLAY_CATALOG = [
+        { id: 'taxi', name: 'Такси', emoji: '🚕', size: 38, desc: 'Быстро вызовите такси в любую точку города.' },
+        { id: 'work', name: 'Работа.ру', emoji: '💼', size: 52, desc: 'Вакансии, собеседования и трудоустройство.' },
+        { id: 'shtraf', name: 'Штрафы', emoji: '⚠️', size: 21, desc: 'Штрафы и их оплата.' },
+        { id: 'plat', name: 'Оплата', emoji: '🧾', size: 18, desc: 'Налоги и платежи в одном месте.' },
+        { id: 'karta', name: 'Счёт', emoji: '💳', size: 64, desc: 'Баланс, история операций и переводы.' },
+        { id: 'eda', name: 'Еда', emoji: '🍔', size: 57, desc: 'Доставка продуктов и готовой еды.' },
+        { id: 'avto', name: 'Авто.ру', emoji: '🚗', size: 88, desc: 'Покупка автомобилей и велосипеда.' },
+        { id: 'imushka', name: 'Имущество', emoji: '🏡', size: 69, desc: 'Квартира, машины и бизнесы. Заправка авто.' },
+        { id: 'business', name: 'Бизнес', emoji: '🏪', size: 96, desc: 'Свои бизнесы, склад и работники.' },
+        { id: 'compania', name: 'Компания', emoji: '🌍', size: 118, desc: 'Покупка мировых компаний и прибыль.' },
+        { id: 'zakaz', name: 'Заказ', emoji: '📦', size: 61, desc: 'Заказ товаров для бизнеса.' },
+        { id: 'kollectiv', name: 'Коллектив', emoji: '👥', size: 47, desc: 'Ваши службы и задания коллектива.' },
+        { id: 'casino', name: 'Лотерея', emoji: '🎰', size: 74, desc: 'Национальная лотерея со своей суммой.' },
+        { id: 'poisk', name: 'Поиск', emoji: '🔎', size: 33, desc: 'Ответы на частые вопросы по игре.' },
+        { id: 'market', name: 'Маркетплейс', emoji: '🛍️', size: 134, desc: 'Камеры, микрофон, компьютер и новые телефоны.' },
+        { id: 'tickets', name: 'Билеты.би', emoji: '✈️', size: 98, desc: 'Авиабилеты на море и в другие страны. Аэропорт на карте.' },
+        { id: 'youtube', name: 'Ютуб', emoji: '▶️', size: 150, desc: 'Свой канал, ролики и стримы. Нужна техника из Маркетплейса.' },
+        { id: 'games', name: 'Игры оффлайн', emoji: '🎮', size: 120, desc: '5 простых игр: динозаврик, птичка, змейка, тетрис, 2048.' }
+    ];
+
+    const MARKET_ITEMS = [
+        { id: 'cam_stream', name: 'Камера для стримера', emoji: '📷', price: 35000, desc: 'Нужна для стримов.' },
+        { id: 'cam_youtube', name: 'Камера для ютубера', emoji: '🎥', price: 65000, desc: 'Нужна для съёмки роликов.' },
+        { id: 'computer', name: 'Компьютер', emoji: '🖥️', price: 215000, desc: 'Для монтажа и стримов.' },
+        { id: 'mic', name: 'Микрофон', emoji: '🎙️', price: 40000, desc: 'Студийный звук для роликов и стримов.' },
+        { id: 'phone15', name: 'Смартфон Pro', emoji: '📱', price: 15000, desc: 'Вмещает 10 приложений. Новые обои.', phoneModel: 'phone15' },
+        { id: 'phone33', name: 'Смартфон Ultra', emoji: '📲', price: 33000, desc: 'Вмещает 25 приложений. Премиальные обои.', phoneModel: 'phone33' }
+    ];
+
+    const APP_NODES = {};
+    let phonePage = 0;
+    let lastPlayRender = 0;
+    let pgDown = null;
+    let pgDrag = null;
+    let pgSuppress = false;
+    let pgEdgeTimer = null;
+
+    function phoneModelInfo() { return PHONE_MODELS[phoneState.model] || PHONE_MODELS.basic; }
+    function phoneSlotsMax() { return phoneModelInfo().cap - 1; }
+    function phoneSlotsUsed() { return phoneState.installed.length + phoneState.pendingInstalls.length; }
+    function playApp(id) { return PLAY_CATALOG.find(function (app) { return app.id === id; }); }
+    function installMinutes(app) { return Math.round(3 + Math.min(1, Math.max(0, (app.size - 15) / 135)) * 12); }
+    function pendingInstallOf(id) { return phoneState.pendingInstalls.find(function (p) { return p.id === id; }); }
+    function pendingRemovalOf(id) { return phoneState.pendingRemovals.find(function (p) { return p.id === id; }); }
+
+    function sanitizePhoneState() {
+        ['installed', 'layout', 'pendingInstalls', 'pendingRemovals'].forEach(function (key) {
+            if (!Array.isArray(phoneState[key])) phoneState[key] = [];
+        });
+        if (!Array.isArray(marketState.pending)) marketState.pending = [];
+        if (!marketState.owned || typeof marketState.owned !== 'object') marketState.owned = {};
+        if (!PHONE_MODELS[phoneState.model]) phoneState.model = 'basic';
+        phoneState.installed = phoneState.installed.filter(function (id, i, arr) { return playApp(id) && !playApp(id).soon && arr.indexOf(id) === i; });
+        const seen = {};
+        const layout = [];
+        phoneState.layout.concat(['playstore', 'sms'], phoneState.installed).forEach(function (id) {
+            const valid = id === 'playstore' || id === 'sms' || phoneState.installed.indexOf(id) !== -1;
+            if (valid && !seen[id]) { seen[id] = true; layout.push(id); }
+        });
+        phoneState.layout = layout;
+    }
+
+    function getAppNode(id) {
+        if (APP_NODES[id]) return APP_NODES[id];
+        const app = id === 'playstore' ? { name: 'Google Play', emoji: '▶️' } : (playApp(id) || { name: id, emoji: '📱' });
+        const node = document.createElement('div');
+        node.className = 'app-item';
+        node.dataset.app = id;
+        node.innerHTML = '<div class="app-icon-wrapper"><img src="logo/' + id + '.png" alt="' + app.name + '" onerror="this.style.display=\'none\';this.parentNode.setAttribute(\'data-emoji\',\'' + app.emoji + '\')"></div><span>' + app.name + '</span>';
+        node.addEventListener('click', function () { openPhoneApp(id); });
+        APP_NODES[id] = node;
+        return node;
+    }
+
+    function renderPhoneHome() {
+        sanitizePhoneState();
+        phoneAppsGrid.classList.add('pg-mode');
+        phoneAppsGrid.style.background = phoneModelInfo().wallpaper;
+        const layout = phoneState.layout;
+        const pageCount = Math.max(1, Math.ceil(layout.length / PHONE_PAGE_SIZE));
+        phonePage = Math.max(0, Math.min(pageCount - 1, phonePage));
+        phoneAppsGrid.innerHTML = '';
+        const viewport = document.createElement('div');
+        viewport.className = 'pg-viewport';
+        const track = document.createElement('div');
+        track.className = 'pg-track';
+        track.style.transform = 'translateX(' + (-phonePage * 100) + '%)';
+        for (let p = 0; p < pageCount; p += 1) {
+            const page = document.createElement('div');
+            page.className = 'pg-page';
+            layout.slice(p * PHONE_PAGE_SIZE, (p + 1) * PHONE_PAGE_SIZE).forEach(function (id) { page.appendChild(getAppNode(id)); });
+            track.appendChild(page);
+        }
+        viewport.appendChild(track);
+        phoneAppsGrid.appendChild(viewport);
+        const dots = document.createElement('div');
+        dots.className = 'pg-dots';
+        for (let d = 0; d < pageCount; d += 1) {
+            const dot = document.createElement('i');
+            if (d === phonePage) dot.className = 'on';
+            dots.appendChild(dot);
+        }
+        phoneAppsGrid.appendChild(dots);
+    }
+
+    function setPhonePage(page) {
+        const pageCount = Math.max(1, Math.ceil(phoneState.layout.length / PHONE_PAGE_SIZE));
+        const next = Math.max(0, Math.min(pageCount - 1, page));
+        if (next === phonePage) return;
+        phonePage = next;
+        const track = phoneAppsGrid.querySelector('.pg-track');
+        if (track) track.style.transform = 'translateX(' + (-phonePage * 100) + '%)';
+        phoneAppsGrid.querySelectorAll('.pg-dots i').forEach(function (dot, i) { dot.className = i === phonePage ? 'on' : ''; });
+    }
+
+    function pgTargetIndex(x, y) {
+        const track = phoneAppsGrid.querySelector('.pg-track');
+        const pageEl = track && track.children[phonePage];
+        if (!pageEl) return -1;
+        const rect = pageEl.getBoundingClientRect();
+        const col = Math.max(0, Math.min(2, Math.floor((x - rect.left - 16) / ((rect.width - 32) / 3))));
+        const row = Math.max(0, Math.min(4, Math.floor((y - rect.top) / (rect.height / 5))));
+        return Math.min(phoneState.layout.length - 1, phonePage * PHONE_PAGE_SIZE + row * 3 + col);
+    }
+
+    function startPgDrag() {
+        if (!pgDown || !pgDown.item || pgDrag) return;
+        const item = pgDown.item;
+        const rect = item.getBoundingClientRect();
+        const ghost = item.cloneNode(true);
+        ghost.style.cssText = 'position:fixed;z-index:99999;pointer-events:none;width:' + rect.width + 'px;transform:scale(1.15);opacity:.92;filter:drop-shadow(0 8px 14px rgba(0,0,0,.4));margin:0;';
+        document.body.appendChild(ghost);
+        item.style.opacity = '0.25';
+        pgDrag = { id: item.dataset.app, item: item, ghost: ghost, w: rect.width, h: rect.height };
+        try { phoneAppsGrid.setPointerCapture(pgDown.pointerId); } catch (e) { /* ignore */ }
+        if (navigator.vibrate) navigator.vibrate(15);
+        movePgGhost(pgDown.lx, pgDown.ly);
+    }
+
+    function movePgGhost(x, y) {
+        if (!pgDrag) return;
+        pgDrag.ghost.style.left = (x - pgDrag.w / 2) + 'px';
+        pgDrag.ghost.style.top = (y - pgDrag.h / 2) + 'px';
+        const viewport = phoneAppsGrid.querySelector('.pg-viewport');
+        if (!viewport) return;
+        const rect = viewport.getBoundingClientRect();
+        const pageCount = Math.max(1, Math.ceil(phoneState.layout.length / PHONE_PAGE_SIZE));
+        let dir = 0;
+        if (x < rect.left + 28 && phonePage > 0) dir = -1;
+        else if (x > rect.right - 28 && phonePage < pageCount - 1) dir = 1;
+        if (dir === 0) {
+            clearTimeout(pgEdgeTimer);
+            pgEdgeTimer = null;
+        } else if (!pgEdgeTimer) {
+            pgEdgeTimer = setTimeout(function () { pgEdgeTimer = null; setPhonePage(phonePage + dir); }, 650);
+        }
+    }
+
+    function endPgDrag(x, y) {
+        const drag = pgDrag;
+        pgDrag = null;
+        clearTimeout(pgEdgeTimer);
+        pgEdgeTimer = null;
+        if (!drag) return;
+        drag.ghost.remove();
+        drag.item.style.opacity = '';
+        const from = phoneState.layout.indexOf(drag.id);
+        const to = pgTargetIndex(x, y);
+        if (from !== -1 && to !== -1 && from !== to) {
+            phoneState.layout.splice(from, 1);
+            phoneState.layout.splice(to, 0, drag.id);
+            saveGameData();
+        }
+        renderPhoneHome();
+    }
+
+    function bindPhoneGestures() {
+        phoneAppsGrid.style.touchAction = 'none';
+        phoneAppsGrid.addEventListener('pointerdown', function (event) {
+            if (!phoneAppsGrid.querySelector('.pg-viewport')) return;
+            pgDown = { x: event.clientX, y: event.clientY, lx: event.clientX, ly: event.clientY, pointerId: event.pointerId, item: event.target.closest('.app-item'), swiped: false, timer: null };
+            if (pgDown.item) pgDown.timer = setTimeout(startPgDrag, 450);
+        });
+        phoneAppsGrid.addEventListener('pointermove', function (event) {
+            if (!pgDown) return;
+            pgDown.lx = event.clientX;
+            pgDown.ly = event.clientY;
+            if (pgDrag) {
+                movePgGhost(event.clientX, event.clientY);
+                return;
+            }
+            if (Math.abs(event.clientX - pgDown.x) > 10 || Math.abs(event.clientY - pgDown.y) > 10) {
+                clearTimeout(pgDown.timer);
+                if (Math.abs(event.clientX - pgDown.x) > 10) pgDown.swiped = true;
+            }
+        });
+        function finish(event) {
+            if (!pgDown) return;
+            clearTimeout(pgDown.timer);
+            const down = pgDown;
+            pgDown = null;
+            if (pgDrag) {
+                endPgDrag(event.clientX, event.clientY);
+                pgSuppress = true;
+            } else if (down.swiped) {
+                const dx = event.clientX - down.x;
+                if (Math.abs(dx) > 45) setPhonePage(phonePage + (dx < 0 ? 1 : -1));
+                pgSuppress = true;
+            }
+            setTimeout(function () { pgSuppress = false; }, 90);
+        }
+        phoneAppsGrid.addEventListener('pointerup', finish);
+        phoneAppsGrid.addEventListener('pointercancel', finish);
+        phoneAppsGrid.addEventListener('click', function (event) {
+            if (pgSuppress) {
+                event.stopPropagation();
+                event.preventDefault();
+                pgSuppress = false;
+            }
+        }, true);
+    }
+
+    function installApp(app) {
+        if (app.soon) { showToast('Это приложение скоро появится'); return; }
+        if (phoneState.installed.indexOf(app.id) !== -1 || pendingInstallOf(app.id)) return;
+        if (phoneSlotsUsed() >= phoneSlotsMax()) {
+            showToast('Память приложений заполнена. Удалите приложение или купите телефон в Маркетплейсе');
+            return;
+        }
+        const now = getTotalAbsoluteMinutes();
+        phoneState.pendingInstalls.push({ id: app.id, start: now, done: now + installMinutes(app) });
+        saveGameData();
+        renderPlayStore(true);
+        showToast('Загрузка «' + app.name + '» началась');
+    }
+
+    function removeApp(app) {
+        if (pendingRemovalOf(app.id)) return;
+        phoneState.pendingRemovals.push({ id: app.id, at: getTotalAbsoluteMinutes() + 2 });
+        saveGameData();
+        renderPlayStore(true);
+        showToast('«' + app.name + '» будет удалено через 2 игровые минуты');
+    }
+
+    function renderPlayStore(keepScroll) {
+        if (currentPhoneApp !== 'playstore') return;
+        const prevScroll = keepScroll ? appScrollableBody.scrollTop : 0;
+        lastPlayRender = performance.now();
+        const now = getTotalAbsoluteMinutes();
+        const wrap = document.createElement('div');
+        wrap.className = 'ps-wrap';
+        wrap.innerHTML = '<div class="ps-header"><div class="ps-title">▶️ Google Play</div><div class="ps-sub">' + phoneModelInfo().title + ' • приложений: ' + phoneSlotsUsed() + ' / ' + phoneSlotsMax() + '</div></div>';
+        PLAY_CATALOG.forEach(function (app) {
+            const installed = phoneState.installed.indexOf(app.id) !== -1;
+            const pending = pendingInstallOf(app.id);
+            const removing = pendingRemovalOf(app.id);
+            const card = document.createElement('div');
+            card.className = 'ps-card';
+            let status = '<div class="ps-meta">' + app.size + ' МБ • загрузка ~' + installMinutes(app) + ' мин</div>';
+            let button = '<button type="button" class="ps-btn">Установить</button>';
+            if (app.soon) {
+                button = '<button type="button" class="ps-btn ps-btn-off" disabled>Скоро</button>';
+            } else if (pending) {
+                const percent = Math.min(99, Math.max(1, Math.round((now - pending.start) / Math.max(1, pending.done - pending.start) * 100)));
+                status = '<div class="ps-meta">Загрузка ' + percent + '% • осталось ~' + Math.max(1, Math.ceil(pending.done - now)) + ' мин</div><div class="ps-progress"><i style="width:' + percent + '%"></i></div>';
+                button = '<button type="button" class="ps-btn ps-btn-off" disabled>Загрузка…</button>';
+            } else if (installed && removing) {
+                status = '<div class="ps-meta">Удаляется…</div>';
+                button = '<button type="button" class="ps-btn ps-btn-off" disabled>Удаление</button>';
+            } else if (installed) {
+                status = '<div class="ps-meta">✓ Установлено • ' + app.size + ' МБ</div>';
+                button = '<button type="button" class="ps-btn ps-btn-del">Удалить</button>';
+            }
+            card.innerHTML = '<div class="ps-icon"><span>' + app.emoji + '</span><img src="logo/' + app.id + '.png" alt="" onerror="this.remove()"></div><div class="ps-info"><div class="ps-name">' + app.name + '</div><div class="ps-desc">' + app.desc + '</div>' + status + '</div>' + button;
+            const btn = card.querySelector('.ps-btn');
+            if (!btn.disabled) {
+                btn.addEventListener('click', function () { if (installed) removeApp(app); else installApp(app); });
+            }
+            wrap.appendChild(card);
+        });
+        appScrollableBody.innerHTML = '';
+        appScrollableBody.appendChild(wrap);
+        appScrollableBody.scrollTop = prevScroll;
+    }
+
+    function renderMarketApp(keepScroll) {
+        if (currentPhoneApp !== 'market') return;
+        const prevScroll = keepScroll ? appScrollableBody.scrollTop : 0;
+        const now = getTotalAbsoluteMinutes();
+        const wrap = document.createElement('div');
+        wrap.className = 'ps-wrap';
+        wrap.innerHTML = '<div class="ps-header ps-header-market"><div class="ps-title">🛍️ Маркетплейс</div><div class="ps-sub">Доставка товаров — 24 игровых часа</div></div>';
+        MARKET_ITEMS.forEach(function (item) {
+            const owned = !!marketState.owned[item.id] || (item.phoneModel && phoneState.model === item.phoneModel);
+            const pending = marketState.pending.find(function (p) { return p.id === item.id; });
+            const worse = item.phoneModel && PHONE_MODELS[item.phoneModel].cap <= phoneModelInfo().cap;
+            const card = document.createElement('div');
+            card.className = 'ps-card';
+            let status = '<div class="ps-meta">' + item.price.toLocaleString('ru-RU') + ' ₽</div>';
+            let button = '<button type="button" class="ps-btn">Купить</button>';
+            if (owned) {
+                status = '<div class="ps-meta">✓ ' + (item.phoneModel ? 'Это ваш телефон' : 'Куплено') + '</div>';
+                button = '<button type="button" class="ps-btn ps-btn-off" disabled>Есть</button>';
+            } else if (pending) {
+                status = '<div class="ps-meta">📦 Доставка: ещё ~' + Math.max(1, Math.ceil((pending.at - now) / 60)) + ' ч</div>';
+                button = '<button type="button" class="ps-btn ps-btn-off" disabled>В пути</button>';
+            } else if (worse) {
+                status = '<div class="ps-meta">У вас уже лучше или такой же</div>';
+                button = '<button type="button" class="ps-btn ps-btn-off" disabled>—</button>';
+            }
+            card.innerHTML = '<div class="ps-icon"><span>' + item.emoji + '</span></div><div class="ps-info"><div class="ps-name">' + item.name + '</div><div class="ps-desc">' + item.desc + '</div>' + status + '</div>' + button;
+            const btn = card.querySelector('.ps-btn');
+            if (!btn.disabled) btn.addEventListener('click', function () { buyMarketItem(item); });
+            wrap.appendChild(card);
+        });
+        appScrollableBody.innerHTML = '';
+        appScrollableBody.appendChild(wrap);
+        appScrollableBody.scrollTop = prevScroll;
+    }
+
+    function buyMarketItem(item) {
+        if (marketState.owned[item.id] || marketState.pending.some(function (p) { return p.id === item.id; })) return;
+        if (playerMoney < item.price) { showToast('Недостаточно денег'); return; }
+        playerMoney -= item.price;
+        addBankTransaction('Маркетплейс: ' + item.name, item.price, false);
+        marketState.pending.push({ id: item.id, at: getTotalAbsoluteMinutes() + 1440 });
+        addMessage('Маркетплейс', '🛍️', 'Заказ «' + item.name + '» успешно оформлен. Доставка в течение 24 часов.');
+        saveGameData();
+        updateClockUI();
+        renderMarketApp(true);
+        showToast('🛍️ Заказ оформлен. Придёт через 24 часа');
+    }
+
+    function processPhoneQueues() {
+        const now = getTotalAbsoluteMinutes();
+        let homeChanged = false;
+        let storeChanged = false;
+        for (let i = phoneState.pendingInstalls.length - 1; i >= 0; i -= 1) {
+            const job = phoneState.pendingInstalls[i];
+            if (job.done <= now) {
+                phoneState.pendingInstalls.splice(i, 1);
+                if (phoneState.installed.indexOf(job.id) === -1) phoneState.installed.push(job.id);
+                phoneState.layout.push(job.id);
+                const app = playApp(job.id);
+                if (app) showToast('✅ Установлено: ' + app.name);
+                homeChanged = storeChanged = true;
+            }
+        }
+        for (let i = phoneState.pendingRemovals.length - 1; i >= 0; i -= 1) {
+            const job = phoneState.pendingRemovals[i];
+            if (job.at <= now) {
+                phoneState.pendingRemovals.splice(i, 1);
+                phoneState.installed = phoneState.installed.filter(function (id) { return id !== job.id; });
+                phoneState.layout = phoneState.layout.filter(function (id) { return id !== job.id; });
+                homeChanged = storeChanged = true;
+            }
+        }
+        for (let i = marketState.pending.length - 1; i >= 0; i -= 1) {
+            const order = marketState.pending[i];
+            if (order.at <= now) {
+                marketState.pending.splice(i, 1);
+                const item = MARKET_ITEMS.find(function (m) { return m.id === order.id; });
+                if (!item) continue;
+                if (item.phoneModel) {
+                    phoneState.model = item.phoneModel;
+                    homeChanged = true;
+                    addMessage('Маркетплейс', '📦', 'Ваш новый телефон «' + item.name + '» доставлен и настроен. Теперь в нём можно хранить больше приложений, а ещё появились новые обои.');
+                } else {
+                    marketState.owned[item.id] = true;
+                    addMessage('Маркетплейс', '📦', 'Заказ «' + item.name + '» доставлен.');
+                }
+                showToast('📦 Доставлено: ' + item.name);
+                storeChanged = true;
+            }
+        }
+        if (homeChanged && !pgDrag) renderPhoneHome();
+        if (homeChanged || storeChanged) saveGameData();
+        if (phoneView === 'app' && (storeChanged || performance.now() - lastPlayRender > 1000)) {
+            if (currentPhoneApp === 'playstore') renderPlayStore(true);
+            else if (currentPhoneApp === 'market' && storeChanged) renderMarketApp(true);
+        }
+    }
+
+    function initPhoneHome() {
+        phoneAppsGrid.querySelectorAll('.app-item').forEach(function (node) {
+            APP_NODES[node.dataset.app] = node;
+            node.remove();
+        });
+        sanitizePhoneState();
+        bindPhoneGestures();
+        renderPhoneHome();
+    }
+
+    /* =========================================================
+       БИЛЕТЫ.БИ, АЭРОПОРТ, ПОЛЁТ И ОТПУСК
+       ========================================================= */
+    const MONTHS_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+
+    function travelCommonActs(f, allInc) {
+        return [
+            { id: 'walk', emoji: '🚶', name: 'Прогулка по городу', cost: 0, min: 90, hunger: -4, energy: -3, text: 'Вы бродили по улочкам, фотографировали и узнали много нового.' },
+            { id: 'food', emoji: '🍽️', name: 'Местная кухня', cost: allInc ? 0 : Math.round(1200 * f), min: 60, hunger: 45, energy: 8, text: 'Вы попробовали местные блюда. Очень вкусно!' },
+            { id: 'relax', emoji: '🧖', name: 'Отдых и расслабление', cost: Math.round(2500 * f), min: 120, hunger: -3, energy: 35, text: 'Вы отлично расслабились и набрались сил.' },
+            { id: 'souvenir', emoji: '🎁', name: 'Сувенирная лавка', cost: Math.round(1500 * f), min: 30, hunger: 0, energy: 0, souvenir: true, text: 'Вы купили сувенир на память об этом путешествии.' }
+        ];
+    }
+
+    const FLIGHT_DESTS = [
+        { id: 'armenia', name: 'Армения', emoji: '🇦🇲', days: 7, price: 35000, hours: 3, allInc: false, f: 1, theme: 'linear-gradient(160deg,#f97316,#7c3aed)', info: 'Билеты туда и обратно',
+          acts: [{ id: 'ararat', emoji: '🏔️', name: 'Вид на Арарат', cost: 3000, min: 180, hunger: -8, energy: -6, text: 'Вы увидели величественный Арарат на рассвете. Невероятные кадры!' },
+                 { id: 'cascade', emoji: '🏛️', name: 'Ереванский Каскад', cost: 1500, min: 120, hunger: -5, energy: -4, text: 'Вы поднялись по ступеням Каскада и полюбовались городом сверху.' }] },
+        { id: 'egypt7', name: 'Египет, море (7 дней)', emoji: '🇪🇬', days: 7, price: 95000, hours: 5, allInc: true, f: 1.5, theme: 'linear-gradient(160deg,#f59e0b,#0ea5e9)', info: 'Всё включено',
+          acts: [{ id: 'pyramids', emoji: '🔺', name: 'Пирамиды Гизы', cost: 6000, min: 240, hunger: -8, energy: -8, text: 'Вы стояли у древних пирамид и чувствовали дыхание истории.' },
+                 { id: 'camel', emoji: '🐪', name: 'Сафари на верблюдах', cost: 4500, min: 150, hunger: -6, energy: -6, text: 'Вы покатались на верблюде по пустыне. Весело и необычно!' },
+                 { id: 'diving', emoji: '🤿', name: 'Дайвинг у рифа', cost: 9000, min: 180, hunger: -8, energy: -12, text: 'Вы увидели яркие коралловые рифы и тропических рыб.' }] },
+        { id: 'egypt10', name: 'Египет, море (10 дней)', emoji: '🇪🇬', days: 10, price: 125000, hours: 5, allInc: true, f: 1.5, theme: 'linear-gradient(160deg,#f59e0b,#0ea5e9)', info: 'Всё включено',
+          acts: [{ id: 'pyramids', emoji: '🔺', name: 'Пирамиды Гизы', cost: 6000, min: 240, hunger: -8, energy: -8, text: 'Вы стояли у древних пирамид и чувствовали дыхание истории.' },
+                 { id: 'camel', emoji: '🐪', name: 'Сафари на верблюдах', cost: 4500, min: 150, hunger: -6, energy: -6, text: 'Вы покатались на верблюде по пустыне. Весело и необычно!' },
+                 { id: 'diving', emoji: '🤿', name: 'Дайвинг у рифа', cost: 9000, min: 180, hunger: -8, energy: -12, text: 'Вы увидели яркие коралловые рифы и тропических рыб.' }] },
+        { id: 'georgia', name: 'Грузия', emoji: '🇬🇪', days: 7, price: 55000, hours: 2.5, allInc: false, f: 1, theme: 'linear-gradient(160deg,#16a34a,#7c2d12)', info: 'Билеты туда и обратно',
+          acts: [{ id: 'khinkali', emoji: '🥟', name: 'Мастер-класс по хинкали', cost: 2500, min: 120, hunger: 40, energy: 5, text: 'Вы научились лепить хинкали и с аппетитом их съели.' },
+                 { id: 'kazbegi', emoji: '⛰️', name: 'Горы Казбеги', cost: 5000, min: 300, hunger: -10, energy: -10, text: 'Вы поднялись к церкви Цминда-Самеба и увидели горы вблизи.' }] },
+        { id: 'anapa', name: 'Анапа', emoji: '🏖️', days: 10, price: 60000, hours: 2, allInc: false, f: 0.8, theme: 'linear-gradient(160deg,#38bdf8,#fde047)', info: 'Без «всё включено»: еду нужно покупать',
+          acts: [{ id: 'beach', emoji: '🏖️', name: 'Пляж и море', cost: 0, min: 180, hunger: -8, energy: 10, text: 'Вы плавали в тёплом море и загорали на песочке.' },
+                 { id: 'aquapark', emoji: '🎡', name: 'Аквапарк', cost: 3500, min: 180, hunger: -8, energy: -6, text: 'Вы с визгом катались с горок. Адреналин зашкаливает!' }] },
+        { id: 'spb', name: 'Санкт-Петербург', emoji: '🏰', days: 7, price: 30000, hours: 1.5, allInc: false, f: 1.2, theme: 'linear-gradient(160deg,#64748b,#1e3a8a)', info: 'Билеты туда и обратно',
+          acts: [{ id: 'bridges', emoji: '🌉', name: 'Разводные мосты', cost: 0, min: 150, hunger: -6, energy: -5, text: 'Вы смотрели, как ночью разводят мосты над Невой. Волшебно!' },
+                 { id: 'hermitage', emoji: '🖼️', name: 'Эрмитаж', cost: 2500, min: 180, hunger: -6, energy: -6, text: 'Вы прошлись по залам Эрмитажа и увидели шедевры живописи.' }] },
+        { id: 'usa', name: 'США', emoji: '🇺🇸', days: 7, price: 55000, hours: 7, allInc: false, f: 2, theme: 'linear-gradient(160deg,#2563eb,#dc2626)', info: 'Билеты туда и обратно',
+          acts: [{ id: 'liberty', emoji: '🗽', name: 'Статуя Свободы', cost: 7000, min: 240, hunger: -8, energy: -7, text: 'Вы приплыли на остров и сфотографировались у Статуи Свободы.' },
+                 { id: 'broadway', emoji: '🎭', name: 'Бродвейское шоу', cost: 9000, min: 180, hunger: -5, energy: -4, text: 'Вы побывали на настоящем бродвейском мюзикле!' },
+                 { id: 'themepark', emoji: '🎢', name: 'Парк аттракционов', cost: 8000, min: 240, hunger: -9, energy: -10, text: 'Вы прокатились на всех американских горках. Вот это драйв!' }] }
+    ];
+
+    const VACATION_EVENTS = [
+        { text: 'Вы нашли на улице кошелёк, отнесли в полицию, и владелец подарил вам 2 000 ₽ в благодарность.', money: 2000 },
+        { text: 'Местные пригласили вас на праздник, там вас угостили и подарили небольшой сувенир.', money: 0, hunger: 20 },
+        { text: 'Вы познакомились с другими туристами и отлично провели вечер.', money: 0, energy: 8 },
+        { text: 'Вы выиграли в местной лотерее у отеля и получили 3 500 ₽.', money: 3500 },
+        { text: 'Вас заметили уличные музыканты и позвали подпевать. Это был лучший вечер поездки!', money: 0, energy: 6 },
+        { text: 'Вы сделали удачное фото, и туристическое агентство заплатило вам 4 000 ₽ за снимок.', money: 4000 },
+        { text: 'Гид показал вам секретное место, которого нет в путеводителях.', money: 0, energy: 5 },
+        { text: 'Вы заблудились, но помогли такому же потерявшемуся туристу, и вас угостили обедом.', money: 0, hunger: 25 }
+    ];
+
+    let travelBusy = false;
+    let travelLastTick = 0;
+    let lastAbsSeen = 0;
+    let airportEl = null;
+    let flightEl = null;
+    let vacationEl = null;
+    let waitEl = null;
+
+    function monoNow() {
+        const abs = getTotalAbsoluteMinutes();
+        if (lastAbsSeen && abs < lastAbsSeen - 100000) travelState.years = (travelState.years || 0) + 1;
+        lastAbsSeen = abs;
+        return abs + (travelState.years || 0) * 365 * 1440;
+    }
+
+    function fmtHM(minutes) {
+        const m = ((Math.round(minutes) % 1440) + 1440) % 1440;
+        return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+    }
+
+    function fmtLeft(minutes) {
+        const m = Math.max(0, Math.ceil(minutes));
+        const d = Math.floor(m / 1440);
+        const h = Math.floor((m % 1440) / 60);
+        return (d > 0 ? d + ' д ' : '') + h + ' ч ' + (m % 60) + ' мин';
+    }
+
+    function destById(id) { return FLIGHT_DESTS.find(function (d) { return d.id === id; }); }
+    function destActs(dest) { return travelCommonActs(dest.f, dest.allInc).concat(dest.acts); }
+    function isFlying() { return !!(travelState.trip && (travelState.trip.phase === 'out' || travelState.trip.phase === 'back')); }
+    function isOnVacation() { return !!(travelState.trip && travelState.trip.phase === 'stay'); }
+
+    function travelBlockMessage() {
+        if (isFlying()) return '✈️ Вы в самолёте';
+        if (isOnVacation()) return '🏝️ Вы в отпуске: работать и ездить нельзя';
+        return ytBusyMessage();
+    }
+
+    function hideAirportScreen() {
+        if (airportEl) airportEl.style.display = 'none';
+    }
+
+    function showAirportScreen() {
+        renderAirport();
+        airportEl.style.display = 'flex';
+        currentScreen = 'airport';
+    }
+
+    function renderAirport() {
+        if (!airportEl) return;
+        const t = travelState.ticket;
+        let info = '<div class="trv-muted">У вас нет билета. Купите его в приложении «Билеты.би».</div>';
+        if (t) {
+            const dest = destById(t.dest);
+            const left = t.depart - monoNow();
+            info = '<div class="trv-big">' + dest.emoji + ' ' + dest.name + '</div><div>Вылет: ' + t.day + ' ' + MONTHS_GEN[t.month] + ' в ' + fmtHM(t.time) + '</div><div class="trv-muted">До вылета: ' + fmtLeft(left) + '. Регистрация открывается за 3 часа.</div>';
+        }
+        airportEl.innerHTML = '<div class="trv-card"><div class="trv-title">✈️ Аэропорт</div>' + info +
+            '<button type="button" class="trv-btn" id="btn-board">🎫 Пройти регистрацию и вылететь</button><button type="button" class="trv-btn trv-btn-ghost" id="btn-exit-airport">🚪 На улицу</button></div>';
+        airportEl.querySelector('#btn-board').addEventListener('click', boardFlight);
+        airportEl.querySelector('#btn-exit-airport').addEventListener('click', function () {
+            hideAirportScreen();
+            currentScreen = 'city';
+            lastExitedLocation = 'airport';
+        });
+    }
+
+    function boardFlight() {
+        if (ytBusyMessage()) { showToast(ytBusyMessage()); return; }
+        const t = travelState.ticket;
+        if (!t) { showToast('У вас нет билета. Купите его в «Билеты.би»'); return; }
+        const left = t.depart - monoNow();
+        if (left > 180) { showToast('Регистрация откроется за 3 часа до вылета (ещё ' + fmtLeft(left - 180) + ')'); return; }
+        const dest = destById(t.dest);
+        const now = monoNow();
+        travelState.trip = { dest: dest.id, phase: 'out', start: now, end: now + dest.hours * 60, stayStart: 0, stayEnd: 0, eventDay: -1, done: {}, ever: {}, bonus: false };
+        travelState.ticket = null;
+        hideAirportScreen();
+        saveGameData();
+        syncTravelScreens();
+        showToast('✈️ Посадка завершена. Приятного полёта!');
+    }
+
+    function buyTicket(dest, offset) {
+        if (travelState.ticket || travelState.trip) { showToast('У вас уже есть билет или вы в поездке'); return; }
+        if (playerMoney < dest.price) { showToast('Недостаточно денег на билет'); return; }
+        const time = 360 + 5 * Math.floor(Math.random() * 205);
+        const date = dateAfterDays(offset);
+        playerMoney -= dest.price;
+        addBankTransaction('Билеты.би: ' + dest.name, dest.price, false);
+        travelState.ticket = { dest: dest.id, day: date.day, month: date.monthIndex, time: time, depart: monoNow() + offset * 1440 + time - gameMinutes, remind: false };
+        addMessage('Билеты.би', '✈️', 'Куплен билет на самолёт: ' + dest.name + ', ' + date.day + ' ' + MONTHS_GEN[date.monthIndex] + ' в ' + fmtHM(time) + '. Просьба прибыть в аэропорт за 3 часа до вылета.');
+        saveGameData();
+        updateClockUI();
+        renderTicketsApp();
+        showToast('✈️ Билет куплен');
+    }
+
+    function renderTicketsApp() {
+        if (currentPhoneApp !== 'tickets') return;
+        const wrap = document.createElement('div');
+        wrap.className = 'ps-wrap';
+        wrap.innerHTML = '<div class="ps-header" style="background:linear-gradient(135deg,#0ea5e9,#6366f1)"><div class="ps-title">✈️ Билеты.би</div><div class="ps-sub">Билеты можно купить минимум за 2 дня и максимум за 30 дней до вылета. Время вылета выдаётся случайно. Аэропорт отмечен на карте.</div></div>';
+        const t = travelState.ticket;
+        if (t) {
+            const dest = destById(t.dest);
+            const card = document.createElement('div');
+            card.className = 'ps-card';
+            card.innerHTML = '<div class="ps-icon"><span>🎫</span></div><div class="ps-info"><div class="ps-name">Ваш билет: ' + dest.name + '</div><div class="ps-meta">' + t.day + ' ' + MONTHS_GEN[t.month] + ', вылет в ' + fmtHM(t.time) + '</div><div class="ps-desc">Прибыть в аэропорт за 3 часа до вылета.</div></div>';
+            wrap.appendChild(card);
+        } else if (travelState.trip) {
+            const card = document.createElement('div');
+            card.className = 'ps-card';
+            card.innerHTML = '<div class="ps-info"><div class="ps-name">Вы сейчас в поездке</div><div class="ps-desc">Новые билеты можно купить после возвращения.</div></div>';
+            wrap.appendChild(card);
+        }
+        FLIGHT_DESTS.forEach(function (dest) {
+            const card = document.createElement('div');
+            card.className = 'ps-card';
+            card.style.flexWrap = 'wrap';
+            let options = '';
+            for (let offset = 2; offset <= 30; offset += 1) {
+                const d = dateAfterDays(offset);
+                options += '<option value="' + offset + '">' + d.day + ' ' + MONTHS_GEN[d.monthIndex] + '</option>';
+            }
+            card.innerHTML = '<div class="ps-icon" style="background:' + dest.theme + '"><span>' + dest.emoji + '</span></div><div class="ps-info"><div class="ps-name">' + dest.name + '</div><div class="ps-desc">' + dest.days + ' дней • перелёт ' + dest.hours + ' ч в одну сторону • ' + dest.info + '</div><div class="ps-meta">' + dest.price.toLocaleString('ru-RU') + ' ₽</div></div>' +
+                '<div style="display:flex;gap:8px;width:100%;margin-top:6px;"><select class="trv-date" style="flex:1;padding:8px;border-radius:10px;border:1px solid #cbd5e1;">' + options + '</select><button type="button" class="ps-btn">Купить</button></div>';
+            card.querySelector('.ps-btn').addEventListener('click', function () { buyTicket(dest, Number(card.querySelector('.trv-date').value)); });
+            wrap.appendChild(card);
+        });
+        appScrollableBody.innerHTML = '';
+        appScrollableBody.appendChild(wrap);
+    }
+
+    /* ---------- ПОЛЁТ И ОТПУСК: экраны ---------- */
+    function syncTravelScreens() {
+        if (!flightEl) return;
+        flightEl.style.display = isFlying() ? 'flex' : 'none';
+        vacationEl.style.display = isOnVacation() ? 'flex' : 'none';
+        if (isFlying() || isOnVacation()) hideAirportScreen();
+        renderTravelScreens();
+    }
+
+    function renderTravelScreens() {
+        const trip = travelState.trip;
+        if (!trip) return;
+        const dest = destById(trip.dest);
+        const now = monoNow();
+        if (isFlying()) {
+            const total = Math.max(1, trip.end - trip.start);
+            const percent = Math.min(100, Math.round((now - trip.start) / total * 100));
+            flightEl.style.background = 'linear-gradient(180deg,#0c4a6e,#38bdf8)';
+            flightEl.innerHTML = '<div class="trv-card"><div class="trv-plane">✈️</div><div class="trv-title">' + (trip.phase === 'out' ? 'Рейс: ' + dest.name : 'Рейс домой') + '</div><div class="trv-muted">В полёте время идёт как обычно. Можно заглянуть в рюкзак или телефон.</div><div class="ps-progress" style="height:10px;margin:12px 0;"><i style="width:' + percent + '%"></i></div><div>Осталось: ' + fmtLeft(trip.end - now) + '</div></div>';
+        } else if (isOnVacation() && !travelBusy) {
+            const acts = destActs(dest);
+            const dayIdx = Math.floor((now - trip.stayStart) / 1440);
+            const doneCount = acts.filter(function (a) { return trip.ever[a.id]; }).length;
+            vacationEl.style.background = dest.theme;
+            vacationEl.innerHTML = '<div class="trv-card trv-scroll"><div class="trv-title">' + dest.emoji + ' ' + dest.name + '</div><div>День ' + (Math.min(dest.days, dayIdx + 1)) + ' из ' + dest.days + ' • до вылета домой: ' + fmtLeft(trip.stayEnd - now) + '</div><div class="trv-muted">Впечатления: ' + doneCount + ' / ' + acts.length + (trip.bonus ? ' ✅ бонус получен' : ' (за все впечатления будет бонус)') + (dest.allInc ? '<br>🍹 Всё включено: еда и энергия пополняются сами' : '') + '</div><div class="trv-acts"></div></div>';
+            const list = vacationEl.querySelector('.trv-acts');
+            acts.forEach(function (act) {
+                const doneToday = trip.done[act.id] === dayIdx;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'trv-act' + (doneToday ? ' done' : '');
+                btn.innerHTML = '<span>' + act.emoji + ' ' + act.name + '</span><small>' + (act.cost ? act.cost.toLocaleString('ru-RU') + ' ₽' : 'бесплатно') + ' • ' + Math.round(act.min / 60 * 10) / 10 + ' ч' + (doneToday ? ' • сегодня уже было' : '') + '</small>';
+                btn.addEventListener('click', function () { doVacationActivity(dest, act, dayIdx); });
+                list.appendChild(btn);
+            });
+            const rest = document.createElement('button');
+            rest.type = 'button';
+            rest.className = 'trv-act';
+            rest.innerHTML = '<span>🛏️ Отдохнуть в отеле до утра</span><small>бесплатно • сон и энергия восстанавливаются</small>';
+            rest.addEventListener('click', function () { vacationRest(); });
+            list.appendChild(rest);
+        }
+    }
+
+    function travelWait(text, then) {
+        travelBusy = true;
+        isClockRunning = false;
+        waitEl.textContent = text;
+        waitEl.style.display = 'flex';
+        setTimeout(function () {
+            then();
+            waitEl.style.display = 'none';
+            travelBusy = false;
+            isClockRunning = true;
+            saveGameData();
+            updateClockUI();
+            updateStatsHUD();
+            renderTravelScreens();
+        }, 2200);
+    }
+
+    function doVacationActivity(dest, act, dayIdx) {
+        const trip = travelState.trip;
+        if (!trip || travelBusy) return;
+        if (trip.done[act.id] === dayIdx) { showToast('Сегодня вы уже это делали. Попробуйте завтра'); return; }
+        if (playerMoney < act.cost) { showToast('Недостаточно денег'); return; }
+        playerMoney -= act.cost;
+        if (act.cost > 0) addBankTransaction('Отпуск: ' + act.name, act.cost, false);
+        travelWait(act.emoji + ' ' + act.name + '...', function () {
+            gameMinutes += act.min;
+            advanceCalendar();
+            playerHunger = clamp(playerHunger + act.hunger, 0, 100);
+            playerEnergy = clamp(playerEnergy + act.energy, 0, 100);
+            trip.done[act.id] = dayIdx;
+            trip.ever[act.id] = true;
+            if (act.souvenir && travelState.souvenirs.length < 50) travelState.souvenirs.push(dest.id);
+            showToast(act.emoji + ' ' + act.text);
+            const acts = destActs(dest);
+            if (!trip.bonus && acts.every(function (a) { return trip.ever[a.id]; })) {
+                trip.bonus = true;
+                const bonus = Math.round(dest.price * 0.25 / 500) * 500;
+                playerMoney += bonus;
+                addBankTransaction('Отпуск: бонус за все впечатления', bonus, true);
+                addMessage('Билеты.би', '🏆', 'Вы попробовали все впечатления в поездке: ' + dest.name + '. Бонус от туроператора: ' + bonus.toLocaleString('ru-RU') + ' ₽!');
+            }
+        });
+    }
+
+    function vacationRest() {
+        if (travelBusy) return;
+        travelWait('🛏️ Вы отдыхаете в отеле...', function () {
+            const wake = (gameMinutes < 420) ? (420 - gameMinutes) : (1440 - gameMinutes + 420);
+            gameMinutes += wake;
+            advanceCalendar();
+            playerSleep = 100;
+            playerEnergy = clamp(playerEnergy + 60, 0, 100);
+            playerHunger = clamp(playerHunger - 10, 0, 100);
+            showToast('🌅 Доброе утро! Вы хорошо выспались');
+        });
+    }
+
+    function processTravel() {
+        const now = monoNow();
+        if (performance.now() - travelLastTick < 1000) return;
+        travelLastTick = performance.now();
+        const ticket = travelState.ticket;
+        if (ticket) {
+            const left = ticket.depart - now;
+            if (left <= 720 && left > 0 && !ticket.remind) {
+                ticket.remind = true;
+                addMessage('Билеты.би', '⏰', 'Скоро вылет! До рейса меньше 12 часов. Не забудьте приехать в аэропорт за 3 часа до вылета.');
+                showToast('⏰ Скоро вылет самолёта');
+            }
+            if (left <= 0) {
+                travelState.ticket = null;
+                addMessage('Билеты.би', '😔', 'Вы опоздали на рейс. Билет аннулирован, деньги не возвращаются.');
+            }
+        }
+        const trip = travelState.trip;
+        if (!trip) return;
+        const dest = destById(trip.dest);
+        if (!dest) { travelState.trip = null; syncTravelScreens(); return; }
+        if (trip.phase === 'out' && now >= trip.end) {
+            trip.phase = 'stay';
+            trip.stayStart = now;
+            trip.stayEnd = now + dest.days * 1440;
+            addMessage('Отпуск', dest.emoji, 'Вы прилетели: ' + dest.name + '. Отдыхайте, смотрите достопримечательности и собирайте впечатления!');
+            saveGameData();
+            syncTravelScreens();
+        } else if (trip.phase === 'stay') {
+            const dayIdx = Math.floor((now - trip.stayStart) / 1440);
+            if (dayIdx > trip.eventDay) {
+                trip.eventDay = dayIdx;
+                if (dayIdx > 0) {
+                    const ev = VACATION_EVENTS[Math.floor(Math.random() * VACATION_EVENTS.length)];
+                    if (ev.money) {
+                        playerMoney += ev.money;
+                        addBankTransaction('Отпуск: приятная неожиданность', ev.money, true);
+                    }
+                    if (ev.hunger) playerHunger = clamp(playerHunger + ev.hunger, 0, 100);
+                    if (ev.energy) playerEnergy = clamp(playerEnergy + ev.energy, 0, 100);
+                    addMessage('Отпуск', dest.emoji, ev.text);
+                    saveGameData();
+                }
+            }
+            if (dest.allInc) {
+                if (playerHunger < 20) { playerHunger = 100; showToast('🍹 Всё включено: вас накормили'); }
+                if (playerEnergy < 20) { playerEnergy = 100; showToast('🍹 Всё включено: вы отдохнули и набрались сил'); }
+            }
+            if (now >= trip.stayEnd) {
+                trip.phase = 'back';
+                trip.start = now;
+                trip.end = now + dest.hours * 60;
+                addMessage('Отпуск', '🧳', 'Отпуск закончился. Вы вылетаете домой.');
+                saveGameData();
+                syncTravelScreens();
+            } else if (!travelBusy) {
+                renderTravelScreens();
+            }
+        } else if (trip.phase === 'back') {
+            if (now >= trip.end) {
+                travelState.trip = null;
+                travelState.restUntil = now + 7 * 1440;
+                lastExitedLocation = 'airport';
+                currentScreen = 'city';
+                addMessage('Отпуск', '🏠', 'С возвращением! Вы отдохнули: следующие 7 дней энергия будет тратиться чуть медленнее.');
+                showToast('🏠 Вы вернулись домой');
+                saveGameData();
+                syncTravelScreens();
+            } else {
+                renderTravelScreens();
+            }
+        }
+    }
+
+    function createTravelScreens() {
+        function make(id, extra) {
+            const el = document.createElement('div');
+            el.id = id;
+            el.className = 'trv-screen';
+            el.style.display = 'none';
+            if (extra) el.style.background = extra;
+            document.body.appendChild(el);
+            return el;
+        }
+        airportEl = make('airport-screen', 'linear-gradient(180deg,#1e293b,#0ea5e9)');
+        flightEl = make('flight-screen');
+        vacationEl = make('vacation-screen');
+        waitEl = make('travel-wait', 'rgba(15,23,42,.92)');
+        waitEl.className = 'trv-screen trv-wait';
+        waitEl.style.zIndex = '60';
+        syncTravelScreens();
+    }
+
+    /* =========================================================
+       ЮТУБ: канал, ролики, стримы, доход
+       ========================================================= */
+    const YT_TOPICS = [
+        { id: 'vlog', name: 'Влог', emoji: '📹', mult: 1.0 },
+        { id: 'review', name: 'Обзор', emoji: '🔍', mult: 1.1 },
+        { id: 'challenge', name: 'Челлендж', emoji: '🔥', mult: 1.3 },
+        { id: 'humor', name: 'Юмор', emoji: '😂', mult: 1.2 },
+        { id: 'tutorial', name: 'Обучение', emoji: '🎓', mult: 0.9 },
+        { id: 'travel', name: 'Путешествия', emoji: '🌍', mult: 1.4 },
+        { id: 'gaming', name: 'Игровой', emoji: '🎮', mult: 1.2 },
+        { id: 'experiment', name: 'Эксперимент', emoji: '🧪', mult: 1.5 }
+    ];
+    const YT_MILESTONES = [
+        [100, 5000], [1000, 15000], [10000, 30000], [100000, 120000],
+        [1000000, 1200000], [10000000, 15000000], [100000000, 150000000], [10000000000, 100000000000]
+    ];
+    const YT_MIN_INVEST = 1000;
+    const YT_MAX_INVEST = 10000000;
+    const YT_MAX_UPLOADS_PER_DAY = 10;
+    const YT_MAX_ARCHIVE = 100;
+    const YT_STREAM_MAX_MINUTES = 300;
+    let ytLastTick = 0;
+
+    function ytQuality(invest) { return clamp(Math.log10(Math.max(invest, YT_MIN_INVEST) / YT_MIN_INVEST) / 4, 0, 1); }
+    function ytShootMinutes(invest) { return Math.round(60 + ytQuality(invest) * (4320 - 60)); }
+    function ytEditMinutes(invest) { return Math.round(30 + ytQuality(invest) * (2880 - 30)); }
+    function ytRate(views) { return views > 1e9 ? 400 : (views > 1e8 ? 325 : (views > 1e6 ? 250 : 200)); }
+    function ytDay() { return Math.floor(monoNow() / 1440); }
+    function fmtNum(n) { return Math.round(n).toLocaleString('ru-RU'); }
+    function fmtDur(minutes) {
+        if (minutes >= 1440) return (Math.round(minutes / 144) / 10) + ' дн.';
+        if (minutes >= 60) return (Math.round(minutes / 6) / 10) + ' ч';
+        return Math.round(minutes) + ' мин';
+    }
+
+    function ytBusyMessage() {
+        if (ytState.shooting) return '🎬 Вы снимаете ролик: уйти нельзя';
+        if (ytState.stream) return '📡 Вы ведёте стрим: уйти нельзя';
+        return '';
+    }
+
+    function ytTopic(id) { return YT_TOPICS.find(function (t) { return t.id === id; }) || YT_TOPICS[0]; }
+
+    function ytCalcVideo(topic, invest) {
+        const q = ytQuality(invest);
+        const subs = ytState.subs;
+        const ratio = 2.2 / (1 + Math.log10(Math.max(1, subs / 10000)) * 0.5);
+        let views = (35 + subs * ratio) * (0.3 + 1.7 * Math.pow(q, 1.2)) * topic.mult * (0.4 + Math.random() * 1.2);
+        if (q > 0.5 && subs >= 500 && Math.random() < 0.03) views *= 5;
+        if (subs < 20) views = Math.min(views, 100);
+        if (q < 0.05 && Math.random() < 0.25) views = 0;
+        views = Math.round(views);
+        return {
+            views: views,
+            likes: Math.round(views * (0.04 + 0.06 * q)),
+            subs: Math.round(views * (0.12 + 0.18 * q))
+        };
+    }
+
+    function ytAddSubs(count) {
+        ytState.subs = clamp(ytState.subs + count, 0, 1e10);
+        YT_MILESTONES.forEach(function (ms) {
+            if (ytState.subs >= ms[0] && !ytState.milestones[ms[0]]) {
+                ytState.milestones[ms[0]] = true;
+                playerMoney += ms[1];
+                addBankTransaction('Ютуб: бонус за ' + fmtNum(ms[0]) + ' подписчиков', ms[1], true);
+                addMessage('Ютуб', '🏆', 'Вы молодец! Набрали ' + fmtNum(ms[0]) + ' подписчиков. Это вам бонус от Ютуба: ' + fmtNum(ms[1]) + ' ₽.');
+            }
+        });
+    }
+
+    function ytMissingForVideo() {
+        const miss = [];
+        if (!marketState.owned.cam_youtube) miss.push('камера для ютубера');
+        if (!marketState.owned.mic) miss.push('микрофон');
+        if (!marketState.owned.computer) miss.push('компьютер');
+        return miss;
+    }
+
+    function ytMissingForStream() {
+        const miss = [];
+        if (!marketState.owned.cam_stream) miss.push('камера для стримера');
+        if (!marketState.owned.mic) miss.push('микрофон');
+        if (!marketState.owned.computer) miss.push('компьютер');
+        return miss;
+    }
+
+    function ytCreateChannel(name) {
+        const clean = String(name || '').trim().slice(0, 24);
+        if (clean.length < 2) { showToast('Введите название канала (минимум 2 символа)'); return; }
+        ytState.channel = { name: clean };
+        saveGameData();
+        showToast('▶️ Канал «' + clean + '» создан');
+        renderYoutubeApp();
+    }
+
+    function ytStartShooting(topic, invest) {
+        if (ytState.shooting || ytState.stream) { showToast(ytBusyMessage()); return; }
+        if (travelBlockMessage()) { showToast(travelBlockMessage()); return; }
+        const miss = ytMissingForVideo();
+        if (miss.length) { showToast('Нужно купить в Маркетплейсе: ' + miss.join(', ')); return; }
+        if (!(invest >= YT_MIN_INVEST && invest <= YT_MAX_INVEST)) { showToast('Вложения: от 1 000 до 10 000 000 ₽'); return; }
+        if (ytState.archive.length + ytState.editing.length >= YT_MAX_ARCHIVE) { showToast('Архив полон (100 роликов). Сначала выложите ролики'); return; }
+        if (playerMoney < invest) { showToast('Недостаточно денег на съёмку'); return; }
+        playerMoney -= invest;
+        addBankTransaction('Ютуб: съёмка ролика', invest, false);
+        ytState.counter += 1;
+        const now = monoNow();
+        ytState.shooting = { id: ytState.counter, topic: topic.id, title: topic.name + ' #' + ytState.counter, invest: invest, start: now, end: now + ytShootMinutes(invest), editMin: ytEditMinutes(invest) };
+        saveGameData();
+        updateClockUI();
+        showToast('🎬 Съёмка началась. Пока она идёт, уйти никуда нельзя');
+        renderYoutubeApp();
+    }
+
+    function ytCancelShooting() {
+        if (!ytState.shooting) return;
+        ytState.shooting = null;
+        saveGameData();
+        showToast('Съёмка прервана, вложенные деньги не возвращаются');
+        renderYoutubeApp();
+    }
+
+    function ytPublish(index) {
+        const today = ytDay();
+        if (ytState.uploads.day !== today) ytState.uploads = { day: today, count: 0 };
+        if (ytState.uploads.count >= YT_MAX_UPLOADS_PER_DAY) { showToast('За день можно выложить не больше 10 роликов'); return false; }
+        const video = ytState.archive[index];
+        if (!video) return false;
+        ytState.archive.splice(index, 1);
+        const calc = ytCalcVideo(ytTopic(video.topic), video.invest);
+        ytState.live.push({ id: video.id, title: video.title, published: monoNow(), total: calc.views, likesTotal: calc.likes, subsTotal: calc.subs, views: 0, likes: 0, subsApplied: 0, paid: 0 });
+        ytState.uploads.count += 1;
+        return true;
+    }
+
+    function ytPublishAt(index) {
+        if (ytPublish(index)) showToast('▶️ Ролик опубликован');
+        saveGameData();
+        renderYoutubeApp();
+    }
+
+    function ytPublishMany(count) {
+        let done = 0;
+        for (let i = 0; i < count; i += 1) {
+            if (!ytPublish(0)) break;
+            done += 1;
+        }
+        if (done > 0) showToast('▶️ Опубликовано роликов: ' + done);
+        saveGameData();
+        renderYoutubeApp();
+    }
+
+    function ytWithdraw() {
+        const amount = Math.floor(ytState.balance);
+        if (amount < 1) { showToast('Пока нечего выводить'); return; }
+        ytState.balance -= amount;
+        playerMoney += amount;
+        addBankTransaction('Ютуб: вывод дохода', amount, true);
+        saveGameData();
+        updateClockUI();
+        showToast('💰 На счёт переведено ' + fmtNum(amount) + ' ₽');
+        renderYoutubeApp();
+    }
+
+    function ytStartStream() {
+        if (ytState.stream || ytState.shooting) { showToast(ytBusyMessage()); return; }
+        if (travelBlockMessage()) { showToast(travelBlockMessage()); return; }
+        const miss = ytMissingForStream();
+        if (miss.length) { showToast('Нужно купить в Маркетплейсе: ' + miss.join(', ')); return; }
+        if (ytState.lastStreamDay === ytDay()) { showToast('Сегодня вы уже проводили стрим. Следующий завтра'); return; }
+        const now = monoNow();
+        ytState.stream = { start: now, end: now + YT_STREAM_MAX_MINUTES, viewers: Math.round(ytState.subs * 0.06 + 3 + Math.random() * 6) };
+        saveGameData();
+        showToast('📡 Стрим начался (максимум 5 часов)');
+        renderYoutubeApp();
+    }
+
+    function ytFinishStream(auto) {
+        const s = ytState.stream;
+        if (!s) return;
+        const hours = clamp((monoNow() - s.start) / 60, 0, 5);
+        const income = Math.round(s.viewers * hours * 4);
+        const gain = Math.round(s.viewers * hours * 0.05);
+        ytState.stream = null;
+        ytState.lastStreamDay = ytDay();
+        ytState.balance += income;
+        ytAddSubs(gain);
+        let text = 'Стрим завершён. Зрителей: ' + fmtNum(s.viewers) + ', донаты: ' + fmtNum(income) + ' ₽ (в приложении Ютуб), новых подписчиков: ' + fmtNum(gain) + '.';
+        if (auto) {
+            const loss = Math.min(ytState.subs, Math.max(1, Math.round(ytState.subs * 0.01)));
+            ytState.subs -= loss;
+            text += ' Стрим выключился сам спустя 5 часов, это вызвало недовольство зрителей: отписались ' + fmtNum(loss) + '.';
+        }
+        addMessage('Ютуб', '📡', text);
+        saveGameData();
+        showToast('📡 Стрим завершён');
+        renderYoutubeApp();
+    }
+
+    function processYoutube() {
+        if (performance.now() - ytLastTick < 1000) return;
+        ytLastTick = performance.now();
+        const now = monoNow();
+        let changed = false;
+        const s = ytState.shooting;
+        if (s && now >= s.end) {
+            ytState.editing.push({ id: s.id, title: s.title, topic: s.topic, invest: s.invest, end: now + s.editMin });
+            ytState.shooting = null;
+            addMessage('Ютуб', '🎬', 'Съёмка «' + s.title + '» завершена. Начался монтаж, он идёт сам, вы можете заниматься своими делами.');
+            showToast('🎬 Съёмка завершена, идёт монтаж');
+            changed = true;
+        }
+        for (let i = ytState.editing.length - 1; i >= 0; i -= 1) {
+            const e = ytState.editing[i];
+            if (now >= e.end) {
+                ytState.editing.splice(i, 1);
+                ytState.archive.push({ id: e.id, title: e.title, topic: e.topic, invest: e.invest });
+                addMessage('Ютуб', '✂️', 'Монтаж «' + e.title + '» готов. Ролик ждёт в архиве, нажмите «Выложить».');
+                showToast('✂️ Ролик смонтирован и лежит в архиве');
+                changed = true;
+            }
+        }
+        for (let i = ytState.live.length - 1; i >= 0; i -= 1) {
+            const v = ytState.live[i];
+            const p = clamp((now - v.published) / (3 * 1440), 0, 1);
+            const ease = 1 - Math.pow(1 - p, 2);
+            const viewsNow = Math.floor(v.total * ease);
+            const likesNow = Math.floor(v.likesTotal * ease);
+            const subsNow = Math.floor(v.subsTotal * ease);
+            if (viewsNow !== v.views || subsNow !== v.subsApplied) {
+                ytState.views += viewsNow - v.views;
+                ytState.likes += likesNow - v.likes;
+                v.views = viewsNow;
+                v.likes = likesNow;
+                const pay = Math.floor(viewsNow / 1000 * ytRate(viewsNow) * 100) / 100;
+                ytState.balance += pay - v.paid;
+                v.paid = pay;
+                const subDelta = subsNow - v.subsApplied;
+                v.subsApplied = subsNow;
+                if (subDelta > 0) ytAddSubs(subDelta);
+                changed = true;
+            }
+            if (p >= 1) {
+                ytState.live.splice(i, 1);
+                ytState.history.unshift(v);
+                if (ytState.history.length > 30) ytState.history.length = 30;
+                changed = true;
+            }
+        }
+        if (ytState.stream && now >= ytState.stream.end) ytFinishStream(true);
+        if (changed) saveGameData();
+        if (currentPhoneApp === 'youtube' && phoneView === 'app') {
+            const active = document.activeElement;
+            if (!(active && (active.tagName === 'INPUT' || active.tagName === 'SELECT'))) renderYoutubeApp(true);
+        }
+    }
+
+    function renderYoutubeApp(keepScroll) {
+        if (currentPhoneApp !== 'youtube') return;
+        const prevScroll = keepScroll ? appScrollableBody.scrollTop : 0;
+        const y = ytState;
+        const now = monoNow();
+        const wrap = document.createElement('div');
+        wrap.className = 'ps-wrap';
+        if (!y.channel) {
+            wrap.innerHTML = '<div class="ps-header" style="background:linear-gradient(135deg,#ef4444,#f97316)"><div class="ps-title">▶️ Ютуб</div><div class="ps-sub">Создайте свой канал, снимайте ролики, проводите стримы и зарабатывайте.</div></div>' +
+                '<div class="ps-card" style="flex-direction:column;align-items:stretch;gap:8px;"><div class="ps-name">Создать канал</div><input id="yt-channel-name" type="text" maxlength="24" placeholder="Название канала" style="padding:10px;border-radius:10px;border:1px solid #cbd5e1;font-size:1rem;"><button type="button" class="ps-btn" id="yt-create" style="align-self:flex-end;">Создать</button></div>' +
+                '<div class="ps-desc">Старт: 0 подписчиков, 0 просмотров, 0 лайков, 0 ₽. Для роликов нужны камера для ютубера, микрофон и компьютер, для стримов: камера для стримера, микрофон и компьютер (Маркетплейс).</div>';
+            appScrollableBody.innerHTML = '';
+            appScrollableBody.appendChild(wrap);
+            wrap.querySelector('#yt-create').addEventListener('click', function () { ytCreateChannel(wrap.querySelector('#yt-channel-name').value); });
+            return;
+        }
+        const stat = function (label, value) { return '<div style="flex:1;min-width:70px;"><div style="font-weight:900;font-size:1rem;">' + value + '</div><div style="font-size:.62rem;opacity:.85;">' + label + '</div></div>'; };
+        wrap.innerHTML = '<div class="ps-header" style="background:linear-gradient(135deg,#ef4444,#f97316)"><div class="ps-title">▶️ ' + y.channel.name.replace(/</g, '&lt;') + '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">' + stat('подписчиков', fmtNum(y.subs)) + stat('просмотров', fmtNum(y.views)) + stat('лайков', fmtNum(y.likes)) + stat('на балансе, ₽', fmtNum(y.balance)) + '</div>' +
+            '<button type="button" id="yt-withdraw" class="ps-btn" style="margin-top:10px;background:#fff;color:#b91c1c;">💰 Вывести на счёт</button></div>' +
+            '<div class="ps-desc">Ролики: ' + (marketState.owned.cam_youtube ? '✅' : '❌') + ' камера ютубера • ' + (marketState.owned.mic ? '✅' : '❌') + ' микрофон • ' + (marketState.owned.computer ? '✅' : '❌') + ' компьютер<br>Стримы: ' + (marketState.owned.cam_stream ? '✅' : '❌') + ' камера стримера</div>';
+        wrap.querySelector('#yt-withdraw').addEventListener('click', ytWithdraw);
+
+        const tabs = document.createElement('div');
+        tabs.style.cssText = 'display:flex;gap:6px;';
+        [['video', '🎬 Ролики'], ['archive', '📁 Архив (' + y.archive.length + ')'], ['stream', '📡 Стрим'], ['stats', '📊 Статистика']].forEach(function (tab) {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'ps-btn' + (y.tab === tab[0] ? '' : ' ps-btn-off');
+            b.style.cssText = 'flex:1;padding:8px 4px;font-size:.66rem;';
+            b.textContent = tab[1];
+            b.addEventListener('click', function () { y.tab = tab[0]; renderYoutubeApp(); });
+            tabs.appendChild(b);
+        });
+        wrap.appendChild(tabs);
+
+        const box = document.createElement('div');
+        box.className = 'ps-card';
+        box.style.cssText = 'flex-direction:column;align-items:stretch;gap:8px;';
+        if (y.tab === 'video') {
+            if (y.shooting) {
+                const p = clamp((now - y.shooting.start) / (y.shooting.end - y.shooting.start) * 100, 0, 100);
+                box.innerHTML = '<div class="ps-name">🎬 Идёт съёмка: ' + y.shooting.title + '</div><div class="ps-progress"><i style="width:' + p.toFixed(0) + '%"></i></div><div class="ps-meta">Осталось ' + fmtDur(y.shooting.end - now) + '. Уйти никуда нельзя.</div><button type="button" class="ps-btn ps-btn-del" id="yt-cancel" style="align-self:flex-end;">Прервать</button>';
+                box.querySelector('#yt-cancel').addEventListener('click', ytCancelShooting);
+            } else {
+                let options = '';
+                YT_TOPICS.forEach(function (t) { options += '<option value="' + t.id + '">' + t.emoji + ' ' + t.name + '</option>'; });
+                box.innerHTML = '<div class="ps-name">Новый ролик</div><select id="yt-topic" style="padding:10px;border-radius:10px;border:1px solid #cbd5e1;">' + options + '</select>' +
+                    '<input id="yt-invest" type="number" inputmode="numeric" min="1000" max="10000000" placeholder="Вложения, ₽ (1 000 – 10 000 000)" style="padding:10px;border-radius:10px;border:1px solid #cbd5e1;font-size:1rem;">' +
+                    '<div class="ps-meta" id="yt-estimate">Чем больше вложите, тем лучше ролик, но съёмка и монтаж дольше.</div><button type="button" class="ps-btn" id="yt-shoot" style="align-self:flex-end;">Начать съёмку</button>';
+                const invest = box.querySelector('#yt-invest');
+                invest.addEventListener('input', function () {
+                    const v = Number(invest.value);
+                    box.querySelector('#yt-estimate').textContent = v >= YT_MIN_INVEST ? 'Съёмка ~' + fmtDur(ytShootMinutes(v)) + ', монтаж ~' + fmtDur(ytEditMinutes(v)) : 'Минимум 1 000 ₽';
+                });
+                box.querySelector('#yt-shoot').addEventListener('click', function () { ytStartShooting(ytTopic(box.querySelector('#yt-topic').value), Math.floor(Number(invest.value))); });
+            }
+            if (y.editing.length) {
+                const ed = document.createElement('div');
+                ed.className = 'ps-desc';
+                ed.innerHTML = '<b>✂️ Монтаж (идёт сам):</b><br>' + y.editing.map(function (e) { return e.title + ': ещё ' + fmtDur(e.end - now); }).join('<br>');
+                box.appendChild(ed);
+            }
+        } else if (y.tab === 'archive') {
+            const today = ytDay();
+            const used = y.uploads.day === today ? y.uploads.count : 0;
+            box.innerHTML = '<div class="ps-name">Архив роликов</div><div class="ps-meta">Выложено сегодня: ' + used + ' / ' + YT_MAX_UPLOADS_PER_DAY + '. В архиве можно хранить до 100 роликов.</div>';
+            if (y.archive.length) {
+                const all = document.createElement('button');
+                all.type = 'button';
+                all.className = 'ps-btn';
+                all.textContent = 'Выложить сколько можно';
+                all.addEventListener('click', function () { ytPublishMany(YT_MAX_UPLOADS_PER_DAY); });
+                box.appendChild(all);
+                y.archive.slice(0, 40).forEach(function (v, idx) {
+                    const row = document.createElement('div');
+                    row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;';
+                    row.innerHTML = '<span class="ps-desc" style="margin:0;">' + ytTopic(v.topic).emoji + ' ' + v.title + '</span><button type="button" class="ps-btn" style="padding:6px 10px;">Выложить</button>';
+                    row.querySelector('button').addEventListener('click', function () { ytPublishAt(idx); });
+                    box.appendChild(row);
+                });
+            } else {
+                box.innerHTML += '<div class="ps-desc">Архив пуст. Снимите и смонтируйте ролик.</div>';
+            }
+        } else if (y.tab === 'stream') {
+            if (y.stream) {
+                const p = clamp((now - y.stream.start) / YT_STREAM_MAX_MINUTES * 100, 0, 100);
+                box.innerHTML = '<div class="ps-name">📡 Идёт стрим</div><div class="ps-meta">Зрителей: ' + fmtNum(y.stream.viewers) + '. Осталось до автовыключения: ' + fmtDur(y.stream.end - now) + '</div><div class="ps-progress"><i style="width:' + p.toFixed(0) + '%"></i></div><button type="button" class="ps-btn ps-btn-del" id="yt-endstream" style="align-self:flex-end;">Закончить стрим</button>';
+                box.querySelector('#yt-endstream').addEventListener('click', function () { ytFinishStream(false); });
+            } else {
+                box.innerHTML = '<div class="ps-name">Стрим</div><div class="ps-desc">Один стрим в день, не больше 5 часов. Если не выключить, он выключится сам, и часть зрителей отпишется. Пока идёт стрим, уйти нельзя. Доход зависит от числа подписчиков и длительности.</div><button type="button" class="ps-btn" id="yt-stream" style="align-self:flex-end;">Начать стрим</button>';
+                box.querySelector('#yt-stream').addEventListener('click', ytStartStream);
+            }
+        } else {
+            const lines = y.live.map(function (v) { return '🔥 ' + v.title + ': ' + fmtNum(v.views) + ' просм., ' + fmtNum(v.likes) + ' лайков (набирает)'; })
+                .concat(y.history.slice(0, 12).map(function (v) { return '✅ ' + v.title + ': ' + fmtNum(v.views) + ' просм., ' + fmtNum(v.likes) + ' лайков, ' + fmtNum(v.paid) + ' ₽'; }));
+            box.innerHTML = '<div class="ps-name">Ваши ролики</div><div class="ps-desc">' + (lines.length ? lines.join('<br>') : 'Пока нет опубликованных роликов.') + '</div><div class="ps-meta">За каждые 1000 просмотров: 200 ₽ (от 1 млн просмотров на ролике 250 ₽, от 100 млн 325 ₽, от 1 млрд 400 ₽).</div>';
+        }
+        wrap.appendChild(box);
+        appScrollableBody.innerHTML = '';
+        appScrollableBody.appendChild(wrap);
+        appScrollableBody.scrollTop = prevScroll;
+    }
+
+    /* =========================================================
+       БАНК: номер счёта, переводы игрокам (Firebase), кредиты
+       ========================================================= */
+    const TRANSFER_FEE_RATE = 0.03;
+    const TRANSFER_MIN = 1;
+    const TRANSFER_MAX = 10000000;
+    const LOAN_MIN = 50000;
+    const LOAN_MAX = 100000000;
+    const LOAN_NO_COLLATERAL_MAX = 1000000;
+    const LOAN_COLLATERAL_MIN_ITEM = 5000000;
+    const LOAN_MAX_COUNT = 2;
+    const LOAN_TERM_DAYS = 10;
+    const LOAN_SEIZE_DAYS = 21;
+    const LOAN_MARKUP = 1.25;
+    const LOAN_OVERDUE_DAILY = 1.05;
+
+    let fbDb = null;
+    let transferBusy = false;
+    let bankLastTick = 0;
+
+    function fbInit() {
+        try {
+            if (!window.firebase || !window.FIREBASE_CONFIG || !window.FIREBASE_CONFIG.databaseURL) return;
+            firebase.initializeApp(window.FIREBASE_CONFIG);
+            fbDb = firebase.database();
+        } catch (error) {
+            fbDb = null;
+        }
+    }
+
+    function randomAccount() { return 10000 + Math.floor(Math.random() * 90000); }
+
+    function ensureBankAccount() {
+        if (!bankState.account) {
+            bankState.account = randomAccount();
+            bankState.registered = false;
+            saveGameData();
+        }
+        if (!fbDb) return;
+        if (!bankState.registered) fbRegisterAccount(0);
+        else fbListenInbox();
+    }
+
+    function fbRegisterAccount(attempt) {
+        if (!fbDb || attempt > 25) return;
+        const number = bankState.account;
+        fbDb.ref('accounts/' + number).transaction(function (current) {
+            return current === null ? { ts: Date.now() } : undefined;
+        }, function (error, committed) {
+            if (error) return;
+            if (committed) {
+                bankState.registered = true;
+                saveGameData();
+                fbListenInbox();
+            } else {
+                bankState.account = randomAccount();
+                fbRegisterAccount(attempt + 1);
+            }
+        });
+    }
+
+    let fbInboxListening = false;
+    function fbListenInbox() {
+        if (!fbDb || fbInboxListening || !bankState.account) return;
+        fbInboxListening = true;
+        fbDb.ref('inbox/' + bankState.account).on('child_added', function (snap) {
+            const value = snap.val();
+            const key = snap.key;
+            snap.ref.remove();
+            if (!value || typeof value.amount !== 'number' || bankState.seen.indexOf(key) !== -1) return;
+            const amount = Math.floor(value.amount);
+            if (amount < TRANSFER_MIN || amount > TRANSFER_MAX) return;
+            bankState.seen.push(key);
+            if (bankState.seen.length > 60) bankState.seen.shift();
+            playerMoney += amount;
+            addBankTransaction('Перевод от игрока ' + String(value.from || '—'), amount, true);
+            addMessage('BestBank', '💸', 'Вам поступил перевод ' + fmtNum(amount) + ' ₽ от игрока со счёта ' + String(value.from || '—') + '.');
+            showToast('💸 Вам перевели ' + fmtNum(amount) + ' ₽');
+            saveGameData();
+            updateClockUI();
+            refreshBank();
+        });
+    }
+
+    function refreshBank() {
+        if (currentPhoneApp !== 'karta' || phoneView !== 'app') return;
+        const active = document.activeElement;
+        if (active && active.tagName === 'INPUT') return;
+        renderBankApp();
+    }
+
+    function sendTransfer(accountText, amountValue) {
+        if (transferBusy) return;
+        if (!fbDb) { showToast('Онлайн-переводы не подключены (Firebase)'); return; }
+        const account = Math.floor(Number(accountText));
+        const amount = Math.floor(Number(amountValue));
+        if (!(account >= 10000 && account <= 99999)) { showToast('Номер счёта: 5 цифр'); return; }
+        if (account === bankState.account) { showToast('Нельзя перевести самому себе'); return; }
+        if (!(amount >= TRANSFER_MIN && amount <= TRANSFER_MAX)) { showToast('Сумма перевода: от 1 до 10 000 000 ₽'); return; }
+        const fee = Math.round(amount * TRANSFER_FEE_RATE);
+        const total = amount + fee;
+        if (playerMoney < total) { showToast('Недостаточно денег (нужно ' + fmtNum(total) + ' ₽ с комиссией 3%)'); return; }
+        transferBusy = true;
+        fbDb.ref('accounts/' + account).once('value').then(function (snap) {
+            if (!snap.exists()) {
+                showToast('Счёт ' + account + ' не найден');
+                transferBusy = false;
+                return null;
+            }
+            return fbDb.ref('inbox/' + account).push({ from: bankState.account, amount: amount, ts: Date.now() }).then(function () {
+                playerMoney -= total;
+                addBankTransaction('Перевод игроку ' + account + ' (комиссия 3%: ' + fmtNum(fee) + ' ₽)', total, false);
+                bankState.transfers.unshift({ acc: account, amount: amount, fee: fee, date: currentDay + ' ' + MONTH_NAMES[currentMonthIdx] });
+                if (bankState.transfers.length > 30) bankState.transfers.length = 30;
+                bankState.recents = [account].concat(bankState.recents.filter(function (a) { return a !== account; })).slice(0, 8);
+                showToast('✅ Переведено ' + fmtNum(amount) + ' ₽ на счёт ' + account);
+                saveGameData();
+                updateClockUI();
+                transferBusy = false;
+                renderBankApp();
+            });
+        }).catch(function () {
+            showToast('Не удалось выполнить перевод. Проверьте интернет');
+            transferBusy = false;
+        });
+    }
+
+    function ownedPropertyList() {
+        const list = [];
+        ownedCars.forEach(function (car) { if (car.id !== 'bike') list.push({ kind: 'car', id: car.id, name: car.title, price: Number(car.price) || 0 }); });
+        BUSINESSES.forEach(function (b) { if (bizState.owned[b.id]) list.push({ kind: 'biz', id: b.id, name: b.name, price: b.price }); });
+        COMPANIES.forEach(function (c) { if (coState.owned[c.id]) list.push({ kind: 'co', id: c.id, name: c.name, price: c.price }); });
+        return list;
+    }
+
+    function takeLoan(amountValue) {
+        const amount = Math.floor(Number(amountValue));
+        if (!(amount >= LOAN_MIN && amount <= LOAN_MAX)) { showToast('Сумма кредита: от 50 000 до 100 000 000 ₽'); return; }
+        if (bankState.loans.length >= LOAN_MAX_COUNT) { showToast('Нельзя иметь больше 2 кредитов одновременно'); return; }
+        if (amount > LOAN_NO_COLLATERAL_MAX && !ownedPropertyList().some(function (p) { return p.price > LOAN_COLLATERAL_MIN_ITEM; })) {
+            showToast('Для кредита больше 1 000 000 ₽ нужно имущество дороже 5 000 000 ₽ (машина, бизнес или компания)');
+            return;
+        }
+        const now = monoNow();
+        bankState.loanSeq += 1;
+        bankState.loans.push({ id: bankState.loanSeq, principal: amount, balance: Math.round(amount * LOAN_MARKUP), issued: now, due: now + LOAN_TERM_DAYS * 1440, accrued: 0, remind: false, overdueSms: false });
+        playerMoney += amount;
+        addBankTransaction('Кредит BestBank', amount, true);
+        addMessage('BestBank', '🏦', 'Кредит ' + fmtNum(amount) + ' ₽ одобрен. Вернуть нужно ' + fmtNum(amount * LOAN_MARKUP) + ' ₽ в течение ' + LOAN_TERM_DAYS + ' дней. За каждый день просрочки добавляется 5%. Через 3 недели без погашения банк заберёт имущество.');
+        saveGameData();
+        updateClockUI();
+        showToast('🏦 Кредит одобрен');
+        renderBankApp();
+    }
+
+    function payLoan(loan, amountValue) {
+        let amount = Math.floor(Number(amountValue));
+        if (!(amount > 0)) { showToast('Введите сумму платежа'); return; }
+        amount = Math.min(amount, Math.ceil(loan.balance));
+        if (playerMoney < amount) { showToast('Недостаточно денег'); return; }
+        playerMoney -= amount;
+        addBankTransaction('Платёж по кредиту', amount, false);
+        loan.balance -= amount;
+        if (loan.balance <= 0.5) {
+            bankState.loans = bankState.loans.filter(function (l) { return l.id !== loan.id; });
+            addMessage('BestBank', '🎉', 'Кредит полностью погашен. Спасибо!');
+            showToast('🎉 Кредит погашен');
+        } else {
+            showToast('Внесено ' + fmtNum(amount) + ' ₽. Остаток ' + fmtNum(loan.balance) + ' ₽');
+        }
+        saveGameData();
+        updateClockUI();
+        renderBankApp();
+    }
+
+    function seizeForLoan(loan) {
+        const debt = Math.ceil(loan.balance);
+        const items = ownedPropertyList().sort(function (a, b) { return a.price - b.price; });
+        const taken = [];
+        let sum = 0;
+        if (items.length) {
+            items.filter(function (p) { return p.price <= debt * 1.5; }).forEach(function (p) {
+                if (sum < debt * 0.8) { taken.push(p); sum += p.price; }
+            });
+            if (!taken.length) taken.push(items[0]);
+        }
+        let text;
+        if (taken.length) {
+            taken.forEach(function (p) {
+                if (p.kind === 'car') {
+                    ownedCars = ownedCars.filter(function (c) { return c.id !== p.id; });
+                    delete carFuel[p.id];
+                } else if (p.kind === 'biz') {
+                    delete bizState.owned[p.id];
+                    bizSave();
+                } else if (p.kind === 'co') {
+                    delete coState.owned[p.id];
+                    coSave();
+                }
+            });
+            text = 'Кредит не погашен за 3 недели. Банк забрал имущество: ' + taken.map(function (p) { return p.name; }).join(', ') + '.';
+        } else {
+            const charge = Math.round(debt * 1.3);
+            playerMoney = Math.max(0, playerMoney - charge);
+            addBankTransaction('Принудительное списание по кредиту', charge, false);
+            text = 'Кредит не погашен за 3 недели. Имущества нет, поэтому со счёта списано ' + fmtNum(charge) + ' ₽ (в 1,3 раза больше долга).';
+        }
+        bankState.loans = bankState.loans.filter(function (l) { return l.id !== loan.id; });
+        addMessage('BestBank', '⚠️', text);
+        showToast('⚠️ Банк взыскал долг по кредиту');
+    }
+
+    function processBank() {
+        if (performance.now() - bankLastTick < 1000) return;
+        bankLastTick = performance.now();
+        if (!bankState.loans.length) return;
+        const now = monoNow();
+        let changed = false;
+        bankState.loans.slice().forEach(function (loan) {
+            if (now >= loan.issued + LOAN_SEIZE_DAYS * 1440) {
+                seizeForLoan(loan);
+                changed = true;
+                return;
+            }
+            if (!loan.remind && loan.due - now <= 1440 && now < loan.due) {
+                loan.remind = true;
+                addMessage('BestBank', '⏰', 'Завтра последний день погашения кредита (остаток ' + fmtNum(loan.balance) + ' ₽). С завтрашнего дня начнётся просрочка: +5% в день.');
+                changed = true;
+            }
+            if (now >= loan.due) {
+                const days = Math.floor((now - loan.due) / 1440);
+                while (loan.accrued < days) {
+                    loan.balance *= LOAN_OVERDUE_DAILY;
+                    loan.accrued += 1;
+                    changed = true;
+                }
+                if (!loan.overdueSms) {
+                    loan.overdueSms = true;
+                    addMessage('BestBank', '❗', 'Срок кредита истёк. За каждый день просрочки к остатку добавляется 5%. Погасите долг как можно скорее.');
+                    changed = true;
+                }
+            }
+        });
+        if (changed) {
+            saveGameData();
+            refreshBank();
+        }
+    }
+
+    function renderBankExtras(wrapper) {
+        const extra = document.createElement('div');
+        extra.style.cssText = 'display:flex;flex-direction:column;gap:10px;margin:12px 0;';
+        const inputCss = 'padding:10px;border-radius:10px;border:1px solid #cbd5e1;font-size:1rem;width:100%;box-sizing:border-box;';
+
+        const acc = document.createElement('div');
+        acc.className = 'ps-card';
+        acc.style.cssText = 'flex-direction:column;align-items:stretch;gap:6px;';
+        acc.innerHTML = '<div class="ps-name">💳 Ваш номер счёта: ' + bankState.account + '</div><div class="ps-desc">Дайте номер друзьям, чтобы они могли вам перевести деньги. Номер привязан к вам, а не к приложению.</div><div class="ps-meta">' + (fbDb ? (bankState.registered ? '🟢 Онлайн-переводы работают' : '🟡 Подключение к серверу...') : '🔴 Firebase не подключён: переводы недоступны') + '</div>';
+        extra.appendChild(acc);
+
+        const tr = document.createElement('div');
+        tr.className = 'ps-card';
+        tr.style.cssText = 'flex-direction:column;align-items:stretch;gap:8px;';
+        tr.innerHTML = '<div class="ps-name">💸 Перевод игроку</div><input id="bk-acc" type="number" inputmode="numeric" placeholder="Номер счёта (5 цифр)" style="' + inputCss + '"><input id="bk-sum" type="number" inputmode="numeric" placeholder="Сумма от 1 до 10 000 000 ₽" style="' + inputCss + '"><div class="ps-meta">Комиссия 3% сверх суммы перевода.</div><div id="bk-recents" style="display:flex;flex-wrap:wrap;gap:6px;"></div><button type="button" class="ps-btn" id="bk-send" style="align-self:flex-end;">Перевести</button>';
+        const recents = tr.querySelector('#bk-recents');
+        bankState.recents.forEach(function (a) {
+            const chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'ps-btn ps-btn-off';
+            chip.style.cssText = 'padding:4px 10px;background:#e0e7ff;color:#3730a3;';
+            chip.textContent = String(a);
+            chip.addEventListener('click', function () { tr.querySelector('#bk-acc').value = a; });
+            recents.appendChild(chip);
+        });
+        tr.querySelector('#bk-send').addEventListener('click', function () { sendTransfer(tr.querySelector('#bk-acc').value, tr.querySelector('#bk-sum').value); });
+        if (bankState.transfers.length) {
+            const hist = document.createElement('div');
+            hist.className = 'ps-desc';
+            hist.innerHTML = '<b>История переводов:</b><br>' + bankState.transfers.slice(0, 8).map(function (t) { return t.date + ' • счёт ' + t.acc + ' • ' + fmtNum(t.amount) + ' ₽ (комиссия ' + fmtNum(t.fee) + ' ₽)'; }).join('<br>');
+            tr.appendChild(hist);
+        }
+        extra.appendChild(tr);
+
+        const loans = document.createElement('div');
+        loans.className = 'ps-card';
+        loans.style.cssText = 'flex-direction:column;align-items:stretch;gap:8px;';
+        loans.innerHTML = '<div class="ps-name">🏦 Кредиты</div><div class="ps-desc">От 50 000 до 100 000 000 ₽, до 2 кредитов сразу. До 1 000 000 ₽ без залога, больше нужно имущество дороже 5 000 000 ₽. Вернуть за 10 дней +25%. Дальше +5% в день, через 3 недели банк заберёт имущество (или спишет 130% долга).</div>';
+        const now = monoNow();
+        bankState.loans.forEach(function (loan) {
+            const box = document.createElement('div');
+            box.style.cssText = 'padding:10px;border-radius:12px;background:#f1f5f9;display:flex;flex-direction:column;gap:6px;';
+            const left = loan.due - now;
+            box.innerHTML = '<div class="ps-name">Кредит #' + loan.id + ': остаток ' + fmtNum(loan.balance) + ' ₽</div><div class="ps-meta">' + (left > 0 ? 'Срок: ещё ' + fmtLeft(left) : '❗ Просрочка ' + fmtLeft(-left)) + '</div><input type="number" inputmode="numeric" placeholder="Сумма платежа" class="bk-pay" style="' + inputCss + '"><div style="display:flex;gap:8px;"><button type="button" class="ps-btn bk-pay-btn" style="flex:1;">Внести</button><button type="button" class="ps-btn bk-full-btn" style="flex:1;background:#0ea5e9;">Погасить всё</button></div>';
+            box.querySelector('.bk-pay-btn').addEventListener('click', function () { payLoan(loan, box.querySelector('.bk-pay').value); });
+            box.querySelector('.bk-full-btn').addEventListener('click', function () { payLoan(loan, Math.ceil(loan.balance)); });
+            loans.appendChild(box);
+        });
+        const form = document.createElement('div');
+        form.style.cssText = 'display:flex;gap:8px;';
+        form.innerHTML = '<input id="bk-loan" type="number" inputmode="numeric" placeholder="Сумма кредита" style="' + inputCss + 'flex:1;"><button type="button" class="ps-btn" id="bk-loan-btn">Взять</button>';
+        form.querySelector('#bk-loan-btn').addEventListener('click', function () { takeLoan(form.querySelector('#bk-loan').value); });
+        loans.appendChild(form);
+        extra.appendChild(loans);
+
+        wrapper.insertBefore(extra, wrapper.children[1] || null);
+    }
+
+    /* =========================================================
+       ИГРЫ ОФФЛАЙН: одно приложение, 5 игр
+       ========================================================= */
+    const OFFLINE_GAMES = [
+        { id: 'dino', emoji: '🦖', name: 'Динозаврик', desc: 'Прыгай через кактусы' },
+        { id: 'flappy', emoji: '🐤', name: 'Флаппи-птичка', desc: 'Лети между трубами' },
+        { id: 'snake', emoji: '🐍', name: 'Змейка', desc: 'Ешь яблоки и расти' },
+        { id: 'tetris', emoji: '🧱', name: 'Тетрис', desc: 'Собирай линии' },
+        { id: 'g2048', emoji: '🔢', name: '2048', desc: 'Соединяй одинаковые числа' }
+    ];
+    const OG = { id: null, token: 0, raf: 0, timers: [], keys: [] };
+
+    function ogAlive(token) {
+        return OG.id && OG.token === token && currentPhoneApp === 'games' && !phoneModal.classList.contains('hidden');
+    }
+
+    function stopOfflineGame() {
+        OG.token += 1;
+        OG.id = null;
+        cancelAnimationFrame(OG.raf);
+        OG.timers.forEach(function (t) { clearInterval(t); });
+        OG.timers = [];
+        OG.keys.forEach(function (h) { window.removeEventListener('keydown', h); });
+        OG.keys = [];
+    }
+
+    function renderGamesApp() {
+        stopOfflineGame();
+        appScrollableBody.innerHTML = '';
+        const wrap = document.createElement('div');
+        wrap.className = 'ps-wrap';
+        wrap.innerHTML = '<div class="ps-header" style="background:linear-gradient(135deg,#8b5cf6,#ec4899)"><div class="ps-title">🎮 Игры оффлайн</div><div class="ps-sub">Выберите игру. Работают без интернета.</div></div>';
+        OFFLINE_GAMES.forEach(function (game) {
+            const card = document.createElement('div');
+            card.className = 'ps-card';
+            card.innerHTML = '<div class="ps-icon"><span>' + game.emoji + '</span></div><div class="ps-info"><div class="ps-name">' + game.name + '</div><div class="ps-desc">' + game.desc + '</div><div class="ps-meta">Рекорд: ' + fmtNum(gamesState.best[game.id] || 0) + '</div></div><button type="button" class="ps-btn">Играть</button>';
+            card.querySelector('.ps-btn').addEventListener('click', function () { startOfflineGame(game.id); });
+            wrap.appendChild(card);
+        });
+        appScrollableBody.appendChild(wrap);
+    }
+
+    function startOfflineGame(id) {
+        stopOfflineGame();
+        const token = OG.token;
+        OG.id = id;
+        const info = OFFLINE_GAMES.find(function (g) { return g.id === id; });
+        appScrollableBody.innerHTML = '';
+        const wrap = document.createElement('div');
+        wrap.className = 'og-wrap';
+        wrap.innerHTML = '<div class="og-head"><button type="button" class="og-btn og-back">← Игры</button><div class="og-title">' + info.emoji + ' ' + info.name + '</div><div class="og-score">Очки: <b id="og-score">0</b> • Рекорд: <b id="og-best">' + fmtNum(gamesState.best[id] || 0) + '</b></div></div>';
+        const canvas = document.createElement('canvas');
+        canvas.className = 'og-canvas';
+        const controls = document.createElement('div');
+        controls.className = 'og-controls';
+        wrap.appendChild(canvas);
+        wrap.appendChild(controls);
+        appScrollableBody.appendChild(wrap);
+        wrap.querySelector('.og-back').addEventListener('click', renderGamesApp);
+        const ctx = canvas.getContext('2d');
+        let inputTap = null;
+        let inputSwipe = null;
+        let down = null;
+        canvas.addEventListener('pointerdown', function (e) { down = { x: e.clientX, y: e.clientY }; });
+        canvas.addEventListener('pointerup', function (e) {
+            if (!down) return;
+            const dx = e.clientX - down.x;
+            const dy = e.clientY - down.y;
+            down = null;
+            if (Math.hypot(dx, dy) < 22) { if (inputTap) inputTap(); return; }
+            if (inputSwipe) inputSwipe(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
+        });
+        const api = {
+            canvas: canvas,
+            ctx: ctx,
+            setSize: function (w, h, cssW) { canvas.width = w; canvas.height = h; canvas.style.width = Math.min(cssW || w, 340) + 'px'; },
+            setScore: function (n) {
+                document.getElementById('og-score').textContent = fmtNum(n);
+                if (n > (gamesState.best[id] || 0)) {
+                    gamesState.best[id] = n;
+                    document.getElementById('og-best').textContent = fmtNum(n);
+                }
+            },
+            over: function () { saveGameData(); },
+            button: function (label, fn) {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'og-btn';
+                b.textContent = label;
+                b.addEventListener('click', fn);
+                controls.appendChild(b);
+            },
+            key: function (handler) {
+                const h = function (e) { if (ogAlive(token)) handler(e); };
+                window.addEventListener('keydown', h);
+                OG.keys.push(h);
+            },
+            input: function (tap, swipe) { inputTap = tap; inputSwipe = swipe; },
+            loop: function (step) {
+                let last = performance.now();
+                function frame(t) {
+                    if (!ogAlive(token)) return;
+                    const dt = Math.min(0.05, (t - last) / 1000);
+                    last = t;
+                    step(dt);
+                    OG.raf = requestAnimationFrame(frame);
+                }
+                OG.raf = requestAnimationFrame(frame);
+            }
+        };
+        ({ dino: ogDino, flappy: ogFlappy, snake: ogSnake, tetris: ogTetris, g2048: og2048 })[id](api);
+    }
+
+    function ogMessage(ctx, w, h, text) {
+        ctx.fillStyle = 'rgba(15,23,42,.62)';
+        ctx.fillRect(0, h / 2 - 34, w, 68);
+        ctx.fillStyle = '#fff';
+        ctx.font = '800 17px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(text, w / 2, h / 2 + 6);
+        ctx.textAlign = 'left';
+    }
+
+    /* ---------- 1. Динозаврик ---------- */
+    function ogDino(api) {
+        const ctx = api.ctx;
+        api.setSize(320, 200, 320);
+        const GROUND = 165;
+        let y = 0, vy = 0, obs = [], speed = 190, dist = 0, spawn = 1, over = false, started = false;
+        function reset() { y = 0; vy = 0; obs = []; speed = 190; dist = 0; spawn = 1; over = false; started = false; api.setScore(0); }
+        function jump() {
+            if (over) { reset(); return; }
+            started = true;
+            if (y === 0) vy = 430;
+        }
+        api.input(jump, function (dir) { if (dir === 'up') jump(); });
+        api.key(function (e) { if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); jump(); } });
+        api.button('⬆ Прыжок', jump);
+        api.loop(function (dt) {
+            if (started && !over) {
+                vy -= 1300 * dt;
+                y = Math.max(0, y + vy * dt);
+                if (y === 0) vy = 0;
+                dist += speed * dt;
+                speed = Math.min(430, speed + dt * 6);
+                spawn -= dt;
+                if (spawn <= 0) {
+                    obs.push({ x: 330, w: 16 + Math.random() * 14, h: 26 + Math.random() * 20 });
+                    spawn = 0.75 + Math.random() * 0.9 + 60 / speed;
+                }
+                obs.forEach(function (o) { o.x -= speed * dt; });
+                obs = obs.filter(function (o) { return o.x > -40; });
+                obs.forEach(function (o) {
+                    if (o.x < 58 && o.x + o.w > 36 && y < o.h - 6) { over = true; api.over(); }
+                });
+                api.setScore(Math.floor(dist / 10));
+            }
+            ctx.fillStyle = '#f8fafc';
+            ctx.fillRect(0, 0, 320, 200);
+            ctx.fillStyle = '#94a3b8';
+            ctx.fillRect(0, GROUND, 320, 3);
+            ctx.font = '36px serif';
+            ctx.fillText('🦖', 26, GROUND - y + 4);
+            obs.forEach(function (o) {
+                ctx.font = Math.round(o.h * 1.35) + 'px serif';
+                ctx.fillText('🌵', o.x - 4, GROUND + 3);
+            });
+            if (!started) ogMessage(ctx, 320, 200, 'Нажми, чтобы начать');
+            else if (over) ogMessage(ctx, 320, 200, 'Конец! Нажми, чтобы заново');
+        });
+    }
+
+    /* ---------- 2. Флаппи-птичка ---------- */
+    function ogFlappy(api) {
+        const ctx = api.ctx;
+        api.setSize(320, 420, 300);
+        const GAP = 125, PIPE_W = 52, BX = 80;
+        let by = 200, vy = 0, pipes = [], spawn = 0.4, score = 0, over = false, started = false;
+        function reset() { by = 200; vy = 0; pipes = []; spawn = 0.4; score = 0; over = false; started = false; api.setScore(0); }
+        function flap() {
+            if (over) { reset(); return; }
+            started = true;
+            vy = -300;
+        }
+        api.input(flap, function (dir) { if (dir === 'up') flap(); });
+        api.key(function (e) { if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); flap(); } });
+        api.button('⬆ Взмах', flap);
+        api.loop(function (dt) {
+            if (started && !over) {
+                vy += 900 * dt;
+                by += vy * dt;
+                spawn -= dt;
+                if (spawn <= 0) {
+                    pipes.push({ x: 330, gapY: 70 + Math.random() * 190, passed: false });
+                    spawn = 1.55;
+                }
+                pipes.forEach(function (p) {
+                    p.x -= 115 * dt;
+                    if (!p.passed && p.x + PIPE_W < BX) { p.passed = true; score += 1; api.setScore(score); }
+                    if (p.x < BX + 12 && p.x + PIPE_W > BX - 12 && (by - 12 < p.gapY || by + 12 > p.gapY + GAP)) { over = true; api.over(); }
+                });
+                pipes = pipes.filter(function (p) { return p.x > -70; });
+                if (by < 0 || by > 408) { over = true; api.over(); }
+            }
+            ctx.fillStyle = '#7dd3fc';
+            ctx.fillRect(0, 0, 320, 420);
+            ctx.fillStyle = '#22c55e';
+            pipes.forEach(function (p) {
+                ctx.fillRect(p.x, 0, PIPE_W, p.gapY);
+                ctx.fillRect(p.x, p.gapY + GAP, PIPE_W, 420 - p.gapY - GAP);
+            });
+            ctx.font = '30px serif';
+            ctx.fillText('🐤', BX - 16, by + 11);
+            if (!started) ogMessage(ctx, 320, 420, 'Нажми, чтобы лететь');
+            else if (over) ogMessage(ctx, 320, 420, 'Конец! Нажми, чтобы заново');
+        });
+    }
+    /* ---------- 3. Змейка ---------- */
+    function ogSnake(api) {
+        const ctx = api.ctx;
+        const N = 16, S = 20;
+        api.setSize(N * S, N * S, 320);
+        let snake, dir, nextDir, apple, over, started, acc, delay;
+        function placeApple() {
+            do { apple = { x: Math.floor(Math.random() * N), y: Math.floor(Math.random() * N) }; }
+            while (snake.some(function (s) { return s.x === apple.x && s.y === apple.y; }));
+        }
+        function reset() {
+            snake = [{ x: 8, y: 8 }, { x: 7, y: 8 }, { x: 6, y: 8 }];
+            dir = { x: 1, y: 0 }; nextDir = dir; over = false; started = false; acc = 0; delay = 0.14;
+            placeApple();
+            api.setScore(0);
+        }
+        function turn(name) {
+            const map = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
+            const d = map[name];
+            if (over) { reset(); return; }
+            started = true;
+            if (d.x !== -dir.x || d.y !== -dir.y) nextDir = d;
+        }
+        reset();
+        api.input(function () { if (over) reset(); }, turn);
+        api.key(function (e) {
+            const m = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', KeyW: 'up', KeyS: 'down', KeyA: 'left', KeyD: 'right' };
+            if (m[e.code]) { e.preventDefault(); turn(m[e.code]); }
+        });
+        api.button('◀', function () { turn('left'); });
+        api.button('▲', function () { turn('up'); });
+        api.button('▼', function () { turn('down'); });
+        api.button('▶', function () { turn('right'); });
+        api.loop(function (dt) {
+            if (started && !over) {
+                acc += dt;
+                while (acc >= delay && !over) {
+                    acc -= delay;
+                    dir = nextDir;
+                    const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+                    if (head.x < 0 || head.y < 0 || head.x >= N || head.y >= N || snake.some(function (s) { return s.x === head.x && s.y === head.y; })) {
+                        over = true;
+                        api.over();
+                        break;
+                    }
+                    snake.unshift(head);
+                    if (head.x === apple.x && head.y === apple.y) {
+                        api.setScore(snake.length - 3);
+                        delay = Math.max(0.07, delay - 0.003);
+                        placeApple();
+                    } else {
+                        snake.pop();
+                    }
+                }
+            }
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, N * S, N * S);
+            ctx.font = '17px serif';
+            ctx.fillText('🍎', apple.x * S + 1, apple.y * S + 16);
+            snake.forEach(function (s, i) {
+                ctx.fillStyle = i === 0 ? '#4ade80' : '#22c55e';
+                ctx.fillRect(s.x * S + 1, s.y * S + 1, S - 2, S - 2);
+            });
+            if (!started) ogMessage(ctx, N * S, N * S, 'Проведи пальцем, чтобы начать');
+            else if (over) ogMessage(ctx, N * S, N * S, 'Конец! Нажми, чтобы заново');
+        });
+    }
+
+    /* ---------- 4. Тетрис ---------- */
+    function ogTetris(api) {
+        const ctx = api.ctx;
+        const W = 10, H = 20, S = 18;
+        api.setSize(W * S, H * S, 216);
+        const SHAPES = [
+            { m: [[1, 1, 1, 1]], c: '#22d3ee' }, { m: [[1, 1], [1, 1]], c: '#facc15' }, { m: [[0, 1, 0], [1, 1, 1]], c: '#c084fc' },
+            { m: [[0, 1, 1], [1, 1, 0]], c: '#4ade80' }, { m: [[1, 1, 0], [0, 1, 1]], c: '#f87171' }, { m: [[1, 0, 0], [1, 1, 1]], c: '#60a5fa' }, { m: [[0, 0, 1], [1, 1, 1]], c: '#fb923c' }
+        ];
+        let grid, cur, score, lines, over, started, acc;
+        function empty() { return Array.from({ length: H }, function () { return new Array(W).fill(null); }); }
+        function collide(m, x, y) {
+            for (let r = 0; r < m.length; r += 1) {
+                for (let c = 0; c < m[r].length; c += 1) {
+                    if (!m[r][c]) continue;
+                    const nx = x + c, ny = y + r;
+                    if (nx < 0 || nx >= W || ny >= H || (ny >= 0 && grid[ny][nx])) return true;
+                }
+            }
+            return false;
+        }
+        function spawn() {
+            const s = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+            cur = { m: s.m, c: s.c, x: Math.floor((W - s.m[0].length) / 2), y: 0 };
+            if (collide(cur.m, cur.x, cur.y)) { over = true; api.over(); }
+        }
+        function reset() { grid = empty(); score = 0; lines = 0; over = false; started = false; acc = 0; api.setScore(0); spawn(); }
+        function rotate(m) { return m[0].map(function (_, i) { return m.map(function (row) { return row[i]; }).reverse(); }); }
+        function lock() {
+            cur.m.forEach(function (row, r) { row.forEach(function (v, c) { if (v && cur.y + r >= 0) grid[cur.y + r][cur.x + c] = cur.c; }); });
+            let cleared = 0;
+            for (let r = H - 1; r >= 0; r -= 1) {
+                if (grid[r].every(function (v) { return v; })) { grid.splice(r, 1); grid.unshift(new Array(W).fill(null)); cleared += 1; r += 1; }
+            }
+            if (cleared) {
+                lines += cleared;
+                score += [0, 100, 300, 500, 800][cleared];
+                api.setScore(score);
+            }
+            spawn();
+        }
+        function move(dx) { if (!over && !collide(cur.m, cur.x + dx, cur.y)) cur.x += dx; started = true; }
+        function turnPiece() {
+            if (over) { reset(); return; }
+            started = true;
+            const r = rotate(cur.m);
+            if (!collide(r, cur.x, cur.y)) cur.m = r;
+            else if (!collide(r, cur.x - 1, cur.y)) { cur.m = r; cur.x -= 1; }
+            else if (!collide(r, cur.x + 1, cur.y)) { cur.m = r; cur.x += 1; }
+        }
+        function down() { if (over) return; started = true; if (!collide(cur.m, cur.x, cur.y + 1)) cur.y += 1; else lock(); }
+        function drop() { if (over) return; started = true; while (!collide(cur.m, cur.x, cur.y + 1)) cur.y += 1; lock(); }
+        reset();
+        api.input(turnPiece, function (dir) { if (dir === 'left') move(-1); else if (dir === 'right') move(1); else if (dir === 'down') drop(); else turnPiece(); });
+        api.key(function (e) {
+            const k = e.code;
+            if (k === 'ArrowLeft') { e.preventDefault(); move(-1); }
+            else if (k === 'ArrowRight') { e.preventDefault(); move(1); }
+            else if (k === 'ArrowUp') { e.preventDefault(); turnPiece(); }
+            else if (k === 'ArrowDown') { e.preventDefault(); down(); }
+            else if (k === 'Space') { e.preventDefault(); drop(); }
+        });
+        api.button('◀', function () { move(-1); });
+        api.button('⟳', turnPiece);
+        api.button('▶', function () { move(1); });
+        api.button('▼', down);
+        api.button('⏬', drop);
+        api.loop(function (dt) {
+            if (started && !over) {
+                acc += dt;
+                const delay = Math.max(0.1, 0.62 - lines * 0.018);
+                if (acc >= delay) { acc = 0; down(); }
+            }
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, W * S, H * S);
+            for (let r = 0; r < H; r += 1) {
+                for (let c = 0; c < W; c += 1) {
+                    if (grid[r][c]) { ctx.fillStyle = grid[r][c]; ctx.fillRect(c * S + 1, r * S + 1, S - 2, S - 2); }
+                }
+            }
+            if (!over) {
+                ctx.fillStyle = cur.c;
+                cur.m.forEach(function (row, r) { row.forEach(function (v, c) { if (v) ctx.fillRect((cur.x + c) * S + 1, (cur.y + r) * S + 1, S - 2, S - 2); }); });
+            }
+            if (!started) ogMessage(ctx, W * S, H * S, 'Нажми кнопку, чтобы начать');
+            else if (over) ogMessage(ctx, W * S, H * S, 'Конец! Нажми, чтобы заново');
+        });
+    }
+
+    /* ---------- 5. 2048 ---------- */
+    function og2048(api) {
+        const ctx = api.ctx;
+        api.setSize(320, 320, 320);
+        const COLORS = { 0: '#cbd5e1', 2: '#fef3c7', 4: '#fde68a', 8: '#fdba74', 16: '#fb923c', 32: '#f87171', 64: '#ef4444', 128: '#facc15', 256: '#eab308', 512: '#84cc16', 1024: '#22c55e', 2048: '#06b6d4' };
+        let board, score, over, dirty = true;
+        function addTile() {
+            const free = [];
+            board.forEach(function (row, r) { row.forEach(function (v, c) { if (!v) free.push([r, c]); }); });
+            if (!free.length) return;
+            const pick = free[Math.floor(Math.random() * free.length)];
+            board[pick[0]][pick[1]] = Math.random() < 0.9 ? 2 : 4;
+        }
+        function reset() { board = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]; score = 0; over = false; addTile(); addTile(); api.setScore(0); dirty = true; }
+        function lineCells(i, dir) {
+            const idx = [0, 1, 2, 3];
+            const order = (dir === 'right' || dir === 'down') ? idx.slice().reverse() : idx;
+            return order.map(function (j) { return (dir === 'left' || dir === 'right') ? [i, j] : [j, i]; });
+        }
+        function canMove() {
+            for (let r = 0; r < 4; r += 1) for (let c = 0; c < 4; c += 1) {
+                if (!board[r][c]) return true;
+                if (c < 3 && board[r][c] === board[r][c + 1]) return true;
+                if (r < 3 && board[r][c] === board[r + 1][c]) return true;
+            }
+            return false;
+        }
+        function move(dir) {
+            if (over) { reset(); return; }
+            let moved = false;
+            for (let i = 0; i < 4; i += 1) {
+                const cells = lineCells(i, dir);
+                const vals = cells.map(function (p) { return board[p[0]][p[1]]; });
+                const arr = vals.filter(function (v) { return v; });
+                for (let k = 0; k < arr.length - 1; k += 1) {
+                    if (arr[k] === arr[k + 1]) { arr[k] *= 2; score += arr[k]; arr.splice(k + 1, 1); }
+                }
+                while (arr.length < 4) arr.push(0);
+                cells.forEach(function (p, k) { if (board[p[0]][p[1]] !== arr[k]) moved = true; board[p[0]][p[1]] = arr[k]; });
+            }
+            if (moved) { addTile(); api.setScore(score); if (!canMove()) { over = true; api.over(); } }
+            dirty = true;
+        }
+        reset();
+        api.input(function () { if (over) reset(); }, move);
+        api.key(function (e) {
+            const m = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
+            if (m[e.code]) { e.preventDefault(); move(m[e.code]); }
+        });
+        api.button('◀', function () { move('left'); });
+        api.button('▲', function () { move('up'); });
+        api.button('▼', function () { move('down'); });
+        api.button('▶', function () { move('right'); });
+        api.loop(function () {
+            if (!dirty) return;
+            dirty = false;
+            ctx.fillStyle = '#94a3b8';
+            ctx.fillRect(0, 0, 320, 320);
+            board.forEach(function (row, r) {
+                row.forEach(function (v, c) {
+                    ctx.fillStyle = COLORS[v] || '#0ea5e9';
+                    ctx.fillRect(10 + c * 76, 10 + r * 76, 70, 70);
+                    if (v) {
+                        ctx.fillStyle = v <= 4 ? '#475569' : '#fff';
+                        ctx.font = '800 ' + (v >= 1000 ? 22 : 28) + 'px sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(String(v), 45 + c * 76, 54 + r * 76);
+                        ctx.textAlign = 'left';
+                    }
+                });
+            });
+            if (over) ogMessage(ctx, 320, 320, 'Ходов нет! Нажми, чтобы заново');
+        });
     }
 
     /* =========================================================
@@ -3851,7 +6280,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (currentScreen === 'city') {
             if (now - obscureCheckAt > 250) {
                 obscureCheckAt = now;
-                mapObscured = Boolean(document.querySelector(OBSCURE_SELECTOR));
+                mapObscured = isFlying() || isOnVacation() || Boolean(document.querySelector(OBSCURE_SELECTOR));
             }
             if (forceRender || (!mapObscured && now - lastMapFrameAt >= MAP_FRAME_MS)) {
                 forceRender = false;
@@ -3922,7 +6351,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (exitTruckstation) exitTruckstation.addEventListener('click', function () { truckstationScreen.classList.add('hidden'); currentScreen = 'city'; lastExitedLocation = 'truckstation'; saveGameData(); btnOpenSettingsGame.classList.remove('hidden'); });
     const exitMarket = document.getElementById('btn-exit-market');
     if (exitMarket) exitMarket.addEventListener('click', function () { marketScreen.classList.add('hidden');
-        xjHideScreens(); currentScreen = 'city'; lastExitedLocation = 'market'; saveGameData(); btnOpenSettingsGame.classList.remove('hidden'); });
+        xjHideScreens(); hideAirportScreen(); currentScreen = 'city'; lastExitedLocation = 'market'; saveGameData(); btnOpenSettingsGame.classList.remove('hidden'); });
 
     const exitCashierWork = document.getElementById('btn-exit-cashier-work');
     if (exitCashierWork) exitCashierWork.addEventListener('click', function () {
@@ -4492,6 +6921,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function xjTravelTitle(key, mode) {
+        if (key === 'airport') return mode === 'choice' ? 'Едем в Аэропорт' : 'Аэропорт';
         const location = XJ_LOCATIONS[key];
         if (!location) return '';
         return mode === 'choice' ? location.travelTitle : location.walkTitle;
@@ -4505,7 +6935,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function xjShowScreen(key) {
-        xjHideScreens();
+        xjHideScreens(); hideAirportScreen();
         const location = XJ_LOCATIONS[key];
         if (!location) return;
         const element = document.getElementById(location.screenId);
@@ -4767,6 +7197,14 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function xjAcceptTask(jobId, task) {
+        if (travelBlockMessage()) {
+            showToast(travelBlockMessage());
+            return;
+        }
+        if (isDizzy()) {
+            showToast('🥴 Кружится голова: нельзя работать');
+            return;
+        }
         const config = XJ_JOBS[jobId];
         if (!xjIsWorkTime(config)) {
             showToast('Рабочее время закончилось');
@@ -4884,13 +7322,15 @@ document.addEventListener('DOMContentLoaded', function () {
         const state = xjState[jobId];
         const baseReward = xjTask.task.reward;
         const factor = Math.max(0.4, 1 - xjTask.mistakes * 0.25);
-        const reward = Math.round(baseReward * factor);
+        const reward = applySalaryHygiene(Math.round(baseReward * factor));
         playerMoney += reward;
         addBankTransaction('Зарплата: ' + config.title, reward, true);
         createTax('salary', reward * SALARY_TAX_RATE, 'Налог: ' + config.title + ' 3%');
         xjCheckDayReset(state);
         state.today += 1;
+        const prevXjTotal = state.total;
         state.total += 1;
+        if (jobId === 'police' || jobId === 'doctor') checkGovMilestones(config.title, prevXjTotal, state.total);
         playerEnergy = clamp(playerEnergy - 6, 0, 100);
         playerHunger = clamp(playerHunger - 3, 0, 100);
         xjTask = null;
@@ -5200,6 +7640,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function xjPaySpecial(jobId, reward, label) {
+        reward = applySalaryHygiene(reward);
         const config = XJ_JOBS[jobId];
         const state = xjState[jobId];
         if (reward > 0) {
@@ -5208,7 +7649,9 @@ document.addEventListener('DOMContentLoaded', function () {
             createTax('salary', reward * SALARY_TAX_RATE, 'Налог: ' + config.title + ' 3%');
             xjCheckDayReset(state);
             state.today += 1;
+            const prevSpecialTotal = state.total;
             state.total += 1;
+            if (jobId === 'police' || jobId === 'doctor') checkGovMilestones(config.title, prevSpecialTotal, state.total);
         }
         playerEnergy = clamp(playerEnergy - 6, 0, 100);
         playerHunger = clamp(playerHunger - 3, 0, 100);
@@ -6505,6 +8948,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 '<div class="property-status-badge" style="color:' + (isSelected ? '#16a34a' : '#2563eb') + ';background:' + (isSelected ? '#dcfce7' : '#dbeafe') + ';">' + (isSelected ? 'Выбрана для поездок' : 'В гараже') + '</div></div></div>' +
                 '<div class="property-car-actions">' + (isBike ? '' : '<button type="button" class="biz-btn biz-btn-primary pick"' + (isSelected ? ' disabled' : '') + '>' + (isSelected ? 'Выбрана' : 'Выбрать') + '</button>') +
                 '<button type="button" class="biz-btn biz-btn-danger sell">' + (carSellConfirm === car.id ? 'Подтвердить: ' + bizMoney(sellValue) : 'Продать за ' + bizMoney(sellValue) + ' (70%)') + '</button></div>';
+            if (!isBike) {
+                const fuelRow = document.createElement('div');
+                fuelRow.style.cssText = 'display:flex;align-items:center;gap:8px;margin:8px 0;font-size:.78rem;font-weight:700;';
+                const tank = carTank(car);
+                const fuelNow = getFuel(car);
+                fuelRow.innerHTML = '<span>⛽ ' + fuelNow.toFixed(1) + ' / ' + tank + ' л</span><div style="flex:1;height:8px;border-radius:6px;background:#e2e8f0;overflow:hidden"><div style="height:100%;width:' + (fuelNow / tank * 100).toFixed(0) + '%;background:' + (fuelNow / tank < 0.2 ? '#ef4444' : '#22c55e') + '"></div></div><button type="button" class="biz-btn biz-btn-primary refuel">Заправить</button>';
+                fuelRow.querySelector('.refuel').addEventListener('click', function () { refuelCar(car); });
+                card.insertBefore(fuelRow, card.querySelector('.property-car-actions'));
+            }
             const pickButton = card.querySelector('.pick');
             if (pickButton) pickButton.addEventListener('click', function () { selectCar(car); });
             card.querySelector('.sell').addEventListener('click', function () { sellOwnedVehicle(car); });
@@ -6563,7 +9015,19 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         if (driveState) return;
+        if (getFuel(car) <= 0.05) {
+            showToast('⛽ В баке нет бензина. Заправьте машину в приложении «Имущество»');
+            return;
+        }
         travelChoiceModal.classList.add('hidden');
+        let fuelBox = document.getElementById('drive-fuel-box');
+        if (!fuelBox) {
+            fuelBox = document.createElement('div');
+            fuelBox.id = 'drive-fuel-box';
+            fuelBox.style.cssText = 'position:absolute;left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:20;width:min(86%,360px);color:#fff;font:800 .8rem sans-serif;text-align:center;text-shadow:0 1px 3px #000;pointer-events:none;';
+            fuelBox.innerHTML = '<div id="drive-fuel-text">⛽</div><div style="height:9px;border-radius:6px;background:rgba(255,255,255,.28);overflow:hidden;margin-top:4px"><div id="drive-fuel-bar" style="height:100%;width:100%;background:#22c55e"></div></div>';
+            driveScreen.appendChild(fuelBox);
+        }
         const stats = driveCarStats(car);
         driveState = {
             car: car,
@@ -6658,7 +9122,21 @@ document.addEventListener('DOMContentLoaded', function () {
         state.speed = Math.max(0, Math.min(stats.maxSpeed, state.speed));
 
         const previousProgress = state.progress;
-        state.progress += state.speed * DRIVE_PROGRESS_PER_KMH_SEC * dt;
+        const rawStep = state.speed * DRIVE_PROGRESS_PER_KMH_SEC * dt;
+        const progressStep = rawStep / (targetLocationSelected === 'airport' ? 2 : 1);
+        const tankSize = carTank(state.car);
+        const fuelUsed = rawStep / 100 * tankSize * FUEL_PER_TRIP_SHARE * (0.7 + 0.9 * (state.speed / (stats.maxSpeed || 150)));
+        carFuel[state.car.id] = Math.max(0, getFuel(state.car) - fuelUsed);
+        updateFuelHud(state.car, tankSize);
+        if (getFuel(state.car) <= 0.01) {
+            state.speed = 0;
+            state.gas = false;
+            if (driveAlert) { driveAlert.textContent = '⛽ Бензин закончился! Нажмите «Отмена» и заправьтесь'; driveAlert.className = 'drive-alert'; }
+            saveGameData();
+            state.raf = requestAnimationFrame(driveFrame);
+            return;
+        }
+        state.progress += progressStep;
         driveCheckCameras(previousProgress);
         driveRender();
 
@@ -6685,7 +9163,7 @@ document.addEventListener('DOMContentLoaded', function () {
         firestationScreen.classList.add('hidden');
         truckstationScreen.classList.add('hidden');
         marketScreen.classList.add('hidden');
-        xjHideScreens();
+        xjHideScreens(); hideAirportScreen();
         lastExitedLocation = target;
         currentScreen = 'city';
         saveGameData();
@@ -7374,4 +9852,10 @@ document.addEventListener('DOMContentLoaded', function () {
     if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
         navigator.serviceWorker.register('sw.js').catch(function () {});
     }
+
+    fbInit();
+    ensureBankAccount();
+    initPhoneHome();
+    createTravelScreens();
+
 });
