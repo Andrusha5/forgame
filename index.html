@@ -191,6 +191,25 @@
     </div>
 
     <!-- МОДАЛЬНОЕ ОКНО КРОВАТИ -->
+    <!-- РЮКЗАК -->
+    <div id="backpack-modal" class="modal-overlay hidden">
+        <div class="modal-card backpack-card">
+            <h2>🎒 Рюкзак <small id="backpack-count">0/10</small></h2>
+            <p class="backpack-hint">Здесь хранится только еда. Нажмите «+», чтобы купить продукт.</p>
+            <div id="backpack-grid" class="backpack-grid"></div>
+            <div id="backpack-detail" class="backpack-detail"></div>
+            <button id="btn-close-backpack" class="btn btn-secondary" style="width:100%;margin-top:12px;">Закрыть</button>
+        </div>
+    </div>
+    <div id="backpack-shop-modal" class="modal-overlay hidden">
+        <div class="modal-card backpack-card">
+            <h2>🛒 Еда в рюкзак</h2>
+            <p id="backpack-shop-hint" class="backpack-hint"></p>
+            <div id="backpack-shop-list" class="backpack-shop-list"></div>
+            <button id="btn-close-backpack-shop" class="btn btn-secondary" style="width:100%;margin-top:12px;">Назад</button>
+        </div>
+    </div>
+
     <div id="bed-modal" class="modal-overlay hidden">
         <div class="modal-card">
             <h2 id="bed-modal-title">🌙 Сон</h2>
@@ -725,6 +744,10 @@
                 <img src="phone.png" alt="Phone" class="phone-icon-img" onerror="this.style.display='none'">
                 <span id="phone-badge" class="phone-badge hidden">0</span>
             </button>
+            <button id="btn-open-backpack" class="btn-phone-hud btn-backpack-hud" aria-label="Рюкзак">
+                <img src="backpack.png" alt="Рюкзак" class="phone-icon-img" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+                <span class="backpack-emoji" style="display:none">🎒</span>
+            </button>
         </div>
 
         <!-- КРУГОВЫЕ ИНДИКАТОРЫ ПОТРЕБНОСТЕЙ -->
@@ -757,6 +780,9 @@
     </div>
 
     <!-- СКРИПТ ИГРЫ -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+    <script src="firebase-config.js"></script>
     <script src="game.js"></script>
 </body>
 </html>
