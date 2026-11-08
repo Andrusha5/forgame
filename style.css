@@ -3533,7 +3533,8 @@ body:has(#drive-screen:not(.hidden)) #btn-open-settings-game { display: none; }
 .modal-overlay:not(.hidden) { animation: blFadeIn 0.22s ease both; }
 .modal-overlay:not(.hidden) > .modal-card { animation: blPopIn 0.32s cubic-bezier(0.2, 0.85, 0.25, 1) both; }
 .phone-modal-overlay:not(.hidden) .iphone-shell { position: relative; animation: blShellIn 0.42s cubic-bezier(0.2, 0.9, 0.25, 1) both; }
-.dialogue-overlay:not(.hidden) { animation: blFadeUp 0.3s ease both; }
+@keyframes blDialogueIn { from { opacity: 0; transform: translateX(-50%) translateY(14px); } to { opacity: 1; transform: translateX(-50%); } }
+.dialogue-overlay:not(.hidden) { animation: blDialogueIn 0.3s ease both; }
 .xjg-wrap > *, .xjg-result { animation: blFadeUp 0.35s ease both; }
 
 /* карточки внутри приложений появляются мягко и по очереди */
@@ -3770,3 +3771,96 @@ img {
 .faq-empty b { color: #1e293b; font-size: 0.95rem; }
 .faq-empty-icon { font-size: 2rem; }
 .faq-empty.hidden, .faq-search-clear.hidden { display: none; }
+
+/* Головокружение после энергетиков */
+@keyframes blDizzy {
+    0%, 100% { transform: rotate(0deg) scale(1); }
+    25% { transform: rotate(2.5deg) scale(1.02); }
+    75% { transform: rotate(-2.5deg) scale(1.02); }
+}
+html:has(body.is-dizzy) { overflow: hidden; }
+body.is-dizzy { animation: blDizzy 2.4s ease-in-out infinite; transform-origin: 50% 50%; filter: blur(0.5px); }
+
+/* РЮКЗАК */
+.btn-backpack-hud { margin-top: 8px; }
+.backpack-emoji { font-size: 22px; line-height: 1; }
+.backpack-card { max-width: 420px; width: 92%; }
+.backpack-card h2 small { font-size: .8rem; opacity: .65; font-weight: 700; }
+.backpack-hint { font-size: .78rem; opacity: .7; margin: 4px 0 10px; }
+.backpack-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.backpack-slot {
+    aspect-ratio: 1 / 1; border-radius: 12px; border: 2px dashed #cbd5e1; background: #f1f5f9; color: #0f172a;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    padding: 3px; font-size: .55rem; font-weight: 700; cursor: pointer; overflow: hidden; line-height: 1.1;
+}
+.backpack-slot img { width: 70%; height: 55%; object-fit: contain; }
+.backpack-slot b { font-size: 1.4rem; line-height: 1; }
+.backpack-slot.filled { border-style: solid; border-color: #94a3b8; background: #fff; }
+.backpack-slot.selected { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, .25); }
+.backpack-slot.add { border-color: #22c55e; color: #16a34a; background: #f0fdf4; }
+.backpack-slot.pending { border-color: #f59e0b; background: #fffbeb; color: #b45309; }
+.backpack-slot:disabled { cursor: default; opacity: .6; }
+.backpack-detail { margin-top: 12px; min-height: 52px; font-size: .85rem; }
+.backpack-detail .bp-name { font-weight: 800; }
+.backpack-detail .bp-info { opacity: .75; margin: 2px 0 8px; }
+.backpack-shop-list { display: flex; flex-direction: column; gap: 8px; max-height: 50vh; overflow-y: auto; }
+.backpack-shop-row { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 12px; background: #f1f5f9; color: #0f172a; }
+.backpack-shop-row img { width: 40px; height: 40px; object-fit: contain; }
+.backpack-shop-row .bp-col { flex: 1; font-size: .8rem; line-height: 1.25; }
+.backpack-shop-row .bp-col b { display: block; }
+
+/* ГЛАВНЫЙ ЭКРАН ТЕЛЕФОНА: страницы 3×5, свайп */
+.iphone-apps-grid.pg-mode { display: flex; flex-direction: column; padding: 18px 0 10px; overflow: hidden; gap: 0; user-select: none; -webkit-user-select: none; }
+.pg-viewport { flex: 1; overflow: hidden; position: relative; min-height: 0; }
+.pg-track { display: flex; height: 100%; transition: transform .3s ease; }
+.pg-page { flex: 0 0 100%; box-sizing: border-box; padding: 0 16px; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(5, 1fr); gap: 4px 12px; align-items: center; }
+.pg-page .app-item { animation: none; }
+.pg-dots { display: flex; justify-content: center; gap: 6px; padding-top: 8px; }
+.pg-dots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(255, 255, 255, .45); }
+.pg-dots i.on { background: #fff; width: 16px; border-radius: 6px; }
+
+/* GOOGLE PLAY И МАРКЕТПЛЕЙС */
+.ps-wrap { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.ps-header { padding: 14px; border-radius: 16px; background: linear-gradient(135deg, #22c55e, #0ea5e9); color: #fff; }
+.ps-header-market { background: linear-gradient(135deg, #f97316, #ec4899); }
+.ps-title { font-size: 1.1rem; font-weight: 900; }
+.ps-sub { font-size: .74rem; opacity: .92; margin-top: 3px; font-weight: 600; }
+.ps-card { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 16px; background: #fff; box-shadow: 0 2px 8px rgba(15, 23, 42, .08); }
+.ps-icon { position: relative; flex: 0 0 52px; height: 52px; border-radius: 14px; background: #e0e7ff; display: flex; align-items: center; justify-content: center; font-size: 1.7rem; overflow: hidden; }
+.ps-icon img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.ps-info { flex: 1; min-width: 0; }
+.ps-name { font-weight: 800; font-size: .9rem; }
+.ps-desc { font-size: .7rem; color: #64748b; line-height: 1.3; margin: 1px 0; }
+.ps-meta { font-size: .68rem; color: #475569; font-weight: 700; }
+.ps-progress { height: 5px; border-radius: 4px; background: #e2e8f0; overflow: hidden; margin-top: 4px; }
+.ps-progress i { display: block; height: 100%; background: #22c55e; transition: width .4s; }
+.ps-btn { flex: 0 0 auto; padding: 8px 12px; border: 0; border-radius: 20px; background: #16a34a; color: #fff; font-weight: 800; font-size: .74rem; cursor: pointer; }
+.ps-btn-del { background: #ef4444; }
+.ps-btn-off { background: #cbd5e1; color: #64748b; cursor: default; }
+
+/* АЭРОПОРТ, ПОЛЁТ, ОТПУСК */
+.trv-screen { position: fixed; inset: 0; z-index: 40; display: none; align-items: center; justify-content: center; padding: calc(70px + env(safe-area-inset-top, 0px)) 14px calc(20px + env(safe-area-inset-bottom, 0px)); box-sizing: border-box; color: #fff; text-align: center; }
+.trv-wait { z-index: 60; font-weight: 900; font-size: 1.2rem; }
+.trv-card { width: min(100%, 420px); max-height: 100%; background: rgba(15, 23, 42, .62); backdrop-filter: blur(6px); border-radius: 22px; padding: 18px; display: flex; flex-direction: column; gap: 8px; box-sizing: border-box; }
+.trv-scroll { overflow-y: auto; }
+.trv-title { font-size: 1.3rem; font-weight: 900; }
+.trv-big { font-size: 1.1rem; font-weight: 800; }
+.trv-muted { font-size: .78rem; opacity: .8; line-height: 1.35; }
+.trv-plane { font-size: 3.4rem; animation: blFloatPlane 2.4s ease-in-out infinite; }
+@keyframes blFloatPlane { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-10px) rotate(4deg); } }
+.trv-btn { padding: 12px; border: 0; border-radius: 14px; background: #22c55e; color: #fff; font-weight: 800; font-size: .95rem; cursor: pointer; }
+.trv-btn-ghost { background: rgba(255, 255, 255, .18); }
+.trv-acts { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; text-align: left; }
+.trv-act { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border: 0; border-radius: 14px; background: rgba(255, 255, 255, .92); color: #0f172a; font-weight: 800; font-size: .9rem; cursor: pointer; text-align: left; }
+.trv-act small { font-weight: 600; opacity: .7; }
+.trv-act.done { opacity: .5; }
+
+/* ИГРЫ ОФФЛАЙН */
+.og-wrap { padding: 10px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.og-head { width: 100%; display: flex; flex-direction: column; gap: 4px; align-items: center; }
+.og-title { font-weight: 900; font-size: 1.05rem; }
+.og-score { font-size: .8rem; color: #475569; }
+.og-canvas { display: block; max-width: 100%; border-radius: 14px; background: #0f172a; touch-action: none; box-shadow: 0 4px 14px rgba(15, 23, 42, .25); }
+.og-controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.og-btn { min-width: 52px; padding: 11px 14px; border: 0; border-radius: 12px; background: #6366f1; color: #fff; font-weight: 800; font-size: 1rem; cursor: pointer; touch-action: manipulation; }
+.og-back { background: #e2e8f0; color: #0f172a; font-size: .8rem; padding: 7px 12px; align-self: flex-start; }
